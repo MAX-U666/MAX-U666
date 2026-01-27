@@ -204,18 +204,90 @@ const GMVMaxWorkspace = () => {
   };
 
   // 合并数据并导入
-  const handleImportData = async () => {
-    if (!selectedProduct) return;
-    
-    const sku = selectedProduct.sku;
-    const shopProduct = shopData?.find(p => p.product_id === sku);
-    const adProduct = adData?.find(p => p.product_id === sku);
+// 合并数据并导入 - 分开调用店铺和广告接口
+const handleImportData = async () => {
+  if (!selectedProduct) return;
+  
+  const sku = selectedProduct.sku;
+  const shopProduct = shopData?.find(p => p.product_id === sku);
+  const adProduct = adData?.find(p => p.product_id === sku);
 
-    if (!shopProduct && !adProduct) {
-      setUploadMessage(`未找到 SKU: ${sku} 的数据`);
-      return;
+  if (!shopProduct && !adProduct) {
+    setUploadMessage(`未找到 SKU: ${sku} 的数据`);
+    return;
+  }
+
+  setUploadLoading(true);
+  let messages = [];
+
+  // 导入店铺数据
+  if (shopProduct) {
+    try {
+      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/shop`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          visitors: shopProduct.visitors || 0,
+          page_views: shopProduct.page_views || 0,
+          clicks: shopProduct.clicks || 0,
+          add_to_cart: shopProduct.add_to_cart || 0,
+          orders: shopProduct.orders || 0
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        messages.push('店铺数据✓');
+      } else {
+        messages.push(`店铺失败: ${result.error}`);
+      }
+    } catch (err) {
+      messages.push(`店铺错误: ${err.message}`);
     }
+  }
 
+  // 导入广告数据
+  if (adProduct) {
+    try {
+      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/ad`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ad_impressions: adProduct.ad_impressions || 0,
+          ad_clicks: adProduct.ad_clicks || 0,
+          ad_conversions: adProduct.ad_conversions || 0,
+          ad_spend: adProduct.ad_spend || 0,
+          ad_revenue: adProduct.ad_revenue || 0
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        messages.push(`广告数据✓ ROI:${result.roi}`);
+      } else {
+        messages.push(`广告失败: ${result.error}`);
+      }
+    } catch (err) {
+      messages.push(`广告错误: ${err.message}`);
+    }
+  }
+
+  setUploadMessage(`Day ${selectedDayNumber}: ${messages.join(' | ')}`);
+  setUploadLoading(false);
+
+  // 成功后刷新
+  if (messages.some(m => m.includes('✓'))) {
+    setTimeout(() => {
+      setShowUploadModal(false);
+      setShopData(null);
+      setAdData(null);
+      setUploadMessage('');
+      loadProductDetail(selectedProduct.id);
+    }, 1500);
+  }
+};
+
+
+
+  
     setUploadLoading(true);
 
     const mergedData = {
