@@ -2,7 +2,9 @@ import React, { useRef } from 'react';
 import { MiniLogo } from './Logo';
 import { styles, getDayStatus } from '../styles/theme';
 
+// =============================================
 // 新建产品弹窗
+// =============================================
 export const NewProductModal = ({ newProduct, setNewProduct, onClose, onCreate, currentUser }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
     <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '24px', width: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -37,7 +39,9 @@ export const NewProductModal = ({ newProduct, setNewProduct, onClose, onCreate, 
   </div>
 );
 
-// 上传数据弹窗
+// =============================================
+// 上传数据弹窗 - 支持26列完整数据
+// =============================================
 export const UploadModal = ({ 
   selectedProduct, selectedDayNumber, setSelectedDayNumber,
   shopData, setShopData, adData, setAdData,
@@ -54,11 +58,11 @@ export const UploadModal = ({
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '24px', width: '720px', maxHeight: '90vh', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '24px', width: '800px', maxHeight: '90vh', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', padding: '24px 28px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <MiniLogo size={28} color="#fff" />
           <div>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#fff' }}>上传Shopee数据</h3>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#fff' }}>上传Shopee数据 (26列完整版)</h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>{selectedProduct?.name} · SKU: {selectedProduct?.sku}</p>
           </div>
         </div>
@@ -91,15 +95,17 @@ export const UploadModal = ({
           {/* 上传区域 */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
             <UploadBox 
-              title="店铺数据 (Excel)" color="#10B981" icon="📊"
+              title="店铺数据 (Excel 26列)" color="#10B981" icon="📊"
               fileRef={shopFileRef} accept=".xlsx,.xls" data={shopData}
-              matched={matchedShop} matchText={matchedShop ? `访客${matchedShop.visitors} 订单${matchedShop.orders}` : null}
+              matched={matchedShop} 
+              matchText={matchedShop ? `访客${matchedShop.visitors} 下单${matchedShop.orders_created} 收入Rp${(matchedShop.revenue_created/1000).toFixed(0)}k` : null}
               onUpload={onShopUpload}
             />
             <UploadBox 
               title="广告数据 (CSV)" color="#F97316" icon="📈"
               fileRef={adFileRef} accept=".csv" data={adData}
-              matched={matchedAd} matchText={matchedAd ? `曝光${matchedAd.ad_impressions?.toLocaleString()} 花费Rp${(matchedAd.ad_spend/1000).toFixed(0)}k` : null}
+              matched={matchedAd} 
+              matchText={matchedAd ? `曝光${matchedAd.ad_impressions?.toLocaleString()} 花费Rp${(matchedAd.ad_spend/1000).toFixed(0)}k` : null}
               onUpload={onAdUpload}
             />
           </div>
@@ -111,8 +117,8 @@ export const UploadModal = ({
             </div>
           )}
 
-          {/* 数据预览 */}
-          {hasAnyData && <DataPreview sku={sku} matchedShop={matchedShop} matchedAd={matchedAd} />}
+          {/* 数据预览 - 26列完整版 */}
+          {hasAnyData && <DataPreviewFull sku={sku} matchedShop={matchedShop} matchedAd={matchedAd} />}
         </div>
         
         <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -129,7 +135,9 @@ export const UploadModal = ({
   );
 };
 
+// =============================================
 // 异常上报弹窗
+// =============================================
 export const AbnormalModal = ({ abnormalReason, setAbnormalReason, onClose, onSubmit }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
     <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '20px', padding: '28px', width: '420px', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -143,7 +151,9 @@ export const AbnormalModal = ({ abnormalReason, setAbnormalReason, onClose, onSu
   </div>
 );
 
+// =============================================
 // 辅助组件
+// =============================================
 const InputField = ({ label, type = 'text', value, onChange, placeholder, step }) => (
   <div style={{ marginBottom: '20px' }}>
     <label style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', display: 'block', marginBottom: '8px' }}>{label}</label>
@@ -173,13 +183,58 @@ const UploadBox = ({ title, color, icon, fileRef, accept, data, matched, matchTe
   </div>
 );
 
-const DataPreview = ({ sku, matchedShop, matchedAd }) => {
-  const items = [
-    { label: '访客', value: matchedShop?.visitors || 0, color: '#E2E8F0' },
-    { label: '订单', value: matchedShop?.orders || 0, color: '#10B981' },
-    { label: '加购', value: matchedShop?.add_to_cart || 0, color: '#E2E8F0' },
+// 26列完整数据预览
+const DataPreviewFull = ({ sku, matchedShop, matchedAd }) => {
+  // 店铺数据分组
+  const shopGroups = [
+    {
+      title: '📊 流量数据',
+      color: '#3B82F6',
+      items: [
+        { label: '访客', value: matchedShop?.visitors || 0 },
+        { label: '浏览', value: matchedShop?.page_views || 0 },
+        { label: '未购', value: matchedShop?.visitors_no_buy || 0 },
+        { label: '点击', value: matchedShop?.clicks || 0 },
+        { label: '收藏', value: matchedShop?.likes || 0 },
+      ]
+    },
+    {
+      title: '🛒 加购数据',
+      color: '#F59E0B',
+      items: [
+        { label: '加购人', value: matchedShop?.cart_visitors || 0 },
+        { label: '加购数', value: matchedShop?.add_to_cart || 0 },
+        { label: '加购率', value: `${matchedShop?.cart_rate || 0}%` },
+      ]
+    },
+    {
+      title: '📦 下单数据',
+      color: '#10B981',
+      items: [
+        { label: '下单人', value: matchedShop?.orders_created || 0 },
+        { label: '下单件', value: matchedShop?.items_created || 0 },
+        { label: '下单额', value: `Rp${((matchedShop?.revenue_created || 0)/1000).toFixed(0)}k` },
+        { label: '转化率', value: `${matchedShop?.conversion_rate || 0}%` },
+      ]
+    },
+    {
+      title: '🚚 发货数据',
+      color: '#8B5CF6',
+      items: [
+        { label: '发货人', value: matchedShop?.orders_ready || 0 },
+        { label: '发货件', value: matchedShop?.items_ready || 0 },
+        { label: '发货额', value: `Rp${((matchedShop?.revenue_ready || 0)/1000).toFixed(0)}k` },
+        { label: '发货比', value: `${matchedShop?.ready_created_rate || 0}%` },
+      ]
+    }
+  ];
+
+  // 广告数据
+  const adItems = [
     { label: '广告曝光', value: (matchedAd?.ad_impressions || 0).toLocaleString(), color: '#F97316' },
     { label: '广告点击', value: matchedAd?.ad_clicks || 0, color: '#F97316' },
+    { label: 'CTR', value: `${matchedAd?.ad_ctr || 0}%`, color: '#F97316' },
+    { label: '广告单', value: matchedAd?.ad_conversions || 0, color: '#F97316' },
     { label: '广告花费', value: `Rp${((matchedAd?.ad_spend || 0)/1000).toFixed(0)}k`, color: '#EF4444' },
     { label: '广告收入', value: `Rp${((matchedAd?.ad_revenue || 0)/1000).toFixed(0)}k`, color: '#10B981' },
     { label: 'ROI', value: matchedAd?.ad_roi?.toFixed(2) || '-', color: (matchedAd?.ad_roi || 0) >= 3 ? '#10B981' : '#F59E0B' },
@@ -187,15 +242,44 @@ const DataPreview = ({ sku, matchedShop, matchedAd }) => {
   
   return (
     <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '14px', padding: '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', marginBottom: '14px' }}>📋 数据预览 (SKU: {sku})</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-        {items.map((item, i) => (
-          <div key={i} style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '10px', textAlign: 'center' }}>
-            <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>{item.label}</div>
-            <div style={{ fontSize: '16px', fontWeight: '700', color: item.color }}>{item.value}</div>
-          </div>
-        ))}
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', marginBottom: '16px' }}>
+        📋 数据预览 (SKU: {sku})
       </div>
+      
+      {/* 店铺数据 */}
+      {matchedShop && (
+        <div style={{ marginBottom: '16px' }}>
+          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', fontWeight: '600' }}>店铺数据 (26列)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+            {shopGroups.map((group, gi) => (
+              <div key={gi} style={{ background: `${group.color}10`, borderRadius: '10px', padding: '12px', border: `1px solid ${group.color}30` }}>
+                <div style={{ fontSize: '10px', color: group.color, fontWeight: '600', marginBottom: '8px' }}>{group.title}</div>
+                {group.items.map((item, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>{item.label}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#E2E8F0' }}>{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 广告数据 */}
+      {matchedAd && (
+        <div>
+          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', fontWeight: '600' }}>📢 广告数据</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
+            {adItems.map((item, i) => (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '4px' }}>{item.label}</div>
+                <div style={{ fontSize: '13px', fontWeight: '700', color: item.color }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
