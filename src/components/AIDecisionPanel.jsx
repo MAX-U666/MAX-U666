@@ -4,6 +4,7 @@ import { styles } from '../styles/theme';
 
 /**
  * AI 决策面板组件 - 方案C 上下结构
+ * 按千问 qwen-max 返回的 7 个固定 key 渲染
  */
 const AIDecisionPanel = ({ 
   selectedProduct, 
@@ -49,8 +50,8 @@ const AIDecisionPanel = ({
   const handleConfirmExecute = () => {
     if (analysisResult) {
       onExecute(
-        analysisResult.decision, 
-        analysisResult.core_issue, 
+        analysisResult.today_decision, 
+        analysisResult.key_bottlenecks?.join('; ') || '', 
         analysisResult.confidence
       );
     }
@@ -77,7 +78,14 @@ const AIDecisionPanel = ({
     }
   };
 
-  // 如果数据未提交
+  // 获取补单策略颜色
+  const getSupplementColor = (strategy) => {
+    if (strategy?.includes('注入')) return '#8B5CF6';
+    if (strategy?.includes('停止') || strategy?.includes('暂缓')) return '#EF4444';
+    return '#64748B';
+  };
+
+  // 数据未提交
   if (!currentDayData || currentDayData.status === '未提交') {
     return (
       <div style={styles.card}>
@@ -109,7 +117,7 @@ const AIDecisionPanel = ({
     );
   }
 
-  // 如果已执行
+  // 已执行
   if (currentDayData.status === '已执行') {
     return (
       <div style={styles.card}>
@@ -174,10 +182,10 @@ const AIDecisionPanel = ({
               fontSize: '10px', 
               padding: '4px 8px', 
               borderRadius: '4px',
-              background: analysisSource === 'qwen' ? 'rgba(139,92,246,0.2)' : 'rgba(100,116,139,0.2)',
-              color: analysisSource === 'qwen' ? '#A78BFA' : '#94A3B8'
+              background: analysisSource === 'qwen-max' ? 'rgba(139,92,246,0.2)' : 'rgba(100,116,139,0.2)',
+              color: analysisSource === 'qwen-max' ? '#A78BFA' : '#94A3B8'
             }}>
-              {analysisSource === 'qwen' ? '🤖 千问AI' : '📋 规则引擎'}
+              {analysisSource === 'qwen-max' ? '🤖 千问 qwen-max' : '📋 规则引擎'}
             </span>
           )}
         </div>
@@ -192,7 +200,7 @@ const AIDecisionPanel = ({
               cursor: isAnalyzing ? 'wait' : 'pointer'
             }}
           >
-            {isAnalyzing ? '🔄 分析中...' : '🧠 生成AI决策'}
+            {isAnalyzing ? '🔄 AI分析中...' : '🧠 生成AI决策'}
           </button>
         )}
       </div>
@@ -214,7 +222,7 @@ const AIDecisionPanel = ({
           </div>
         )}
 
-        {/* 未生成分析时的提示 */}
+        {/* 未生成分析 */}
         {!analysisResult && !isAnalyzing && (
           <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
             <MiniLogo size={48} color="#FF6B35" />
@@ -222,7 +230,7 @@ const AIDecisionPanel = ({
               点击「生成AI决策」获取智能分析
             </p>
             <p style={{ marginTop: '8px', fontSize: '12px', color: '#475569' }}>
-              基于千问大模型 + GMV MAX 专家策略
+              基于千问 qwen-max + GMV MAX 专家策略
             </p>
           </div>
         )}
@@ -238,7 +246,10 @@ const AIDecisionPanel = ({
               animation: 'spin 1s linear infinite',
               margin: '0 auto 16px'
             }} />
-            <p style={{ fontSize: '14px' }}>AI 正在分析数据...</p>
+            <p style={{ fontSize: '14px' }}>千问 AI 正在分析数据...</p>
+            <p style={{ fontSize: '12px', color: '#475569', marginTop: '8px' }}>
+              执行四步强制判断：阶段→信心→补单→信号强化
+            </p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
@@ -277,8 +288,8 @@ const AIDecisionPanel = ({
 
               {/* 今日判断 */}
               <div style={{ 
-                background: `${getDecisionColor(analysisResult.decision)}15`, 
-                border: `1px solid ${getDecisionColor(analysisResult.decision)}40`, 
+                background: `${getDecisionColor(analysisResult.today_decision)}15`, 
+                border: `1px solid ${getDecisionColor(analysisResult.today_decision)}40`, 
                 borderRadius: '12px', 
                 padding: '16px', 
                 textAlign: 'center' 
@@ -287,25 +298,29 @@ const AIDecisionPanel = ({
                 <div style={{ 
                   fontSize: '20px', 
                   fontWeight: '700', 
-                  color: getDecisionColor(analysisResult.decision) 
+                  color: getDecisionColor(analysisResult.today_decision) 
                 }}>
-                  {analysisResult.decision}
+                  {analysisResult.today_decision}
                 </div>
                 <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px' }}>
                   置信度 {analysisResult.confidence}%
                 </div>
               </div>
 
-              {/* 补单建议 */}
+              {/* 补单策略 */}
               <div style={{ 
-                background: 'rgba(139,92,246,0.1)', 
-                border: '1px solid rgba(139,92,246,0.3)', 
+                background: `${getSupplementColor(analysisResult.supplement_strategy)}15`, 
+                border: `1px solid ${getSupplementColor(analysisResult.supplement_strategy)}40`, 
                 borderRadius: '12px', 
                 padding: '16px', 
                 textAlign: 'center' 
               }}>
-                <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>补单建议</div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#8B5CF6' }}>
+                <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>补单策略</div>
+                <div style={{ 
+                  fontSize: '16px', 
+                  fontWeight: '700', 
+                  color: getSupplementColor(analysisResult.supplement_strategy)
+                }}>
                   {analysisResult.supplement_strategy}
                 </div>
               </div>
@@ -319,28 +334,27 @@ const AIDecisionPanel = ({
                 textAlign: 'center' 
               }}>
                 <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>⚠️ 禁止操作</div>
-                <div style={{ fontSize: '12px', color: '#EF4444', lineHeight: '1.6' }}>
-                  {analysisResult.forbidden_actions?.slice(0, 2).map((action, i) => (
-                    <div key={i}>• {action}</div>
+                <div style={{ fontSize: '11px', color: '#EF4444', lineHeight: '1.5', textAlign: 'left' }}>
+                  {analysisResult.not_to_do?.slice(0, 2).map((action, i) => (
+                    <div key={i}>• {action.length > 12 ? action.slice(0, 12) + '...' : action}</div>
                   ))}
                 </div>
               </div>
 
               {/* 操作按钮 */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '110px' }}>
                 <button 
                   onClick={handleConfirmExecute}
                   style={{ 
                     flex: 1, 
-                    padding: '0 24px', 
+                    padding: '12px 20px', 
                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', 
                     border: 'none', 
                     borderRadius: '10px', 
                     color: '#fff', 
                     fontSize: '13px', 
                     fontWeight: '600', 
-                    cursor: 'pointer',
-                    minWidth: '120px'
+                    cursor: 'pointer'
                   }}
                 >
                   ✓ 确认执行
@@ -349,7 +363,7 @@ const AIDecisionPanel = ({
                   onClick={onAbnormal}
                   style={{ 
                     flex: 1, 
-                    padding: '0 24px', 
+                    padding: '12px 20px', 
                     background: 'transparent', 
                     border: '1px solid rgba(239,68,68,0.3)', 
                     borderRadius: '10px', 
@@ -363,7 +377,7 @@ const AIDecisionPanel = ({
               </div>
             </div>
 
-            {/* 下部：完整AI报告 */}
+            {/* 下部：完整AI报告（7个模块） */}
             <div style={{ 
               padding: '20px', 
               background: 'rgba(0,0,0,0.2)', 
@@ -379,19 +393,14 @@ const AIDecisionPanel = ({
                 gap: '8px'
               }}>
                 🧠 AI 完整分析报告
-                <span style={{ 
-                  fontSize: '10px', 
-                  color: '#64748B', 
-                  fontWeight: '400' 
-                }}>
-                  | 核心卡点: {analysisResult.core_issue}
-                </span>
               </div>
               
+              {/* 第一行：系统判断 + 核心卡点 + 补单判断 */}
               <div style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'repeat(3, 1fr)', 
-                gap: '16px' 
+                gap: '12px',
+                marginBottom: '12px'
               }}>
                 {/* 系统放量判断 */}
                 <div style={{ 
@@ -414,11 +423,11 @@ const AIDecisionPanel = ({
                     color: '#CBD5E1',
                     lineHeight: '1.6'
                   }}>
-                    {analysisResult.analysis?.system_judgment || '暂无分析'}
+                    {analysisResult.system_judgment || '暂无分析'}
                   </p>
                 </div>
 
-                {/* 核心卡点分析 */}
+                {/* 核心卡点 */}
                 <div style={{ 
                   background: 'rgba(245,158,11,0.1)', 
                   borderRadius: '10px', 
@@ -433,17 +442,14 @@ const AIDecisionPanel = ({
                   }}>
                     【核心卡点分析】
                   </div>
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: '12px', 
-                    color: '#CBD5E1',
-                    lineHeight: '1.6'
-                  }}>
-                    {analysisResult.analysis?.bottleneck_analysis || '暂无分析'}
-                  </p>
+                  <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    {analysisResult.key_bottlenecks?.map((item, i) => (
+                      <div key={i} style={{ marginBottom: '4px' }}>• {item}</div>
+                    )) || '暂无分析'}
+                  </div>
                 </div>
 
-                {/* 补单策略判断 */}
+                {/* 补单判断 */}
                 <div style={{ 
                   background: 'rgba(139,92,246,0.1)', 
                   borderRadius: '10px', 
@@ -456,7 +462,7 @@ const AIDecisionPanel = ({
                     marginBottom: '8px',
                     fontSize: '12px'
                   }}>
-                    【补单策略判断】
+                    【人工信号判断】
                   </div>
                   <p style={{ 
                     margin: 0, 
@@ -464,18 +470,18 @@ const AIDecisionPanel = ({
                     color: '#CBD5E1',
                     lineHeight: '1.6'
                   }}>
-                    {analysisResult.analysis?.supplement_analysis || '暂无分析'}
+                    {analysisResult.manual_signal_judgment || '暂无分析'}
                   </p>
                 </div>
               </div>
 
-              {/* 第二行：信号方向 + 观察重点 */}
+              {/* 第二行：信号强化 + 禁止操作 + 观察重点 */}
               <div style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '1fr 1fr', 
-                gap: '16px',
-                marginTop: '12px'
+                gridTemplateColumns: 'repeat(3, 1fr)', 
+                gap: '12px'
               }}>
+                {/* 信号强化方向 */}
                 <div style={{ 
                   background: 'rgba(16,185,129,0.1)', 
                   borderRadius: '10px', 
@@ -496,10 +502,33 @@ const AIDecisionPanel = ({
                     color: '#CBD5E1',
                     lineHeight: '1.6'
                   }}>
-                    {analysisResult.analysis?.signal_direction || '暂无建议'}
+                    {analysisResult.signal_enhancement || '暂无建议'}
                   </p>
                 </div>
 
+                {/* 禁止操作 */}
+                <div style={{ 
+                  background: 'rgba(239,68,68,0.1)', 
+                  borderRadius: '10px', 
+                  padding: '14px',
+                  border: '1px solid rgba(239,68,68,0.2)'
+                }}>
+                  <div style={{ 
+                    fontWeight: '700', 
+                    color: '#EF4444', 
+                    marginBottom: '8px',
+                    fontSize: '12px'
+                  }}>
+                    【禁止操作】
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    {analysisResult.not_to_do?.map((item, i) => (
+                      <div key={i} style={{ marginBottom: '4px' }}>❌ {item}</div>
+                    )) || '暂无'}
+                  </div>
+                </div>
+
+                {/* 观察重点 */}
                 <div style={{ 
                   background: 'rgba(100,116,139,0.1)', 
                   borderRadius: '10px', 
@@ -512,16 +541,16 @@ const AIDecisionPanel = ({
                     marginBottom: '8px',
                     fontSize: '12px'
                   }}>
-                    【24-48小时观察重点】
+                    【24-48h观察重点】
                   </div>
-                  <p style={{ 
-                    margin: 0, 
-                    fontSize: '12px', 
-                    color: '#CBD5E1',
-                    lineHeight: '1.6'
-                  }}>
-                    {analysisResult.analysis?.observation_focus || '暂无建议'}
-                  </p>
+                  <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: '1.6' }}>
+                    {Array.isArray(analysisResult.observation_focus) 
+                      ? analysisResult.observation_focus.map((item, i) => (
+                          <div key={i} style={{ marginBottom: '4px' }}>⏰ {item}</div>
+                        ))
+                      : <p style={{ margin: 0 }}>{analysisResult.observation_focus || '暂无建议'}</p>
+                    }
+                  </div>
                 </div>
               </div>
             </div>
