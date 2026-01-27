@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Header, DayTable, NewProductModal, UploadModal, AbnormalModal } from './components';
+import AIDecisionPanel from './components/AIDecisionPanel';
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useUsers, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
-import { MiniLogo } from './components/Logo';
 
 const App = () => {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -24,7 +24,6 @@ const App = () => {
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   
-  const [isSubmitted, setIsSubmitted] = useState(false);
   const [executionStatus, setExecutionStatus] = useState(null);
 
   const countdown = useCountdown();
@@ -68,7 +67,6 @@ const App = () => {
     e.target.value = '';
   };
 
-  // 导入数据 - 26列完整版
   const handleImportData = async () => {
     const sku = selectedProduct.sku;
     const shopProduct = shopData?.find(p => p.product_id === sku);
@@ -131,16 +129,20 @@ const App = () => {
   };
 
   const handleExecute = async (action, reason, confidence) => {
-    await executeDecision(selectedProduct.id, selectedDayNumber, {
-      ai_action: action, ai_reason: reason, ai_confidence: confidence, executor_id: currentUser.id
+    await executeDecision(selectedProduct.id, selectedProduct.current_day, {
+      ai_action: action, 
+      ai_reason: reason, 
+      ai_confidence: confidence, 
+      executor_id: currentUser.id
     });
     setExecutionStatus('executed');
     loadProductDetail(selectedProduct.id);
   };
 
   const handleAbnormal = async () => {
-    await reportAbnormal(selectedProduct.id, selectedDayNumber, {
-      abnormal_reason: abnormalReason, executor_id: currentUser.id
+    await reportAbnormal(selectedProduct.id, selectedProduct.current_day, {
+      abnormal_reason: abnormalReason, 
+      executor_id: currentUser.id
     });
     setShowAbnormalModal(false);
     setAbnormalReason('');
@@ -151,7 +153,6 @@ const App = () => {
   const openDetail = (product) => {
     loadProductDetail(product.id);
     setCurrentView('detail');
-    setIsSubmitted(false);
     setExecutionStatus(null);
   };
 
@@ -179,9 +180,10 @@ const App = () => {
           />
         ) : (
           <Detail 
-            selectedProduct={selectedProduct} dayStatus={dayStatus}
-            currentDayData={currentDayData} isSubmitted={isSubmitted}
-            setIsSubmitted={setIsSubmitted} executionStatus={executionStatus}
+            selectedProduct={selectedProduct} 
+            dayStatus={dayStatus}
+            currentDayData={currentDayData} 
+            currentUser={currentUser}
             onUpload={() => setShowUploadModal(true)}
             onExecute={handleExecute}
             onAbnormal={() => setShowAbnormalModal(true)}
@@ -302,13 +304,14 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
   );
 };
 
-const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIsSubmitted, executionStatus, onUpload, onExecute, onAbnormal }) => {
+const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpload, onExecute, onAbnormal }) => {
   if (!selectedProduct) return <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>加载中...</div>;
   
   const currentDay = selectedProduct.current_day || 1;
   
   return (
     <div>
+      {/* 警告条 */}
       {dayStatus.label === '未提交' && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -322,6 +325,7 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIs
         </div>
       )}
       
+      {/* 操作栏 */}
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button onClick={onUpload} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }}>📊 上传数据</button>
         <button style={styles.buttonSecondary}>结果回写</button>
@@ -330,65 +334,20 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIs
         </div>
       </div>
 
+      {/* 7天表格 */}
       <div style={{ marginBottom: '16px' }}>
         <DayTable selectedProduct={selectedProduct} />
       </div>
 
-      <div style={styles.card}>
-        <div style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <MiniLogo size={20} color="#fff" />
-            </div>
-            <span style={{ fontSize: '14px', fontWeight: '700', color: '#E2E8F0' }}>Day {currentDay} AI决策</span>
-          </div>
-          {dayStatus.label === '待决策' && !isSubmitted && (
-            <button onClick={() => setIsSubmitted(true)} style={styles.buttonPrimary}>生成决策</button>
-          )}
-        </div>
-        <div style={{ padding: '20px' }}>
-          {dayStatus.label === '未提交' ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>请先上传数据</div>
-          ) : dayStatus.label === '已执行' || executionStatus === 'executed' ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#10B981' }}>已执行: {currentDayData?.ai_action || '维持观察'}</div>
-            </div>
-          ) : isSubmitted ? (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px', marginBottom: '14px' }}>
-                <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>当前阶段</div>
-                  <span style={{ padding: '6px 14px', background: '#3B82F6', color: '#fff', borderRadius: '8px', fontSize: '13px', fontWeight: '700' }}>阶段 {currentDayData?.phase || 'A'}</span>
-                </div>
-                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>核心卡点</div>
-                  <p style={{ margin: 0, fontSize: '12px', color: '#F59E0B' }}>成交信号连续性不足</p>
-                </div>
-                <div style={{ background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>补单策略</div>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: '#8B5CF6' }}>建议注入1-2单</div>
-                </div>
-              </div>
-              <div style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>今日判断</div>
-                  <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981' }}>维持观察</div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button onClick={() => onExecute('维持观察', '数据稳定', 70)} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}>✓ 确认执行</button>
-                  <button onClick={onAbnormal} style={{ ...styles.buttonSecondary, border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444' }}>上报异常</button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
-              <MiniLogo size={40} color="#FF6B35" />
-              <p style={{ marginTop: '16px' }}>点击"生成决策"</p>
-            </div>
-          )}
-        </div>
-      </div>
+      {/* AI 决策面板 - 新组件 */}
+      <AIDecisionPanel 
+        selectedProduct={selectedProduct}
+        currentDayData={currentDayData}
+        currentDay={currentDay}
+        onExecute={onExecute}
+        onAbnormal={onAbnormal}
+        currentUser={currentUser}
+      />
     </div>
   );
 };
