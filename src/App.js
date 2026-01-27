@@ -15,6 +15,23 @@ const GMVMaxWorkspace = () => {
   const [abnormalReason, setAbnormalReason] = useState('');
   const [countdown, setCountdown] = useState({ hours: 2, minutes: 15, seconds: 28 });
 
+  // 数据录入弹窗状态
+  const [showDataInputModal, setShowDataInputModal] = useState(false);
+  const [dataInputForm, setDataInputForm] = useState({
+    organic_orders: '',
+    ad_impressions: '',
+    ad_clicks: '',
+    ad_orders: '',
+    manual_orders: '',
+    ad_spend: '',
+    ad_revenue: ''
+  });
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState('');
+
+  // API基础地址
+  const API_BASE = '/api';
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown(prev => {
@@ -111,6 +128,67 @@ const GMVMaxWorkspace = () => {
     setExecutionStatus(null);
   };
 
+  // 数据录入提交
+  const handleDataInputSubmit = async () => {
+    if (!selectedProduct) return;
+    
+    setSubmitLoading(true);
+    setSubmitMessage('');
+    
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const response = await fetch(`${API_BASE}/daily-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: selectedProduct.id,
+          day_number: selectedProduct.currentDay,
+          date: today,
+          organic_orders: parseInt(dataInputForm.organic_orders) || 0,
+          ad_impressions: parseInt(dataInputForm.ad_impressions) || 0,
+          ad_clicks: parseInt(dataInputForm.ad_clicks) || 0,
+          ad_orders: parseInt(dataInputForm.ad_orders) || 0,
+          manual_orders: parseInt(dataInputForm.manual_orders) || 0,
+          ad_spend: parseInt(dataInputForm.ad_spend) || 0,
+          ad_revenue: parseInt(dataInputForm.ad_revenue) || 0
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        setSubmitMessage(`✅ 提交成功！ROI: ${result.roi}, 阶段: ${result.phase}`);
+        setTimeout(() => {
+          setShowDataInputModal(false);
+          setDataInputForm({
+            organic_orders: '',
+            ad_impressions: '',
+            ad_clicks: '',
+            ad_orders: '',
+            manual_orders: '',
+            ad_spend: '',
+            ad_revenue: ''
+          });
+          setSubmitMessage('');
+        }, 2000);
+      } else {
+        setSubmitMessage(`❌ 提交失败: ${result.error}`);
+      }
+    } catch (err) {
+      setSubmitMessage(`❌ 网络错误: ${err.message}`);
+    }
+    
+    setSubmitLoading(false);
+  };
+
+  // 计算预览ROI
+  const previewROI = () => {
+    const spend = parseInt(dataInputForm.ad_spend) || 0;
+    const revenue = parseInt(dataInputForm.ad_revenue) || 0;
+    if (spend === 0) return '-';
+    return (revenue / spend).toFixed(2);
+  };
+
   // AI决策生成
   const generateAIDecision = () => {
     return {
@@ -130,6 +208,149 @@ const GMVMaxWorkspace = () => {
   };
 
   const aiDecision = generateAIDecision();
+
+  // 数据录入弹窗
+  const renderDataInputModal = () => (
+    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: '#fff', borderRadius: '16px', padding: '0', width: '500px', maxHeight: '90vh', overflow: 'hidden' }}>
+        {/* 头部 */}
+        <div style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', padding: '20px 24px', color: '#fff' }}>
+          <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>📊 录入今日数据</h3>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
+            {selectedProduct?.name} · Day {selectedProduct?.currentDay}
+          </p>
+        </div>
+        
+        {/* 表单 */}
+        <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto' }}>
+          {/* 自然流量 */}
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🟢</span> 自然流量
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>自然订单数</label>
+                <input
+                  type="number"
+                  value={dataInputForm.organic_orders}
+                  onChange={(e) => setDataInputForm({...dataInputForm, organic_orders: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* 广告数据 */}
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#ea580c', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🟠</span> GMV MAX 广告数据
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告曝光</label>
+                <input
+                  type="number"
+                  value={dataInputForm.ad_impressions}
+                  onChange={(e) => setDataInputForm({...dataInputForm, ad_impressions: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告点击</label>
+                <input
+                  type="number"
+                  value={dataInputForm.ad_clicks}
+                  onChange={(e) => setDataInputForm({...dataInputForm, ad_clicks: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告订单</label>
+                <input
+                  type="number"
+                  value={dataInputForm.ad_orders}
+                  onChange={(e) => setDataInputForm({...dataInputForm, ad_orders: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>补单数量</label>
+                <input
+                  type="number"
+                  value={dataInputForm.manual_orders}
+                  onChange={(e) => setDataInputForm({...dataInputForm, manual_orders: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告花费 (Rp)</label>
+                <input
+                  type="number"
+                  value={dataInputForm.ad_spend}
+                  onChange={(e) => setDataInputForm({...dataInputForm, ad_spend: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告收入 (Rp)</label>
+                <input
+                  type="number"
+                  value={dataInputForm.ad_revenue}
+                  onChange={(e) => setDataInputForm({...dataInputForm, ad_revenue: e.target.value})}
+                  placeholder="0"
+                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ROI预览 */}
+          <div style={{ background: previewROI() >= 3 ? '#ecfdf5' : previewROI() > 0 ? '#fffbeb' : '#f8fafc', border: `2px solid ${previewROI() >= 3 ? '#10b981' : previewROI() > 0 ? '#f59e0b' : '#e2e8f0'}`, borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>预览 ROI</div>
+            <div style={{ fontSize: '32px', fontWeight: '800', color: previewROI() >= 3 ? '#059669' : previewROI() > 0 ? '#d97706' : '#64748b' }}>
+              {previewROI()}
+            </div>
+            {previewROI() !== '-' && (
+              <div style={{ fontSize: '11px', color: previewROI() >= 3 ? '#059669' : '#d97706', marginTop: '4px' }}>
+                {previewROI() >= 3 ? '✅ 达到盈亏线' : '⚠️ 未达盈亏线 (目标≥3)'}
+              </div>
+            )}
+          </div>
+
+          {/* 提交消息 */}
+          {submitMessage && (
+            <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: submitMessage.includes('✅') ? '#ecfdf5' : '#fef2f2', color: submitMessage.includes('✅') ? '#059669' : '#dc2626', fontSize: '13px', textAlign: 'center' }}>
+              {submitMessage}
+            </div>
+          )}
+        </div>
+
+        {/* 底部按钮 */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+          <button
+            onClick={() => setShowDataInputModal(false)}
+            style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}
+          >
+            取消
+          </button>
+          <button
+            onClick={handleDataInputSubmit}
+            disabled={submitLoading}
+            style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: submitLoading ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: submitLoading ? 'not-allowed' : 'pointer' }}
+          >
+            {submitLoading ? '提交中...' : '✓ 确认提交'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   // 渲染工作台
   const renderDashboard = () => (
@@ -253,24 +474,36 @@ const GMVMaxWorkspace = () => {
 
     return (
       <div>
-        {/* 警告条 */}
-        <div style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '2px solid #fca5a5', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>⚠️</span>
-          <div>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626' }}>数据未提交</div>
-            <div style={{ fontSize: '11px', color: '#991b1b' }}>无数据 = 无判断 = <strong>自动停投保护</strong></div>
+        {/* 警告条 - 带录入按钮 */}
+        <div style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '2px solid #fca5a5', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '20px' }}>⚠️</span>
+            <div>
+              <div style={{ fontSize: '13px', fontWeight: '700', color: '#dc2626' }}>数据未提交</div>
+              <div style={{ fontSize: '11px', color: '#991b1b' }}>无数据 = 无判断 = <strong>自动停投保护</strong></div>
+            </div>
           </div>
+          <button
+            onClick={() => setShowDataInputModal(true)}
+            style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+          >
+            📊 立即录入数据
+          </button>
         </div>
 
-        {/* 上传区 */}
+        {/* 操作栏 */}
         <div style={{ background: '#fff', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid #e2e8f0' }}>
-          <button style={{ padding: '8px 14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: '500' }}>📦 店铺数据</button>
-          <button style={{ padding: '8px 14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: '500' }}>📢 广告数据</button>
+          <button
+            onClick={() => setShowDataInputModal(true)}
+            style={{ padding: '8px 14px', background: 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff', cursor: 'pointer', fontWeight: '600' }}
+          >
+            📊 录入数据
+          </button>
+          <button style={{ padding: '8px 14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: '500' }}>📝 结果回写</button>
           <div style={{ width: '1px', height: '30px', background: '#e2e8f0' }} />
           <div style={{ flex: 1, padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', fontSize: '12px', color: '#1e293b' }}>
             SKU: {selectedProduct.sku.slice(-6)} · {selectedProduct.name}
           </div>
-          <button style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '8px', padding: '10px 18px', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>🔄 提取</button>
         </div>
 
         {/* 执行链 */}
@@ -540,6 +773,9 @@ const GMVMaxWorkspace = () => {
         {currentView === 'dashboard' && renderDashboard()}
         {currentView === 'detail' && renderDetail()}
       </div>
+
+      {/* 数据录入弹窗 */}
+      {showDataInputModal && renderDataInputModal()}
 
       {showUserMenu && <div onClick={() => setShowUserMenu(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} />}
     </div>
