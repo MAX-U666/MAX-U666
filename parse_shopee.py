@@ -28,43 +28,55 @@ def read_file(file_path):
     
     # CSV文件
     if filename.endswith('.csv'):
-        # 尝试不同编码和跳过行数
-        for skiprows in [7, 0, 1]:
-            for encoding in ['utf-8', 'gbk', 'latin1', 'cp1252']:
+        for skiprows in [7, 0, 1, 6, 8]:
+            for encoding in ['latin1', 'utf-8', 'utf-8-sig', 'gbk', 'cp1252', 'iso-8859-1']:
                 try:
                     df = pd.read_csv(file_path, skiprows=skiprows, encoding=encoding)
                     if len(df.columns) > 5 and len(df) > 0:
-                        return df, 'csv'
+                        if 'Kode Produk' in df.columns or 'Nama Iklan' in df.columns or 'Biaya' in df.columns:
+                            return df, 'csv'
                 except:
                     continue
+        for encoding in ['latin1', 'utf-8', 'cp1252']:
+            try:
+                df = pd.read_csv(file_path, encoding=encoding)
+                if len(df.columns) > 3:
+                    return df, 'csv'
+            except:
+                continue
         raise Exception('CSV文件解析失败')
     
     # Excel文件
     elif filename.endswith('.xlsx'):
-        df = pd.read_excel(file_path, engine='openpyxl')
-        return df, 'xlsx'
-    
-    elif filename.endswith('.xls'):
-        df = pd.read_excel(file_path, engine='xlrd')
-        return df, 'xls'
-    
-    else:
-        # 尝试自动检测
         try:
             df = pd.read_excel(file_path, engine='openpyxl')
             return df, 'xlsx'
         except:
-            pass
+            df = pd.read_excel(file_path)
+            return df, 'xlsx'
+    
+    elif filename.endswith('.xls'):
         try:
             df = pd.read_excel(file_path, engine='xlrd')
             return df, 'xls'
         except:
-            pass
-        try:
-            df = pd.read_csv(file_path, skiprows=7, encoding='utf-8')
-            return df, 'csv'
-        except:
-            pass
+            df = pd.read_excel(file_path)
+            return df, 'xls'
+    
+    else:
+        for reader in [
+            lambda: pd.read_excel(file_path, engine='openpyxl'),
+            lambda: pd.read_excel(file_path, engine='xlrd'),
+            lambda: pd.read_excel(file_path),
+            lambda: pd.read_csv(file_path, skiprows=7, encoding='latin1'),
+            lambda: pd.read_csv(file_path, encoding='latin1'),
+        ]:
+            try:
+                df = reader()
+                if len(df.columns) > 3:
+                    return df, 'auto'
+            except:
+                continue
         raise Exception('无法识别文件格式')
 
 def detect_file_type(df):
@@ -72,18 +84,13 @@ def detect_file_type(df):
     columns = [str(c).lower() for c in df.columns]
     columns_str = ' '.join(columns)
     
-    # 广告数据特征列
-    ad_keywords = ['biaya', 'iklan', 'dilihat', 'omzet', 'efektifitas', 'konversi langsung']
-    # 店铺数据特征列
+    ad_keywords = ['biaya', 'iklan', 'dilihat', 'omzet', 'efektifitas', 'konversi']
     shop_keywords = ['pengunjung produk', 'halaman produk', 'dimasukkan ke keranjang', 'total pembeli']
     
     ad_score = sum(1 for k in ad_keywords if k in columns_str)
     shop_score = sum(1 for k in shop_keywords if k in columns_str)
     
-    if ad_score > shop_score:
-        return 'ad'
-    else:
-        return 'shop'
+    return 'ad' if ad_score > shop_score else 'shop'
 
 def parse_shop_data(df):
     """解析店铺数据"""
@@ -166,14 +173,10 @@ def parse_shopee_file(file_path):
     result = {'success': True, 'products': [], 'errors': [], 'file_type': ''}
     
     try:
-        # 读取文件
         df, file_format = read_file(file_path)
-        
-        # 检测数据类型
         data_type = detect_file_type(df)
         result['file_type'] = data_type
         
-        # 解析数据
         if data_type == 'ad':
             result['products'] = parse_ad_data(df)
         else:
