@@ -6,39 +6,32 @@ import { createProduct, uploadFile, updateShopData, updateAdData, executeDecisio
 import { MiniLogo } from './components/Logo';
 
 const App = () => {
-  // 视图状态
   const [currentView, setCurrentView] = useState('dashboard');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOwner, setFilterOwner] = useState('mine');
   
-  // 弹窗状态
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAbnormalModal, setShowAbnormalModal] = useState(false);
   
-  // 表单状态
   const [newProduct, setNewProduct] = useState({
     sku: '', name: '', price: '', start_date: new Date().toISOString().split('T')[0], target_roi: '3.0'
   });
   const [abnormalReason, setAbnormalReason] = useState('');
   
-  // 上传状态
   const [shopData, setShopData] = useState(null);
   const [adData, setAdData] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   
-  // AI决策状态
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [executionStatus, setExecutionStatus] = useState(null);
 
-  // Hooks
   const countdown = useCountdown();
   const { users, currentUser, setCurrentUser } = useUsers();
   const { products, loading, loadProducts } = useProducts(currentUser, filterOwner, filterStatus);
   const { selectedProduct, setSelectedProduct, selectedDayNumber, setSelectedDayNumber, loadProductDetail } = useProductDetail();
 
-  // 创建产品
   const handleCreateProduct = async () => {
     if (!newProduct.sku || !newProduct.name) {
       alert('请填写产品ID和名称');
@@ -54,7 +47,6 @@ const App = () => {
     }
   };
 
-  // 上传文件
   const handleFileUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -76,7 +68,8 @@ const App = () => {
     e.target.value = '';
   };
 
-const handleImportData = async () => {
+  // 导入数据 - 26列完整版
+  const handleImportData = async () => {
     const sku = selectedProduct.sku;
     const shopProduct = shopData?.find(p => p.product_id === sku);
     const adProduct = adData?.find(p => p.product_id === sku);
@@ -137,46 +130,6 @@ const handleImportData = async () => {
     }
   };
 
-    setUploadLoading(true);
-    let messages = [];
-
-    if (shopProduct) {
-      const result = await updateShopData(selectedProduct.id, selectedDayNumber, {
-        visitors: shopProduct.visitors || 0,
-        page_views: shopProduct.page_views || 0,
-        clicks: shopProduct.clicks || 0,
-        add_to_cart: shopProduct.add_to_cart || 0,
-        orders: shopProduct.orders || 0
-      });
-      messages.push(result.success ? '店铺数据✓' : `店铺失败: ${result.error}`);
-    }
-
-    if (adProduct) {
-      const result = await updateAdData(selectedProduct.id, selectedDayNumber, {
-        ad_impressions: adProduct.ad_impressions || 0,
-        ad_clicks: adProduct.ad_clicks || 0,
-        ad_conversions: adProduct.ad_conversions || 0,
-        ad_spend: adProduct.ad_spend || 0,
-        ad_revenue: adProduct.ad_revenue || 0
-      });
-      messages.push(result.success ? `广告数据✓ ROI:${result.roi}` : `广告失败: ${result.error}`);
-    }
-
-    setUploadMessage(`Day ${selectedDayNumber}: ${messages.join(' | ')}`);
-    setUploadLoading(false);
-
-    if (messages.some(m => m.includes('✓'))) {
-      setTimeout(() => {
-        setShowUploadModal(false);
-        setShopData(null);
-        setAdData(null);
-        setUploadMessage('');
-        loadProductDetail(selectedProduct.id);
-      }, 1500);
-    }
-  };
-
-  // 执行决策
   const handleExecute = async (action, reason, confidence) => {
     await executeDecision(selectedProduct.id, selectedDayNumber, {
       ai_action: action, ai_reason: reason, ai_confidence: confidence, executor_id: currentUser.id
@@ -185,7 +138,6 @@ const handleImportData = async () => {
     loadProductDetail(selectedProduct.id);
   };
 
-  // 上报异常
   const handleAbnormal = async () => {
     await reportAbnormal(selectedProduct.id, selectedDayNumber, {
       abnormal_reason: abnormalReason, executor_id: currentUser.id
@@ -196,7 +148,6 @@ const handleImportData = async () => {
     loadProductDetail(selectedProduct.id);
   };
 
-  // 打开产品详情
   const openDetail = (product) => {
     loadProductDetail(product.id);
     setCurrentView('detail');
@@ -271,7 +222,6 @@ const handleImportData = async () => {
   );
 };
 
-// 工作台组件
 const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner, filterStatus, setFilterStatus, onNewProduct, onOpenDetail }) => {
   const stats = {
     total: products.length,
@@ -282,7 +232,6 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
 
   return (
     <div>
-      {/* 统计卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
         {[
           { label: '管理产品', value: stats.total, color: '#E2E8F0' },
@@ -297,7 +246,6 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
         ))}
       </div>
 
-      {/* 筛选栏 */}
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div style={{ display: 'flex', gap: '10px' }}>
           {[{ value: 'mine', label: '我的产品' }, { value: 'all', label: '全部产品' }].map(opt => (
@@ -314,7 +262,6 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
         <button onClick={onNewProduct} style={{ ...styles.buttonPrimary, display: 'flex', alignItems: 'center', gap: '8px' }}>+ 新建产品</button>
       </div>
 
-      {/* 产品列表 */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>加载中...</div>
       ) : products.length === 0 ? (
@@ -355,7 +302,6 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
   );
 };
 
-// 详情页组件
 const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIsSubmitted, executionStatus, onUpload, onExecute, onAbnormal }) => {
   if (!selectedProduct) return <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>加载中...</div>;
   
@@ -363,7 +309,6 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIs
   
   return (
     <div>
-      {/* 警告条 */}
       {dayStatus.label === '未提交' && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -377,7 +322,6 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIs
         </div>
       )}
       
-      {/* 操作栏 */}
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button onClick={onUpload} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }}>📊 上传数据</button>
         <button style={styles.buttonSecondary}>结果回写</button>
@@ -386,12 +330,10 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, isSubmitted, setIs
         </div>
       </div>
 
-      {/* 7天表格 */}
       <div style={{ marginBottom: '16px' }}>
         <DayTable selectedProduct={selectedProduct} />
       </div>
 
-      {/* AI决策面板 */}
       <div style={styles.card}>
         <div style={{ background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
