@@ -8,28 +8,19 @@ const GMVMaxWorkspace = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOwner, setFilterOwner] = useState('mine');
   
-  // 详情页状态
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [executionStatus, setExecutionStatus] = useState(null);
   const [showAbnormalModal, setShowAbnormalModal] = useState(false);
   const [abnormalReason, setAbnormalReason] = useState('');
   const [countdown, setCountdown] = useState({ hours: 2, minutes: 15, seconds: 28 });
 
-  // 数据录入弹窗状态
   const [showDataInputModal, setShowDataInputModal] = useState(false);
   const [dataInputForm, setDataInputForm] = useState({
-    organic_orders: '',
-    ad_impressions: '',
-    ad_clicks: '',
-    ad_orders: '',
-    manual_orders: '',
-    ad_spend: '',
-    ad_revenue: ''
+    organic_orders: '', ad_impressions: '', ad_clicks: '', ad_orders: '', manual_orders: '', ad_spend: '', ad_revenue: ''
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  // API基础地址
   const API_BASE = '/api';
 
   useEffect(() => {
@@ -62,16 +53,35 @@ const GMVMaxWorkspace = () => {
     { id: 6, sku: '11223344556', name: 'Toner Hydrating 100ml', price: 98000, owner: 3, currentDay: 1, phase: 'A', status: 'nodata', roi: null, todaySpend: 0, todayOrders: 0, needsAction: true, lastUpdate: null },
   ]);
 
-  // 历史数据
+  // 7天历史数据 - 完整字段
   const historyData = [
-    { day: 1, date: '12/16', organicOrders: 1, adImpressions: 3051, adOrders: 0, manualOrders: 0, adSpend: 48720, roi: 0, phase: 'A', aiAction: '观察+注入信号', aiReason: '曝光3051，系统试探中，0转化导致信心不足', executed: true, executor: '李四' },
-    { day: 2, date: '12/17', organicOrders: 1, adImpressions: 4899, adOrders: 3, manualOrders: 2, adSpend: 70258, roi: 3.37, phase: 'B', aiAction: '维持预算观察', aiReason: 'ROI=3.37突破盈亏线，系统验证稳定性中', executed: true, executor: '李四' },
-    { day: 3, date: '12/18', organicOrders: 5, adImpressions: 4505, adOrders: 6, manualOrders: 3, adSpend: 157078, roi: 3.01, phase: null, aiAction: null, aiReason: null, executed: null, executor: null },
-    { day: 4, date: '12/19', organicOrders: null, adImpressions: null, adOrders: null, manualOrders: null, adSpend: null, roi: null, phase: null, aiAction: null, aiReason: null, executed: null, executor: null },
-    { day: 5, date: '12/20', organicOrders: null, adImpressions: null, adOrders: null, manualOrders: null, adSpend: null, roi: null, phase: null, aiAction: null, aiReason: null, executed: null, executor: null },
-    { day: 6, date: '12/21', organicOrders: null, adImpressions: null, adOrders: null, manualOrders: null, adSpend: null, roi: null, phase: null, aiAction: null, aiReason: null, executed: null, executor: null },
-    { day: 7, date: '12/22', organicOrders: null, adImpressions: null, adOrders: null, manualOrders: null, adSpend: null, roi: null, phase: null, aiAction: null, aiReason: null, executed: null, executor: null },
+    { day: 1, date: '12/16', organicOrders: 1, manualOrders: 0, impressions: 64, clicks: 4, atc: 13, cvr: 0.25, adImpressions: 3051, adClicks: 34, adCTR: 1.1, adOrders: 0, adCVR: 0, adSpend: 49000, adRevenue: 0, targetROI: '自动竞价4.5→3.2', actualROI: 0, aiDecision: '降低竞价观察', aiStatus: 'executed' },
+    { day: 2, date: '12/17', organicOrders: 1, manualOrders: 2, impressions: 149, clicks: 18, atc: 22, cvr: 5.56, adImpressions: 4899, adClicks: 78, adCTR: 1.6, adOrders: 3, adCVR: 3.85, adSpend: 70000, adRevenue: 237000, targetROI: 4.5, actualROI: 3.37, aiDecision: '预算维持', aiStatus: 'executed' },
+    { day: 3, date: '12/18', organicOrders: 5, manualOrders: 3, impressions: 175, clicks: 31, atc: 29, cvr: 16.13, adImpressions: 4505, adClicks: 113, adCTR: 2.5, adOrders: 6, adCVR: 5.31, adSpend: 157000, adRevenue: 473000, targetROI: 4.5, actualROI: 3.01, aiDecision: null, aiStatus: 'pending' },
+    { day: 4, date: '12/19', organicOrders: null, manualOrders: null, impressions: null, clicks: null, atc: null, cvr: null, adImpressions: null, adClicks: null, adCTR: null, adOrders: null, adCVR: null, adSpend: null, adRevenue: null, targetROI: null, actualROI: null, aiDecision: null, aiStatus: null },
+    { day: 5, date: '12/20', organicOrders: null, manualOrders: null, impressions: null, clicks: null, atc: null, cvr: null, adImpressions: null, adClicks: null, adCTR: null, adOrders: null, adCVR: null, adSpend: null, adRevenue: null, targetROI: null, actualROI: null, aiDecision: null, aiStatus: null },
+    { day: 6, date: '12/21', organicOrders: null, manualOrders: null, impressions: null, clicks: null, atc: null, cvr: null, adImpressions: null, adClicks: null, adCTR: null, adOrders: null, adCVR: null, adSpend: null, adRevenue: null, targetROI: null, actualROI: null, aiDecision: null, aiStatus: null },
+    { day: 7, date: '12/22', organicOrders: null, manualOrders: null, impressions: null, clicks: null, atc: null, cvr: null, adImpressions: null, adClicks: null, adCTR: null, adOrders: null, adCVR: null, adSpend: null, adRevenue: null, targetROI: null, actualROI: null, aiDecision: null, aiStatus: null },
   ];
+
+  // 计算汇总
+  const getSummary = () => {
+    const validData = historyData.filter(d => d.organicOrders !== null);
+    return {
+      totalOrganic: validData.reduce((sum, d) => sum + (d.organicOrders || 0), 0),
+      totalManual: validData.reduce((sum, d) => sum + (d.manualOrders || 0), 0),
+      totalImpressions: validData.reduce((sum, d) => sum + (d.impressions || 0), 0),
+      totalClicks: validData.reduce((sum, d) => sum + (d.clicks || 0), 0),
+      avgCVR: validData.length > 0 ? (validData.reduce((sum, d) => sum + (d.cvr || 0), 0) / validData.length).toFixed(2) : 0,
+      totalAdSpend: validData.reduce((sum, d) => sum + (d.adSpend || 0), 0),
+      totalAdRevenue: validData.reduce((sum, d) => sum + (d.adRevenue || 0), 0),
+      avgROI: validData.filter(d => d.actualROI > 0).length > 0 
+        ? (validData.filter(d => d.actualROI > 0).reduce((sum, d) => sum + d.actualROI, 0) / validData.filter(d => d.actualROI > 0).length).toFixed(2) 
+        : 0
+    };
+  };
+
+  const summary = getSummary();
 
   const getStats = () => {
     const myProducts = currentUser.role === 'admin' ? products : products.filter(p => p.owner === currentUser.id);
@@ -128,13 +138,10 @@ const GMVMaxWorkspace = () => {
     setExecutionStatus(null);
   };
 
-  // 数据录入提交
   const handleDataInputSubmit = async () => {
     if (!selectedProduct) return;
-    
     setSubmitLoading(true);
     setSubmitMessage('');
-    
     try {
       const today = new Date().toISOString().split('T')[0];
       const response = await fetch(`${API_BASE}/daily-data`, {
@@ -153,22 +160,12 @@ const GMVMaxWorkspace = () => {
           ad_revenue: parseInt(dataInputForm.ad_revenue) || 0
         })
       });
-      
       const result = await response.json();
-      
       if (response.ok) {
         setSubmitMessage(`✅ 提交成功！ROI: ${result.roi}, 阶段: ${result.phase}`);
         setTimeout(() => {
           setShowDataInputModal(false);
-          setDataInputForm({
-            organic_orders: '',
-            ad_impressions: '',
-            ad_clicks: '',
-            ad_orders: '',
-            manual_orders: '',
-            ad_spend: '',
-            ad_revenue: ''
-          });
+          setDataInputForm({ organic_orders: '', ad_impressions: '', ad_clicks: '', ad_orders: '', manual_orders: '', ad_spend: '', ad_revenue: '' });
           setSubmitMessage('');
         }, 2000);
       } else {
@@ -177,11 +174,9 @@ const GMVMaxWorkspace = () => {
     } catch (err) {
       setSubmitMessage(`❌ 网络错误: ${err.message}`);
     }
-    
     setSubmitLoading(false);
   };
 
-  // 计算预览ROI
   const previewROI = () => {
     const spend = parseInt(dataInputForm.ad_spend) || 0;
     const revenue = parseInt(dataInputForm.ad_revenue) || 0;
@@ -189,173 +184,179 @@ const GMVMaxWorkspace = () => {
     return (revenue / spend).toFixed(2);
   };
 
-  // AI决策生成
-  const generateAIDecision = () => {
-    return {
-      phase: 'B',
-      phaseReason: '累计广告曝光12455，累计转化9单，CTR/CVR已成立，系统在验证【成交稳定性】',
-      systemConfidence: 'medium',
-      confidenceFactors: ['ROI=3.01突破盈亏线', 'CVR达标', 'ATC率健康'],
-      coreBlocker: '成交信号连续性不足，系统等待更多"稳定成交"证据',
-      manualSignalNeeded: true,
-      manualSignalStrategy: '建议自然时段注入1-2单成交信号',
-      judgment: 'continue',
-      action: '预算维持，强化信号',
-      confidence: 68,
-      doNots: ['禁止更换素材方向', '禁止大幅调价(>10%)', '禁止连续/集中补单'],
-      observe24h: ['曝光是否+30%', 'CVR是否稳定>3%', 'ROI是否守住3.0']
-    };
-  };
+  const generateAIDecision = () => ({
+    phase: 'B',
+    phaseReason: '累计广告曝光12455，累计转化9单，CTR/CVR已成立，系统在验证【成交稳定性】',
+    confidenceFactors: ['ROI=3.01突破盈亏线', 'CVR达标', 'ATC率健康'],
+    coreBlocker: '成交信号连续性不足，系统等待更多"稳定成交"证据',
+    manualSignalStrategy: '建议自然时段注入1-2单成交信号',
+    action: '预算维持，强化信号',
+    confidence: 68,
+    doNots: ['禁止更换素材方向', '禁止大幅调价(>10%)', '禁止连续/集中补单'],
+    observe24h: ['曝光是否+30%', 'CVR是否稳定>3%', 'ROI是否守住3.0']
+  });
 
   const aiDecision = generateAIDecision();
 
   // 数据录入弹窗
   const renderDataInputModal = () => (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: '#fff', borderRadius: '16px', padding: '0', width: '500px', maxHeight: '90vh', overflow: 'hidden' }}>
-        {/* 头部 */}
+      <div style={{ background: '#fff', borderRadius: '16px', width: '500px', maxHeight: '90vh', overflow: 'hidden' }}>
         <div style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', padding: '20px 24px', color: '#fff' }}>
           <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>📊 录入今日数据</h3>
-          <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>
-            {selectedProduct?.name} · Day {selectedProduct?.currentDay}
-          </p>
+          <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>{selectedProduct?.name} · Day {selectedProduct?.currentDay}</p>
         </div>
-        
-        {/* 表单 */}
         <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto' }}>
-          {/* 自然流量 */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🟢</span> 自然流量
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>自然订单数</label>
-                <input
-                  type="number"
-                  value={dataInputForm.organic_orders}
-                  onChange={(e) => setDataInputForm({...dataInputForm, organic_orders: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '12px' }}>🟢 自然流量</div>
+            <div>
+              <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>自然订单数</label>
+              <input type="number" value={dataInputForm.organic_orders} onChange={(e) => setDataInputForm({...dataInputForm, organic_orders: e.target.value})} placeholder="0" style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
           </div>
-
-          {/* 广告数据 */}
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#ea580c', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>🟠</span> GMV MAX 广告数据
-            </div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#ea580c', marginBottom: '12px' }}>🟠 GMV MAX 广告数据</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告曝光</label>
-                <input
-                  type="number"
-                  value={dataInputForm.ad_impressions}
-                  onChange={(e) => setDataInputForm({...dataInputForm, ad_impressions: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告点击</label>
-                <input
-                  type="number"
-                  value={dataInputForm.ad_clicks}
-                  onChange={(e) => setDataInputForm({...dataInputForm, ad_clicks: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告订单</label>
-                <input
-                  type="number"
-                  value={dataInputForm.ad_orders}
-                  onChange={(e) => setDataInputForm({...dataInputForm, ad_orders: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>补单数量</label>
-                <input
-                  type="number"
-                  value={dataInputForm.manual_orders}
-                  onChange={(e) => setDataInputForm({...dataInputForm, manual_orders: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告花费 (Rp)</label>
-                <input
-                  type="number"
-                  value={dataInputForm.ad_spend}
-                  onChange={(e) => setDataInputForm({...dataInputForm, ad_spend: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>广告收入 (Rp)</label>
-                <input
-                  type="number"
-                  value={dataInputForm.ad_revenue}
-                  onChange={(e) => setDataInputForm({...dataInputForm, ad_revenue: e.target.value})}
-                  placeholder="0"
-                  style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
-                />
-              </div>
+              {[['ad_impressions', '广告曝光'], ['ad_clicks', '广告点击'], ['ad_orders', '广告订单'], ['manual_orders', '补单数量'], ['ad_spend', '广告花费 (Rp)'], ['ad_revenue', '广告收入 (Rp)']].map(([key, label]) => (
+                <div key={key}>
+                  <label style={{ fontSize: '12px', color: '#64748b', display: 'block', marginBottom: '4px' }}>{label}</label>
+                  <input type="number" value={dataInputForm[key]} onChange={(e) => setDataInputForm({...dataInputForm, [key]: e.target.value})} placeholder="0" style={{ width: '100%', padding: '10px 12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* ROI预览 */}
           <div style={{ background: previewROI() >= 3 ? '#ecfdf5' : previewROI() > 0 ? '#fffbeb' : '#f8fafc', border: `2px solid ${previewROI() >= 3 ? '#10b981' : previewROI() > 0 ? '#f59e0b' : '#e2e8f0'}`, borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>预览 ROI</div>
-            <div style={{ fontSize: '32px', fontWeight: '800', color: previewROI() >= 3 ? '#059669' : previewROI() > 0 ? '#d97706' : '#64748b' }}>
-              {previewROI()}
-            </div>
-            {previewROI() !== '-' && (
-              <div style={{ fontSize: '11px', color: previewROI() >= 3 ? '#059669' : '#d97706', marginTop: '4px' }}>
-                {previewROI() >= 3 ? '✅ 达到盈亏线' : '⚠️ 未达盈亏线 (目标≥3)'}
-              </div>
-            )}
+            <div style={{ fontSize: '32px', fontWeight: '800', color: previewROI() >= 3 ? '#059669' : previewROI() > 0 ? '#d97706' : '#64748b' }}>{previewROI()}</div>
+            {previewROI() !== '-' && <div style={{ fontSize: '11px', color: previewROI() >= 3 ? '#059669' : '#d97706', marginTop: '4px' }}>{previewROI() >= 3 ? '✅ 达到盈亏线' : '⚠️ 未达盈亏线 (目标≥3)'}</div>}
           </div>
-
-          {/* 提交消息 */}
-          {submitMessage && (
-            <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: submitMessage.includes('✅') ? '#ecfdf5' : '#fef2f2', color: submitMessage.includes('✅') ? '#059669' : '#dc2626', fontSize: '13px', textAlign: 'center' }}>
-              {submitMessage}
-            </div>
-          )}
+          {submitMessage && <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: submitMessage.includes('✅') ? '#ecfdf5' : '#fef2f2', color: submitMessage.includes('✅') ? '#059669' : '#dc2626', fontSize: '13px', textAlign: 'center' }}>{submitMessage}</div>}
         </div>
-
-        {/* 底部按钮 */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-          <button
-            onClick={() => setShowDataInputModal(false)}
-            style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}
-          >
-            取消
-          </button>
-          <button
-            onClick={handleDataInputSubmit}
-            disabled={submitLoading}
-            style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: submitLoading ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: submitLoading ? 'not-allowed' : 'pointer' }}
-          >
-            {submitLoading ? '提交中...' : '✓ 确认提交'}
-          </button>
+          <button onClick={() => setShowDataInputModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}>取消</button>
+          <button onClick={handleDataInputSubmit} disabled={submitLoading} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: submitLoading ? '#94a3b8' : 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: submitLoading ? 'not-allowed' : 'pointer' }}>{submitLoading ? '提交中...' : '✓ 确认提交'}</button>
         </div>
       </div>
     </div>
   );
 
+  // 渲染7天历史数据表格 - 新样式
+  const render7DayTable = () => {
+    const currentDay = selectedProduct?.currentDay || 3;
+    return (
+      <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        {/* 表头 */}
+        <div style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', padding: '12px 16px', borderBottom: '1px solid #fcd34d', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '16px' }}>📊</span>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: '#92400e' }}>7天历史数据追踪</span>
+          </div>
+          <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#78350f' }}>
+            <span>累计订单: <strong style={{ color: '#059669' }}>{summary.totalOrganic + summary.totalManual}</strong></span>
+            <span>累计花费: <strong style={{ color: '#dc2626' }}>Rp {(summary.totalAdSpend/1000).toFixed(0)}k</strong></span>
+            <span>累计收入: <strong style={{ color: '#059669' }}>Rp {(summary.totalAdRevenue/1000).toFixed(0)}k</strong></span>
+            <span>整体ROI: <strong style={{ color: summary.avgROI >= 3 ? '#059669' : '#dc2626' }}>{summary.avgROI}</strong></span>
+          </div>
+        </div>
+        
+        {/* 表格 */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: '1200px' }}>
+            <thead>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0', position: 'sticky', left: 0, background: '#f8fafc' }}>阶段</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>日期</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#059669', borderBottom: '2px solid #e2e8f0' }}>实际单量</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#7c3aed', borderBottom: '2px solid #e2e8f0' }}>补单</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>曝光量</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>点击量</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>加购数</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#10b981', borderBottom: '2px solid #e2e8f0' }}>转化率</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告曝光</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告点击</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告CTR</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告转化</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告转化率</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#dc2626', borderBottom: '2px solid #e2e8f0' }}>广告花费</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#059669', borderBottom: '2px solid #e2e8f0' }}>广告收入</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>设置ROI</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#3b82f6', borderBottom: '2px solid #e2e8f0' }}>实际ROI</th>
+                <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#1e293b', borderBottom: '2px solid #e2e8f0' }}>AI决策</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyData.map((row) => (
+                <tr key={row.day} style={{ 
+                  background: row.day === currentDay ? '#fef3c7' : row.day < currentDay ? '#fff' : '#f8fafc',
+                  borderLeft: row.day === currentDay ? '3px solid #f97316' : 'none'
+                }}>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: row.day === currentDay ? '#ea580c' : '#1e293b', borderBottom: '1px solid #e2e8f0', position: 'sticky', left: 0, background: row.day === currentDay ? '#fef3c7' : row.day < currentDay ? '#fff' : '#f8fafc' }}>
+                    {row.day === currentDay ? '▶ ' : ''}Day {row.day}
+                  </td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.date}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#059669', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.organicOrders ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#7c3aed', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.manualOrders ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.impressions ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.clicks ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.atc ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#10b981', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.cvr ? `${row.cvr}%` : '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.adImpressions?.toLocaleString() ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.adClicks ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.adCTR ? `${row.adCTR}%` : '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#ea580c', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.adOrders ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#ea580c', borderBottom: '1px solid #e2e8f0' }}>{row.adCVR ? `${row.adCVR}%` : '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#dc2626', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.adSpend ? `Rp ${(row.adSpend/1000).toFixed(0)}k` : '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', color: '#059669', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.adRevenue ? `Rp ${(row.adRevenue/1000).toFixed(0)}k` : '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.targetROI ?? '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', color: row.actualROI >= 3 ? '#059669' : row.actualROI > 0 ? '#d97706' : '#dc2626', borderBottom: '1px solid #e2e8f0' }}>{row.actualROI || '-'}</td>
+                  <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                    {row.aiDecision ? (
+                      <span style={{ 
+                        padding: '4px 8px', 
+                        borderRadius: '6px', 
+                        fontSize: '10px', 
+                        fontWeight: '600',
+                        background: row.aiStatus === 'executed' ? '#ecfdf5' : '#fffbeb',
+                        color: row.aiStatus === 'executed' ? '#059669' : '#d97706',
+                        border: `1px solid ${row.aiStatus === 'executed' ? '#10b981' : '#f59e0b'}`
+                      }}>
+                        {row.aiStatus === 'executed' ? '✓ ' : '→ '}{row.aiDecision}
+                      </span>
+                    ) : '-'}
+                  </td>
+                </tr>
+              ))}
+              {/* 汇总行 */}
+              <tr style={{ background: '#f1f5f9', fontWeight: '600' }}>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0', position: 'sticky', left: 0, background: '#f1f5f9' }}>汇总</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: '#059669', borderBottom: '1px solid #e2e8f0' }}>{summary.totalOrganic}</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: '#7c3aed', borderBottom: '1px solid #e2e8f0' }}>{summary.totalManual}</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{summary.totalImpressions}</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{summary.totalClicks}</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: '#10b981', borderBottom: '1px solid #e2e8f0' }}>{summary.avgCVR}%</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: '#dc2626', borderBottom: '1px solid #e2e8f0' }}>Rp {(summary.totalAdSpend/1000).toFixed(0)}k</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: '#059669', borderBottom: '1px solid #e2e8f0' }}>Rp {(summary.totalAdRevenue/1000).toFixed(0)}k</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', color: summary.avgROI >= 3 ? '#059669' : '#dc2626', borderBottom: '1px solid #e2e8f0' }}>{summary.avgROI}</td>
+                <td style={{ padding: '12px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>-</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   // 渲染工作台
   const renderDashboard = () => (
     <div>
-      {/* 统计卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '12px', marginBottom: '20px' }}>
         {[
           { label: '管理产品', value: stats.total, icon: '📦', color: '#1e293b' },
@@ -374,74 +375,42 @@ const GMVMaxWorkspace = () => {
           </div>
         ))}
       </div>
-
-      {/* 筛选栏 */}
       <div style={{ background: '#fff', borderRadius: '12px', padding: '14px 18px', marginBottom: '16px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '12px', color: '#64748b' }}>显示:</span>
           {[{ value: 'mine', label: '我的产品' }, { value: 'all', label: '全部产品' }].map(opt => (
-            <button key={opt.value} onClick={() => setFilterOwner(opt.value)} style={{
-              padding: '6px 12px', borderRadius: '6px', border: 'none',
-              background: filterOwner === opt.value ? '#1e293b' : '#f1f5f9',
-              color: filterOwner === opt.value ? '#fff' : '#64748b',
-              fontSize: '11px', fontWeight: '500', cursor: 'pointer'
-            }}>{opt.label}</button>
+            <button key={opt.value} onClick={() => setFilterOwner(opt.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: 'none', background: filterOwner === opt.value ? '#1e293b' : '#f1f5f9', color: filterOwner === opt.value ? '#fff' : '#64748b', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>{opt.label}</button>
           ))}
         </div>
         <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '12px', color: '#64748b' }}>状态:</span>
-          {[
-            { value: 'all', label: '全部' },
-            { value: 'pending', label: '待决策', color: '#f59e0b' },
-            { value: 'executed', label: '已执行', color: '#10b981' },
-            { value: 'abnormal', label: '异常', color: '#ef4444' },
-            { value: 'nodata', label: '未提交', color: '#6b7280' }
-          ].map(opt => (
-            <button key={opt.value} onClick={() => setFilterStatus(opt.value)} style={{
-              padding: '6px 12px', borderRadius: '6px',
-              border: filterStatus === opt.value ? `2px solid ${opt.color || '#1e293b'}` : '1px solid #e2e8f0',
-              background: filterStatus === opt.value ? (opt.color ? opt.color + '15' : '#f8fafc') : '#fff',
-              color: filterStatus === opt.value ? (opt.color || '#1e293b') : '#64748b',
-              fontSize: '11px', fontWeight: '500', cursor: 'pointer'
-            }}>{opt.label}</button>
+          {[{ value: 'all', label: '全部' }, { value: 'pending', label: '待决策', color: '#f59e0b' }, { value: 'executed', label: '已执行', color: '#10b981' }, { value: 'abnormal', label: '异常', color: '#ef4444' }, { value: 'nodata', label: '未提交', color: '#6b7280' }].map(opt => (
+            <button key={opt.value} onClick={() => setFilterStatus(opt.value)} style={{ padding: '6px 12px', borderRadius: '6px', border: filterStatus === opt.value ? `2px solid ${opt.color || '#1e293b'}` : '1px solid #e2e8f0', background: filterStatus === opt.value ? (opt.color ? opt.color + '15' : '#f8fafc') : '#fff', color: filterStatus === opt.value ? (opt.color || '#1e293b') : '#64748b', fontSize: '11px', fontWeight: '500', cursor: 'pointer' }}>{opt.label}</button>
           ))}
         </div>
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '12px', color: '#94a3b8' }}>共 {getFilteredProducts().length} 个产品</span>
       </div>
-
-      {/* 产品卡片 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px' }}>
         {getFilteredProducts().map(product => {
           const statusConfig = getStatusConfig(product.status);
           const phaseConfig = getPhaseConfig(product.phase);
           const owner = getOwner(product.owner);
-          
           return (
-            <div key={product.id} onClick={() => openProductDetail(product)} style={{
-              background: '#fff', borderRadius: '12px',
-              border: product.needsAction ? '2px solid #f59e0b' : '1px solid #e2e8f0',
-              overflow: 'hidden', cursor: 'pointer', position: 'relative'
-            }}>
-              {product.needsAction && (
-                <div style={{ position: 'absolute', top: '12px', right: '12px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }} />
-              )}
+            <div key={product.id} onClick={() => openProductDetail(product)} style={{ background: '#fff', borderRadius: '12px', border: product.needsAction ? '2px solid #f59e0b' : '1px solid #e2e8f0', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
+              {product.needsAction && <div style={{ position: 'absolute', top: '12px', right: '12px', width: '10px', height: '10px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }} />}
               <div style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b', marginBottom: '4px' }}>{product.name}</div>
                     <div style={{ fontSize: '11px', color: '#94a3b8' }}>SKU: {product.sku.slice(-6)} · Rp{product.price.toLocaleString()}</div>
                   </div>
-                  <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '600', background: statusConfig.bg, color: statusConfig.color }}>
-                    {statusConfig.icon} {statusConfig.label}
-                  </span>
+                  <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '10px', fontWeight: '600', background: statusConfig.bg, color: statusConfig.color }}>{statusConfig.icon} {statusConfig.label}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    {[1,2,3,4,5,6,7].map(d => (
-                      <div key={d} style={{ width: '20px', height: '6px', borderRadius: '3px', background: d < product.currentDay ? '#10b981' : d === product.currentDay ? '#f97316' : '#e2e8f0' }} />
-                    ))}
+                    {[1,2,3,4,5,6,7].map(d => <div key={d} style={{ width: '20px', height: '6px', borderRadius: '3px', background: d < product.currentDay ? '#10b981' : d === product.currentDay ? '#f97316' : '#e2e8f0' }} />)}
                   </div>
                   <span style={{ fontSize: '11px', color: '#64748b' }}>Day {product.currentDay}/7</span>
                   {product.phase && <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: '600', background: phaseConfig.color + '15', color: phaseConfig.color }}>{phaseConfig.label.slice(0,4)}</span>}
@@ -471,10 +440,8 @@ const GMVMaxWorkspace = () => {
   const renderDetail = () => {
     if (!selectedProduct) return null;
     const currentDay = selectedProduct.currentDay;
-
     return (
       <div>
-        {/* 警告条 - 带录入按钮 */}
         <div style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '2px solid #fca5a5', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '20px' }}>⚠️</span>
@@ -483,218 +450,91 @@ const GMVMaxWorkspace = () => {
               <div style={{ fontSize: '11px', color: '#991b1b' }}>无数据 = 无判断 = <strong>自动停投保护</strong></div>
             </div>
           </div>
-          <button
-            onClick={() => setShowDataInputModal(true)}
-            style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
-          >
-            📊 立即录入数据
-          </button>
+          <button onClick={() => setShowDataInputModal(true)} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>📊 立即录入数据</button>
         </div>
-
-        {/* 操作栏 */}
         <div style={{ background: '#fff', borderRadius: '10px', padding: '12px 18px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '14px', border: '1px solid #e2e8f0' }}>
-          <button
-            onClick={() => setShowDataInputModal(true)}
-            style={{ padding: '8px 14px', background: 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff', cursor: 'pointer', fontWeight: '600' }}
-          >
-            📊 录入数据
-          </button>
+          <button onClick={() => setShowDataInputModal(true)} style={{ padding: '8px 14px', background: 'linear-gradient(135deg, #f97316, #ea580c)', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff', cursor: 'pointer', fontWeight: '600' }}>📊 录入数据</button>
           <button style={{ padding: '8px 14px', background: '#f8fafc', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', color: '#64748b', cursor: 'pointer', fontWeight: '500' }}>📝 结果回写</button>
           <div style={{ width: '1px', height: '30px', background: '#e2e8f0' }} />
-          <div style={{ flex: 1, padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', fontSize: '12px', color: '#1e293b' }}>
-            SKU: {selectedProduct.sku.slice(-6)} · {selectedProduct.name}
-          </div>
+          <div style={{ flex: 1, padding: '10px 14px', background: '#f8fafc', borderRadius: '8px', fontSize: '12px', color: '#1e293b' }}>SKU: {selectedProduct.sku.slice(-6)} · {selectedProduct.name}</div>
+          <button style={{ padding: '8px 14px', background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', borderRadius: '8px', fontSize: '12px', color: '#fff', cursor: 'pointer', fontWeight: '600' }}>🔄 提取数据</button>
         </div>
 
-        {/* 执行链 */}
-        <div style={{ background: '#fff', borderRadius: '10px', padding: '14px 18px', marginBottom: '14px', border: '1px solid #e2e8f0' }}>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#1e293b', marginBottom: '12px' }}>🔗 Day {currentDay} 执行追踪链</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            {[
-              { icon: '📊', label: '数据录入', done: false },
-              { icon: '🤖', label: 'AI决策', done: isSubmitted },
-              { icon: '👆', label: '执行确认', done: executionStatus !== null },
-              { icon: '📝', label: '结果回写', done: false }
-            ].map((step, i, arr) => (
-              <React.Fragment key={i}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ width: '40px', height: '40px', margin: '0 auto', borderRadius: '50%', background: step.done ? '#10b981' : '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: step.done ? '#fff' : '#94a3b8' }}>
-                    {step.done ? '✓' : step.icon}
+        {/* 7天历史数据表格 - 新样式 */}
+        <div style={{ marginBottom: '14px' }}>
+          {render7DayTable()}
+        </div>
+
+        {/* AI决策面板 */}
+        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div><span style={{ fontSize: '16px' }}>🤖</span><span style={{ fontSize: '12px', fontWeight: '700', color: '#fff', marginLeft: '8px' }}>Day {currentDay} GMV MAX 专家决策</span></div>
+            {!isSubmitted && <button onClick={() => setIsSubmitted(true)} style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none', borderRadius: '6px', padding: '6px 14px', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>▶ 生成决策</button>}
+          </div>
+          <div style={{ padding: '14px' }}>
+            {isSubmitted ? (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div style={{ background: '#3b82f615', border: '1px solid #3b82f640', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '4px' }}>📍 当前阶段</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ padding: '4px 10px', background: '#3b82f6', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>阶段 B</span>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#3b82f6' }}>放量前观察期</span>
                   </div>
-                  <div style={{ marginTop: '6px', fontSize: '10px', fontWeight: '600', color: step.done ? '#10b981' : '#94a3b8' }}>{step.label}</div>
                 </div>
-                {i < arr.length - 1 && <div style={{ flex: 1, height: '3px', background: step.done ? '#10b981' : '#e2e8f0', margin: '0 -8px', marginBottom: '20px' }} />}
-              </React.Fragment>
-            ))}
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#92400e', marginBottom: '4px' }}>🔒 核心卡点</div>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#78350f', fontWeight: '500' }}>{aiDecision.coreBlocker}</p>
+                </div>
+                <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '9px', color: '#7c3aed', marginBottom: '4px' }}>💉 补单策略</div>
+                  <div style={{ fontSize: '11px', fontWeight: '600', color: '#6b21a8' }}>{aiDecision.manualSignalStrategy}</div>
+                </div>
+                <div style={{ gridColumn: 'span 2', background: '#05966915', border: '2px solid #05966940', borderRadius: '10px', padding: '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div>
+                      <div style={{ fontSize: '9px', color: '#64748b' }}>🤖 今日判断</div>
+                      <div style={{ fontSize: '22px', fontWeight: '800', color: '#059669' }}>维持观察</div>
+                    </div>
+                    <div style={{ width: '44px', height: '44px', background: 'conic-gradient(#059669 68%, #e2e8f0 0)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ width: '36px', height: '36px', background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', color: '#059669' }}>68%</div>
+                    </div>
+                  </div>
+                  <div style={{ background: '#059669', borderRadius: '6px', padding: '10px', textAlign: 'center', marginBottom: '10px' }}>
+                    <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.8)' }}>【明日唯一动作】</div>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{aiDecision.action}</div>
+                  </div>
+                  {executionStatus === null ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <button onClick={() => setExecutionStatus('executed')} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', borderRadius: '6px', padding: '10px', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>✓ 确认执行</button>
+                      <button onClick={() => setShowAbnormalModal(true)} style={{ background: '#fff', border: '2px solid #fca5a5', borderRadius: '6px', padding: '10px', color: '#dc2626', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>⚠ 上报异常</button>
+                    </div>
+                  ) : (
+                    <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#059669' }}>✓ 已确认执行</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '9px', color: '#dc2626', marginBottom: '4px', fontWeight: '600' }}>🚫 禁止</div>
+                    {aiDecision.doNots.map((d, i) => <div key={i} style={{ fontSize: '9px', color: '#991b1b' }}>• {d}</div>)}
+                  </div>
+                  <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px' }}>
+                    <div style={{ fontSize: '9px', color: '#2563eb', marginBottom: '4px', fontWeight: '600' }}>👀 观察</div>
+                    {aiDecision.observe24h.map((o, i) => <div key={i} style={{ fontSize: '9px', color: '#1e40af' }}>• {o}</div>)}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '150px', color: '#94a3b8' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '40px', marginBottom: '12px' }}>🧠</div>
+                  <p style={{ margin: 0, fontSize: '12px' }}>点击"生成决策" AI将按专家逻辑四步判断</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-
-        {/* 主内容区 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1.5fr', gap: '14px' }}>
-          {/* 左侧：7天数据表格 */}
-          <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-            <div style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', padding: '10px 16px', borderBottom: '1px solid #fcd34d' }}>
-              <span style={{ fontSize: '14px' }}>📊</span>
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e', marginLeft: '8px' }}>7天数据追踪</span>
-            </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc' }}>
-                    <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>Day</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#64748b', borderBottom: '2px solid #e2e8f0' }}>阶段</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#059669', borderBottom: '2px solid #e2e8f0' }}>自然单</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告曝光</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#ea580c', borderBottom: '2px solid #e2e8f0' }}>广告单</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#7c3aed', borderBottom: '2px solid #e2e8f0' }}>补单</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#dc2626', borderBottom: '2px solid #e2e8f0' }}>花费</th>
-                    <th style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '600', color: '#2563eb', borderBottom: '2px solid #e2e8f0' }}>ROI</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historyData.map((row) => (
-                    <tr key={row.day} style={{ background: row.day === currentDay ? '#fef3c7' : row.day < currentDay ? '#fff' : '#f8fafc', borderLeft: row.day === currentDay ? '3px solid #f97316' : 'none' }}>
-                      <td style={{ padding: '10px 12px', fontWeight: '600', color: row.day === currentDay ? '#ea580c' : '#1e293b', borderBottom: '1px solid #e2e8f0' }}>{row.day === currentDay ? '▶' : ''} {row.date}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>
-                        {row.phase ? <span style={{ padding: '2px 6px', background: getPhaseConfig(row.phase).color + '20', color: getPhaseConfig(row.phase).color, borderRadius: '4px', fontSize: '9px', fontWeight: '600' }}>{row.phase}</span> : '-'}
-                      </td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', color: '#059669', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.organicOrders ?? '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', borderBottom: '1px solid #e2e8f0' }}>{row.adImpressions?.toLocaleString() ?? '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', color: '#ea580c', fontWeight: '600', borderBottom: '1px solid #e2e8f0' }}>{row.adOrders ?? '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', color: '#7c3aed', borderBottom: '1px solid #e2e8f0' }}>{row.manualOrders ?? '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', color: '#dc2626', borderBottom: '1px solid #e2e8f0' }}>{row.adSpend ? (row.adSpend/1000).toFixed(0) + 'k' : '-'}</td>
-                      <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: '700', color: row.roi >= 3 ? '#059669' : row.roi > 0 ? '#d97706' : '#dc2626', borderBottom: '1px solid #e2e8f0' }}>{row.roi ?? '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* 右侧：AI记忆 + 决策 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {/* AI历史记忆 */}
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-              <div style={{ background: 'linear-gradient(135deg, #fef3c7, #fde68a)', padding: '10px 16px', borderBottom: '1px solid #fcd34d', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div><span style={{ fontSize: '14px' }}>🧠</span><span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e', marginLeft: '8px' }}>AI决策历史记忆</span></div>
-                <span style={{ fontSize: '10px', color: '#92400e' }}>前 {currentDay - 1} 天</span>
-              </div>
-              <div style={{ padding: '12px', maxHeight: '200px', overflowY: 'auto' }}>
-                {historyData.filter(d => d.day < currentDay && d.aiAction).map((d) => (
-                  <div key={d.day} style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', border: '1px solid #e2e8f0', marginBottom: '10px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ padding: '3px 8px', background: getPhaseConfig(d.phase).color + '20', color: getPhaseConfig(d.phase).color, borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>Day {d.day} · {d.date}</span>
-                        <span style={{ padding: '2px 6px', background: d.phase === 'B' ? '#eff6ff' : '#fffbeb', color: d.phase === 'B' ? '#2563eb' : '#d97706', borderRadius: '4px', fontSize: '9px' }}>{getPhaseConfig(d.phase).label}</span>
-                      </div>
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: d.roi >= 3 ? '#059669' : d.roi > 0 ? '#d97706' : '#dc2626' }}>ROI: {d.roi}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '10px', color: '#64748b', marginBottom: '8px' }}>
-                      <span>广告单: <strong style={{ color: '#ea580c' }}>{d.adOrders}</strong></span>
-                      <span>自然单: <strong style={{ color: '#059669' }}>{d.organicOrders}</strong></span>
-                      <span>补单: <strong style={{ color: '#7c3aed' }}>{d.manualOrders}</strong></span>
-                      <span>花费: <strong style={{ color: '#dc2626' }}>Rp{(d.adSpend/1000).toFixed(0)}k</strong></span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px dashed #e2e8f0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ padding: '3px 8px', background: '#ecfdf5', border: '1px solid #10b981', borderRadius: '4px', fontSize: '10px', fontWeight: '600', color: '#059669' }}>✓ 已执行</span>
-                        <span style={{ fontSize: '11px', color: '#1e293b', fontWeight: '500' }}>{d.aiAction}</span>
-                      </div>
-                      <span style={{ fontSize: '9px', color: '#94a3b8' }}>执行人: {d.executor}</span>
-                    </div>
-                    <div style={{ marginTop: '8px', padding: '8px', background: '#fffbeb', borderRadius: '6px', fontSize: '10px', color: '#92400e', lineHeight: '1.4' }}>💡 {d.aiReason}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* AI决策面板 */}
-            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1 }}>
-              <div style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div><span style={{ fontSize: '16px' }}>🤖</span><span style={{ fontSize: '12px', fontWeight: '700', color: '#fff', marginLeft: '8px' }}>Day {currentDay} GMV MAX 专家决策</span></div>
-                {!isSubmitted && <button onClick={() => setIsSubmitted(true)} style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', border: 'none', borderRadius: '6px', padding: '6px 14px', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>▶ 生成决策</button>}
-              </div>
-              <div style={{ padding: '14px', overflowY: 'auto', maxHeight: '350px' }}>
-                {isSubmitted ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {/* 阶段 */}
-                    <div style={{ background: '#3b82f615', border: '1px solid #3b82f640', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '4px' }}>📍 当前阶段</div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ padding: '4px 10px', background: '#3b82f6', color: '#fff', borderRadius: '6px', fontSize: '12px', fontWeight: '700' }}>阶段 B</span>
-                        <span style={{ fontSize: '11px', fontWeight: '600', color: '#3b82f6' }}>放量前观察期</span>
-                      </div>
-                      <p style={{ margin: '6px 0 0 0', fontSize: '10px', color: '#475569', lineHeight: '1.4' }}>{aiDecision.phaseReason}</p>
-                    </div>
-                    {/* 系统信心 */}
-                    <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#64748b', marginBottom: '6px' }}>🎯 系统放量信心: <span style={{ padding: '2px 6px', background: '#f59e0b', color: '#fff', borderRadius: '4px', fontSize: '10px', fontWeight: '600' }}>中</span></div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                        {aiDecision.confidenceFactors.map((f, i) => <span key={i} style={{ padding: '2px 6px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '9px', color: '#475569' }}>{f}</span>)}
-                      </div>
-                    </div>
-                    {/* 核心卡点 */}
-                    <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#92400e', marginBottom: '4px' }}>🔒 核心卡点</div>
-                      <p style={{ margin: 0, fontSize: '11px', color: '#78350f', fontWeight: '500' }}>{aiDecision.coreBlocker}</p>
-                    </div>
-                    {/* 补单策略 */}
-                    <div style={{ background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#7c3aed', marginBottom: '4px' }}>💉 补单信号</div>
-                      <div style={{ fontSize: '11px', fontWeight: '600', color: '#6b21a8' }}>{aiDecision.manualSignalStrategy}</div>
-                    </div>
-                    {/* 最终决策 */}
-                    <div style={{ background: '#05966915', border: '2px solid #05966940', borderRadius: '10px', padding: '14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                        <div>
-                          <div style={{ fontSize: '9px', color: '#64748b' }}>🤖 今日判断</div>
-                          <div style={{ fontSize: '22px', fontWeight: '800', color: '#059669' }}>维持观察</div>
-                        </div>
-                        <div style={{ width: '44px', height: '44px', background: 'conic-gradient(#059669 68%, #e2e8f0 0)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <div style={{ width: '36px', height: '36px', background: '#fff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', color: '#059669' }}>68%</div>
-                        </div>
-                      </div>
-                      <div style={{ background: '#059669', borderRadius: '6px', padding: '10px', textAlign: 'center', marginBottom: '10px' }}>
-                        <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.8)' }}>【明日唯一动作】</div>
-                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{aiDecision.action}</div>
-                      </div>
-                      {executionStatus === null ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <button onClick={() => setExecutionStatus('executed')} style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', borderRadius: '6px', padding: '10px', color: '#fff', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>✓ 确认执行</button>
-                          <button onClick={() => setShowAbnormalModal(true)} style={{ background: '#fff', border: '2px solid #fca5a5', borderRadius: '6px', padding: '10px', color: '#dc2626', fontSize: '11px', fontWeight: '600', cursor: 'pointer' }}>⚠ 上报异常</button>
-                        </div>
-                      ) : (
-                        <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', padding: '10px', textAlign: 'center' }}>
-                          <span style={{ fontSize: '11px', fontWeight: '600', color: '#059669' }}>✓ 已确认执行</span>
-                        </div>
-                      )}
-                    </div>
-                    {/* 禁止事项 */}
-                    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#dc2626', marginBottom: '4px', fontWeight: '600' }}>🚫 明确禁止</div>
-                      {aiDecision.doNots.map((d, i) => <div key={i} style={{ fontSize: '10px', color: '#991b1b', marginBottom: '2px' }}>• {d}</div>)}
-                    </div>
-                    {/* 观察重点 */}
-                    <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 12px' }}>
-                      <div style={{ fontSize: '9px', color: '#2563eb', marginBottom: '4px', fontWeight: '600' }}>👀 24-48小时观察</div>
-                      {aiDecision.observe24h.map((o, i) => <div key={i} style={{ fontSize: '10px', color: '#1e40af', marginBottom: '2px' }}>• {o}</div>)}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#94a3b8' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '40px', marginBottom: '12px' }}>🧠</div>
-                      <p style={{ margin: 0, fontSize: '12px' }}>点击"生成决策"</p>
-                      <p style={{ margin: '4px 0 0 0', fontSize: '10px', color: '#64748b' }}>AI将按专家逻辑四步判断</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 异常弹窗 */}
         {showAbnormalModal && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div style={{ background: '#fff', borderRadius: '16px', padding: '24px', width: '400px' }}>
@@ -713,7 +553,6 @@ const GMVMaxWorkspace = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
-      {/* 顶部导航 */}
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', padding: '10px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -723,9 +562,7 @@ const GMVMaxWorkspace = () => {
               <p style={{ margin: 0, fontSize: '10px', color: '#94a3b8' }}>系统博弈专家 · 放量逻辑判断 · 强制闭环</p>
             </div>
           </div>
-          {currentView === 'detail' && (
-            <button onClick={() => setCurrentView('dashboard')} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #475569', background: 'transparent', color: '#94a3b8', fontSize: '11px', cursor: 'pointer' }}>← 返回工作台</button>
-          )}
+          {currentView === 'detail' && <button onClick={() => setCurrentView('dashboard')} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #475569', background: 'transparent', color: '#94a3b8', fontSize: '11px', cursor: 'pointer' }}>← 返回工作台</button>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{ background: 'rgba(255,255,255,0.08)', borderRadius: '10px', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -742,7 +579,6 @@ const GMVMaxWorkspace = () => {
               <span style={{ fontSize: '12px', color: '#475569' }}>/7</span>
             </div>
           )}
-          {/* 用户菜单 */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => setShowUserMenu(!showUserMenu)} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 12px', borderRadius: '10px', border: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff', cursor: 'pointer' }}>
               <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: currentUser.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>{currentUser.avatar}</div>
@@ -754,7 +590,7 @@ const GMVMaxWorkspace = () => {
             </button>
             {showUserMenu && (
               <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#fff', borderRadius: '12px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', padding: '8px', minWidth: '200px', zIndex: 1000 }}>
-                <div style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>切换用户 (演示)</div>
+                <div style={{ padding: '8px 12px', fontSize: '11px', color: '#94a3b8', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>切换用户</div>
                 {users.map(user => (
                   <button key={user.id} onClick={() => { setCurrentUser(user); setShowUserMenu(false); setFilterOwner('mine'); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '8px', border: 'none', background: currentUser.id === user.id ? '#f1f5f9' : 'transparent', cursor: 'pointer', textAlign: 'left' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: user.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>{user.avatar}</div>
@@ -767,16 +603,11 @@ const GMVMaxWorkspace = () => {
           </div>
         </div>
       </div>
-
-      {/* 主内容 */}
-      <div style={{ padding: '20px 24px', maxWidth: '1400px', margin: '0 auto' }}>
+      <div style={{ padding: '20px 24px', maxWidth: '1600px', margin: '0 auto' }}>
         {currentView === 'dashboard' && renderDashboard()}
         {currentView === 'detail' && renderDetail()}
       </div>
-
-      {/* 数据录入弹窗 */}
       {showDataInputModal && renderDataInputModal()}
-
       {showUserMenu && <div onClick={() => setShowUserMenu(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} />}
     </div>
   );
