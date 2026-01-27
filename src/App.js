@@ -13,28 +13,26 @@ const GMVMaxWorkspace = () => {
   const [filterOwner, setFilterOwner] = useState('mine');
   const [loading, setLoading] = useState(false);
 
-  // 弹窗状态
   const [showNewProductModal, setShowNewProductModal] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAbnormalModal, setShowAbnormalModal] = useState(false);
 
-  // 新建产品表单
   const [newProduct, setNewProduct] = useState({
     sku: '', name: '', price: '', start_date: new Date().toISOString().split('T')[0], target_roi: '3.0'
   });
 
-  // 上传相关
-  const [parsedData, setParsedData] = useState(null);
+  // 上传相关 - 分开存储店铺和广告数据
+  const [shopData, setShopData] = useState(null);
+  const [adData, setAdData] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [selectedDayNumber, setSelectedDayNumber] = useState(1);
-  const fileInputRef = useRef(null);
+  const shopFileRef = useRef(null);
+  const adFileRef = useRef(null);
 
-  // AI决策相关
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [abnormalReason, setAbnormalReason] = useState('');
 
-  // 加载用户列表
   useEffect(() => {
     fetch(`${API_BASE}/users`)
       .then(res => res.json())
@@ -42,7 +40,6 @@ const GMVMaxWorkspace = () => {
       .catch(err => console.error(err));
   }, []);
 
-  // 加载产品列表
   const loadProducts = () => {
     setLoading(true);
     let url = `${API_BASE}/products`;
@@ -51,7 +48,7 @@ const GMVMaxWorkspace = () => {
       params.push(`owner_id=${currentUser.id}`);
     }
     if (filterStatus !== 'all') {
-      params.push(`status=${filterStatus}`);
+      params.push(`status=${encodeURIComponent(filterStatus)}`);
     }
     if (params.length > 0) url += '?' + params.join('&');
 
@@ -63,7 +60,6 @@ const GMVMaxWorkspace = () => {
 
   useEffect(() => { loadProducts(); }, [filterOwner, filterStatus, currentUser]);
 
-  // 加载产品详情
   const loadProductDetail = (id) => {
     fetch(`${API_BASE}/products/${id}`)
       .then(res => res.json())
@@ -75,7 +71,6 @@ const GMVMaxWorkspace = () => {
       .catch(err => console.error(err));
   };
 
-  // 新建产品
   const handleCreateProduct = async () => {
     if (!newProduct.sku || !newProduct.name) {
       alert('请填写产品ID和名称');
@@ -101,13 +96,11 @@ const GMVMaxWorkspace = () => {
     }
   };
 
-  // 上传Excel
-  const handleFileUpload = async (e) => {
+  // 上传店铺数据
+  const handleShopFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     setUploadLoading(true);
-    setUploadMessage('');
-    setParsedData(null);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -116,10 +109,10 @@ const GMVMaxWorkspace = () => {
       const res = await fetch(`${API_BASE}/upload-excel`, { method: 'POST', body: formData });
       const result = await res.json();
       if (result.success) {
-        setParsedData(result.products);
-        setUploadMessage(`✅ 解析成功！共 ${result.products.length} 个产品`);
+        setShopData(result.products);
+        setUploadMessage(`✅ 店铺数据解析成功！${result.products.length} 个产品`);
       } else {
-        setUploadMessage(`❌ 解析失败: ${result.error}`);
+        setUploadMessage(`❌ 店铺数据解析失败: ${result.error}`);
       }
     } catch (err) {
       setUploadMessage(`❌ 网络错误: ${err.message}`);
@@ -128,23 +121,74 @@ const GMVMaxWorkspace = () => {
     e.target.value = '';
   };
 
-  // 导入数据到当前产品
-  const handleImportData = async () => {
-    if (!parsedData || !selectedProduct) return;
+  // 上传广告数据
+  const handleAdFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     setUploadLoading(true);
 
+    const formData = new FormData();
+    formData.append('file', file);
+
     try {
-      const res = await fetch(`${API_BASE}/import-data/${selectedProduct.id}/${selectedDayNumber}`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/upload-excel`, { method: 'POST', body: formData });
+      const result = await res.json();
+      if (result.success) {
+        setAdData(result.products);
+        setUploadMessage(`✅ 广告数据解析成功！${result.products.length} 个产品`);
+      } else {
+        setUploadMessage(`❌ 广告数据解析失败: ${result.error}`);
+      }
+    } catch (err) {
+      setUploadMessage(`❌ 网络错误: ${err.message}`);
+    }
+    setUploadLoading(false);
+    e.target.value = '';
+  };
+
+  // 合并数据并导入
+  const handleImportData = async () => {
+    if (!selectedProduct) return;
+    
+    const sku = selectedProduct.sku;
+    const shopProduct = shopData?.find(p => p.product_id === sku);
+    const adProduct = adData?.find(p => p.product_id === sku);
+
+    if (!shopProduct && !adProduct) {
+      setUploadMessage(`❌ 未找到 SKU: ${sku} 的数据`);
+      return;
+    }
+
+    setUploadLoading(true);
+
+    // 合并店铺和广告数据
+    const mergedData = {
+      visitors: shopProduct?.visitors || 0,
+      page_views: shopProduct?.page_views || 0,
+      clicks: shopProduct?.clicks || 0,
+      add_to_cart: shopProduct?.add_to_cart || 0,
+      organic_orders: shopProduct?.orders || 0,
+      manual_orders: 0,
+      ad_impressions: adProduct?.ad_impressions || 0,
+      ad_clicks: adProduct?.ad_clicks || 0,
+      ad_orders: adProduct?.ad_conversions || 0,
+      ad_spend: adProduct?.ad_spend || 0,
+      ad_revenue: adProduct?.ad_revenue || 0
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku: selectedProduct.sku, parsedData })
+        body: JSON.stringify(mergedData)
       });
       const result = await res.json();
       if (result.success) {
-        setUploadMessage(`✅ Day ${selectedDayNumber} 数据导入成功！ROI: ${result.data.roi}`);
+        setUploadMessage(`✅ Day ${selectedDayNumber} 数据导入成功！ROI: ${result.roi}`);
         setTimeout(() => {
           setShowUploadModal(false);
-          setParsedData(null);
+          setShopData(null);
+          setAdData(null);
           setUploadMessage('');
           loadProductDetail(selectedProduct.id);
         }, 1500);
@@ -157,7 +201,6 @@ const GMVMaxWorkspace = () => {
     setUploadLoading(false);
   };
 
-  // 执行决策
   const handleExecute = async (action, reason, confidence) => {
     try {
       await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/execute`, {
@@ -171,7 +214,6 @@ const GMVMaxWorkspace = () => {
     }
   };
 
-  // 上报异常
   const handleAbnormal = async () => {
     try {
       await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/abnormal`, {
@@ -235,7 +277,7 @@ const GMVMaxWorkspace = () => {
               <input type="number" step="0.1" value={newProduct.target_roi} onChange={(e) => setNewProduct({...newProduct, target_roi: e.target.value})} style={{ width: '100%', padding: '12px', border: '2px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }} />
             </div>
           </div>
-          <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+          <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px' }}>
             <div style={{ fontSize: '12px', color: '#64748b' }}>📅 系统将自动创建 Day 1 ~ Day 7 的数据表格</div>
             <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>👤 负责人: {currentUser.name}</div>
           </div>
@@ -248,17 +290,23 @@ const GMVMaxWorkspace = () => {
     </div>
   );
 
-  // ========== 上传数据弹窗 ==========
+  // ========== 上传数据弹窗 - 分开上传 ==========
   const renderUploadModal = () => {
-    const matchedProduct = parsedData?.find(p => p.product_id === selectedProduct?.sku);
+    const sku = selectedProduct?.sku;
+    const matchedShop = shopData?.find(p => p.product_id === sku);
+    const matchedAd = adData?.find(p => p.product_id === sku);
+    const hasAnyData = matchedShop || matchedAd;
+
     return (
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-        <div style={{ background: '#fff', borderRadius: '16px', width: '600px', maxHeight: '90vh', overflow: 'hidden' }}>
+        <div style={{ background: '#fff', borderRadius: '16px', width: '700px', maxHeight: '90vh', overflow: 'hidden' }}>
           <div style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', padding: '20px 24px', color: '#fff' }}>
             <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700' }}>📊 上传Shopee数据</h3>
             <p style={{ margin: '8px 0 0 0', fontSize: '12px', opacity: 0.9 }}>{selectedProduct?.name} · SKU: {selectedProduct?.sku}</p>
           </div>
-          <div style={{ padding: '24px', maxHeight: '60vh', overflowY: 'auto' }}>
+          
+          <div style={{ padding: '24px', maxHeight: '65vh', overflowY: 'auto' }}>
+            {/* 选择Day */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', display: 'block', marginBottom: '8px' }}>选择录入的Day</label>
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -274,38 +322,104 @@ const GMVMaxWorkspace = () => {
                 })}
               </div>
             </div>
-            <div onClick={() => fileInputRef.current?.click()} style={{ border: '2px dashed #e2e8f0', borderRadius: '12px', padding: '40px', textAlign: 'center', cursor: 'pointer', background: '#f8fafc' }}>
-              <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileUpload} style={{ display: 'none' }} />
-              <div style={{ fontSize: '40px', marginBottom: '12px' }}>📁</div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>{uploadLoading ? '解析中...' : '点击上传Excel文件'}</div>
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>支持 Shopee 产品性能导出文件</div>
-            </div>
-            {uploadMessage && (
-              <div style={{ marginTop: '16px', padding: '12px', borderRadius: '8px', background: uploadMessage.includes('✅') ? '#ecfdf5' : '#fef2f2', color: uploadMessage.includes('✅') ? '#059669' : '#dc2626', fontSize: '13px' }}>{uploadMessage}</div>
-            )}
-            {parsedData && (
-              <div style={{ marginTop: '20px', background: matchedProduct ? '#ecfdf5' : '#fef2f2', border: `2px solid ${matchedProduct ? '#10b981' : '#ef4444'}`, borderRadius: '12px', padding: '16px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: matchedProduct ? '#059669' : '#dc2626', marginBottom: '8px' }}>
-                  {matchedProduct ? '✅ 找到匹配数据' : `❌ 未找到 SKU: ${selectedProduct?.sku}`}
+
+            {/* 两列上传区域 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+              {/* 店铺数据上传 */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#059669', marginBottom: '8px' }}>📦 店铺数据 (Excel)</div>
+                <div onClick={() => shopFileRef.current?.click()} style={{ border: '2px dashed #10b981', borderRadius: '12px', padding: '24px', textAlign: 'center', cursor: 'pointer', background: shopData ? '#ecfdf5' : '#f8fafc', minHeight: '100px' }}>
+                  <input ref={shopFileRef} type="file" accept=".xlsx,.xls" onChange={handleShopFileUpload} style={{ display: 'none' }} />
+                  {shopData ? (
+                    <div>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div>
+                      <div style={{ fontSize: '12px', color: '#059669', fontWeight: '600' }}>已上传 {shopData.length} 个产品</div>
+                      {matchedShop && <div style={{ fontSize: '11px', color: '#059669', marginTop: '4px' }}>找到匹配: 访客{matchedShop.visitors} 订单{matchedShop.orders}</div>}
+                      {!matchedShop && <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>⚠ 未找到SKU匹配</div>}
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>📁</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>点击上传产品性能.xlsx</div>
+                    </div>
+                  )}
                 </div>
-                {matchedProduct && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', fontSize: '12px' }}>
-                    <div><span style={{ color: '#64748b' }}>访客:</span> <strong>{matchedProduct.visitors || 0}</strong></div>
-                    <div><span style={{ color: '#64748b' }}>订单:</span> <strong style={{ color: '#059669' }}>{matchedProduct.orders || 0}</strong></div>
-                    <div><span style={{ color: '#64748b' }}>加购:</span> <strong>{matchedProduct.add_to_cart || 0}</strong></div>
-                    <div><span style={{ color: '#64748b' }}>广告曝光:</span> <strong>{matchedProduct.ad_impressions || 0}</strong></div>
-                    <div><span style={{ color: '#64748b' }}>广告花费:</span> <strong style={{ color: '#dc2626' }}>Rp{((matchedProduct.ad_spend || 0)/1000).toFixed(0)}k</strong></div>
-                    <div><span style={{ color: '#64748b' }}>广告收入:</span> <strong style={{ color: '#059669' }}>Rp{((matchedProduct.ad_revenue || 0)/1000).toFixed(0)}k</strong></div>
+              </div>
+
+              {/* 广告数据上传 */}
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#ea580c', marginBottom: '8px' }}>📈 广告数据 (CSV)</div>
+                <div onClick={() => adFileRef.current?.click()} style={{ border: '2px dashed #f97316', borderRadius: '12px', padding: '24px', textAlign: 'center', cursor: 'pointer', background: adData ? '#fff7ed' : '#f8fafc', minHeight: '100px' }}>
+                  <input ref={adFileRef} type="file" accept=".csv" onChange={handleAdFileUpload} style={{ display: 'none' }} />
+                  {adData ? (
+                    <div>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div>
+                      <div style={{ fontSize: '12px', color: '#ea580c', fontWeight: '600' }}>已上传 {adData.length} 个产品</div>
+                      {matchedAd && <div style={{ fontSize: '11px', color: '#ea580c', marginTop: '4px' }}>找到匹配: 曝光{matchedAd.ad_impressions} 花费Rp{(matchedAd.ad_spend/1000).toFixed(0)}k</div>}
+                      {!matchedAd && <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>⚠ 未找到SKU匹配</div>}
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: '24px', marginBottom: '8px' }}>📁</div>
+                      <div style={{ fontSize: '12px', color: '#64748b' }}>点击上传广告报表.csv</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 消息提示 */}
+            {uploadMessage && (
+              <div style={{ marginBottom: '16px', padding: '12px', borderRadius: '8px', background: uploadMessage.includes('✅') ? '#ecfdf5' : '#fef2f2', color: uploadMessage.includes('✅') ? '#059669' : '#dc2626', fontSize: '13px' }}>{uploadMessage}</div>
+            )}
+
+            {/* 数据预览 */}
+            {hasAnyData && (
+              <div style={{ background: '#f8fafc', borderRadius: '12px', padding: '16px', border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#1e293b', marginBottom: '12px' }}>📋 数据预览 (SKU: {sku})</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', fontSize: '12px' }}>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>访客</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>{matchedShop?.visitors || 0}</div>
                   </div>
-                )}
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>订单</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#059669' }}>{matchedShop?.orders || 0}</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>加购</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#1e293b' }}>{matchedShop?.add_to_cart || 0}</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>广告曝光</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#ea580c' }}>{(matchedAd?.ad_impressions || 0).toLocaleString()}</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>广告点击</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#ea580c' }}>{matchedAd?.ad_clicks || 0}</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>广告花费</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#dc2626' }}>Rp{((matchedAd?.ad_spend || 0)/1000).toFixed(0)}k</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>广告收入</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#059669' }}>Rp{((matchedAd?.ad_revenue || 0)/1000).toFixed(0)}k</div>
+                  </div>
+                  <div style={{ background: '#fff', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#64748b', marginBottom: '4px' }}>ROI</div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: (matchedAd?.ad_roi || 0) >= 3 ? '#059669' : '#dc2626' }}>{matchedAd?.ad_roi?.toFixed(2) || '-'}</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
+
           <div style={{ padding: '16px 24px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: '12px', color: '#64748b' }}>数据将导入到 Day {selectedDayNumber}</div>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => { setShowUploadModal(false); setParsedData(null); setUploadMessage(''); }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}>取消</button>
-              <button onClick={handleImportData} disabled={!matchedProduct || uploadLoading} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: matchedProduct ? 'linear-gradient(135deg, #10b981, #059669)' : '#94a3b8', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: matchedProduct ? 'pointer' : 'not-allowed' }}>
+              <button onClick={() => { setShowUploadModal(false); setShopData(null); setAdData(null); setUploadMessage(''); }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}>取消</button>
+              <button onClick={handleImportData} disabled={!hasAnyData || uploadLoading} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: hasAnyData ? 'linear-gradient(135deg, #10b981, #059669)' : '#94a3b8', color: '#fff', fontSize: '14px', fontWeight: '600', cursor: hasAnyData ? 'pointer' : 'not-allowed' }}>
                 {uploadLoading ? '导入中...' : '✓ 导入数据'}
               </button>
             </div>
@@ -552,7 +666,6 @@ const GMVMaxWorkspace = () => {
     );
   };
 
-  // ========== 主渲染 ==========
   return (
     <div style={{ minHeight: '100vh', background: '#f1f5f9', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       <div style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', padding: '12px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 100 }}>
