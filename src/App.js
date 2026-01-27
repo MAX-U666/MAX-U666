@@ -76,8 +76,7 @@ const App = () => {
     e.target.value = '';
   };
 
-  // 导入数据
-  const handleImportData = async () => {
+const handleImportData = async () => {
     const sku = selectedProduct.sku;
     const shopProduct = shopData?.find(p => p.product_id === sku);
     const adProduct = adData?.find(p => p.product_id === sku);
@@ -85,6 +84,58 @@ const App = () => {
       setUploadMessage(`未找到 SKU: ${sku} 的数据`);
       return;
     }
+
+    setUploadLoading(true);
+    let messages = [];
+
+    if (shopProduct) {
+      const result = await updateShopData(selectedProduct.id, selectedDayNumber, {
+        visitors: shopProduct.visitors || 0,
+        page_views: shopProduct.page_views || 0,
+        visitors_no_buy: shopProduct.visitors_no_buy || 0,
+        visitors_no_buy_rate: shopProduct.visitors_no_buy_rate || 0,
+        clicks: shopProduct.clicks || 0,
+        likes: shopProduct.likes || 0,
+        cart_visitors: shopProduct.cart_visitors || 0,
+        add_to_cart: shopProduct.add_to_cart || 0,
+        cart_rate: shopProduct.cart_rate || 0,
+        orders_created: shopProduct.orders_created || 0,
+        items_created: shopProduct.items_created || 0,
+        revenue_created: shopProduct.revenue_created || 0,
+        conversion_rate: shopProduct.conversion_rate || 0,
+        orders_ready: shopProduct.orders_ready || 0,
+        items_ready: shopProduct.items_ready || 0,
+        revenue_ready: shopProduct.revenue_ready || 0,
+        ready_rate: shopProduct.ready_rate || 0,
+        ready_created_rate: shopProduct.ready_created_rate || 0,
+      });
+      messages.push(result.success ? '店铺数据✓' : `店铺失败: ${result.error}`);
+    }
+
+    if (adProduct) {
+      const result = await updateAdData(selectedProduct.id, selectedDayNumber, {
+        ad_impressions: adProduct.ad_impressions || 0,
+        ad_clicks: adProduct.ad_clicks || 0,
+        ad_conversions: adProduct.ad_conversions || 0,
+        ad_spend: adProduct.ad_spend || 0,
+        ad_revenue: adProduct.ad_revenue || 0
+      });
+      messages.push(result.success ? `广告数据✓ ROI:${result.roi}` : `广告失败: ${result.error}`);
+    }
+
+    setUploadMessage(`Day ${selectedDayNumber}: ${messages.join(' | ')}`);
+    setUploadLoading(false);
+
+    if (messages.some(m => m.includes('✓'))) {
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setShopData(null);
+        setAdData(null);
+        setUploadMessage('');
+        loadProductDetail(selectedProduct.id);
+      }, 1500);
+    }
+  };
 
     setUploadLoading(true);
     let messages = [];
