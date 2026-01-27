@@ -23,7 +23,6 @@ const pool = mysql.createPool({
 // 用户相关 API
 // =============================================
 
-// 获取所有用户
 app.get('/api/users', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM users');
@@ -37,7 +36,6 @@ app.get('/api/users', async (req, res) => {
 // 产品相关 API
 // =============================================
 
-// 获取所有产品
 app.get('/api/products', async (req, res) => {
   try {
     const { owner_id, status } = req.query;
@@ -72,7 +70,6 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// 获取单个产品详情
 app.get('/api/products/:id', async (req, res) => {
   try {
     const [products] = await pool.query(
@@ -99,7 +96,6 @@ app.get('/api/products/:id', async (req, res) => {
       [req.params.id]
     );
     
-    // 计算自然单 = 已下单 - 广告单
     dailyData.forEach(d => {
       d.natural_orders = Math.max(0, (d.orders_created || d.organic_orders || 0) - (d.ad_orders || 0));
     });
@@ -112,7 +108,6 @@ app.get('/api/products/:id', async (req, res) => {
   }
 });
 
-// 新建产品
 app.post('/api/products', async (req, res) => {
   try {
     const { sku, name, price, owner_id, start_date, target_roi } = req.body;
@@ -155,87 +150,64 @@ app.post('/api/products', async (req, res) => {
 // 日数据相关 API - 26列完整版
 // =============================================
 
-// 更新店铺数据（26列完整版）
 app.put('/api/daily-data/:productId/:dayNumber/shop', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
     const data = req.body;
     
-    // 计算转化率
     const conversionRate = data.visitors > 0 
       ? (data.orders_created / data.visitors * 100).toFixed(2) 
       : 0;
     
     await pool.query(
       `UPDATE daily_data SET 
-        -- 流量数据
         visitors = ?,
         page_views = ?,
         visitors_no_buy = ?,
         visitors_no_buy_rate = ?,
         clicks = ?,
         likes = ?,
-        
-        -- 加购数据
         cart_visitors = ?,
         add_to_cart = ?,
         cart_rate = ?,
-        
-        -- 订单数据（已下单）
         orders_created = ?,
         items_created = ?,
         revenue_created = ?,
         conversion_rate = ?,
-        
-        -- 订单数据（待发货）
         orders_ready = ?,
         items_ready = ?,
         revenue_ready = ?,
         ready_rate = ?,
         ready_created_rate = ?,
-        
-        -- 兼容旧字段
         organic_orders = ?,
-        
         status = IF(status = '未提交', '待决策', status),
         updated_at = NOW()
        WHERE product_id = ? AND day_number = ?`,
       [
-        // 流量数据
         data.visitors || 0,
         data.page_views || 0,
         data.visitors_no_buy || 0,
         data.visitors_no_buy_rate || 0,
         data.clicks || 0,
         data.likes || 0,
-        
-        // 加购数据
         data.cart_visitors || 0,
         data.add_to_cart || 0,
         data.cart_rate || 0,
-        
-        // 订单数据（已下单）
         data.orders_created || 0,
         data.items_created || 0,
         data.revenue_created || 0,
         conversionRate,
-        
-        // 订单数据（待发货）
         data.orders_ready || 0,
         data.items_ready || 0,
         data.revenue_ready || 0,
         data.ready_rate || 0,
         data.ready_created_rate || 0,
-        
-        // 兼容旧字段
         data.orders_created || 0,
-        
         productId, 
         dayNumber
       ]
     );
     
-    // 获取更新后的数据计算ROI
     const [rows] = await pool.query(
       'SELECT * FROM daily_data WHERE product_id = ? AND day_number = ?',
       [productId, dayNumber]
@@ -254,13 +226,12 @@ app.put('/api/daily-data/:productId/:dayNumber/shop', async (req, res) => {
       );
     }
     
-    res.json({ success: true, message: '店铺数据更新成功（26列）' });
+    res.json({ success: true, message: '店铺数据更新成功' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// 更新广告数据
 app.put('/api/daily-data/:productId/:dayNumber/ad', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
@@ -306,7 +277,6 @@ app.put('/api/daily-data/:productId/:dayNumber/ad', async (req, res) => {
   }
 });
 
-// 更新补单数据
 app.put('/api/daily-data/:productId/:dayNumber/manual', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
@@ -324,7 +294,6 @@ app.put('/api/daily-data/:productId/:dayNumber/manual', async (req, res) => {
   }
 });
 
-// 兼容旧接口 - 完整更新
 app.put('/api/daily-data/:productId/:dayNumber', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
@@ -363,7 +332,6 @@ app.put('/api/daily-data/:productId/:dayNumber', async (req, res) => {
 // AI决策相关 API
 // =============================================
 
-// 执行AI决策
 app.put('/api/daily-data/:productId/:dayNumber/execute', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
@@ -383,7 +351,6 @@ app.put('/api/daily-data/:productId/:dayNumber/execute', async (req, res) => {
   }
 });
 
-// 上报异常
 app.put('/api/daily-data/:productId/:dayNumber/abnormal', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
@@ -406,7 +373,6 @@ app.put('/api/daily-data/:productId/:dayNumber/abnormal', async (req, res) => {
 // 文件上传解析 API
 // =============================================
 
-// 上传Excel解析
 app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -447,5 +413,4 @@ app.post('/api/upload-excel', upload.single('file'), async (req, res) => {
 
 app.listen(3001, () => {
   console.log('GMV MAX API v2.0 running on http://localhost:3001');
-  console.log('支持26列完整店铺数据');
 });
