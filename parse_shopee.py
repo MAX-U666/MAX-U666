@@ -107,9 +107,9 @@ def detect_file_type(df):
     return 'ad' if ad_score > shop_score else 'shop'
 
 def parse_shop_data_v2(df):
-    """解析店铺数据 - 26列完整版"""
+    """解析店铺数据 - 26列完整版（只取每个SKU的第一行汇总数据）"""
     products = []
-    shop_data = {}
+    seen_skus = set()  # 记录已处理的SKU
     
     for _, row in df.iterrows():
         # 获取产品ID
@@ -117,87 +117,45 @@ def parse_shop_data_v2(df):
         if not pid or pid == 'nan' or pid == '':
             continue
         
-        # 如果是新产品，初始化
-        if pid not in shop_data:
-            shop_data[pid] = {
-                # === 基础信息 ===
-                'product_id': pid,
-                'product_name': str(row.get('Produk', ''))[:100],
-                'product_status': str(row.get('Status Produk Saat Ini', '')),
-                'parent_sku': str(row.get('SKU Induk', '')) if pd.notna(row.get('SKU Induk')) else '',
-                
-                # === 流量数据 ===
-                'visitors': 0,              # 访客数
-                'page_views': 0,            # 页面浏览
-                'visitors_no_buy': 0,       # 看了没买的访客
-                'visitors_no_buy_rate': 0,  # 没买比例
-                'clicks': 0,                # 搜索点击
-                'likes': 0,                 # 收藏
-                
-                # === 加购数据 ===
-                'cart_visitors': 0,         # 加购访客数
-                'add_to_cart': 0,           # 加购数
-                'cart_rate': 0,             # 加购转化率
-                
-                # === 订单数据（已下单）===
-                'orders_created': 0,        # 买家数(已下单)
-                'items_created': 0,         # 产品件数(已下单)
-                'revenue_created': 0,       # 销售额(已下单)
-                'conversion_rate': 0,       # 下单转化率
-                
-                # === 订单数据（待发货）===
-                'orders_ready': 0,          # 买家数(待发货)
-                'items_ready': 0,           # 产品件数(待发货)
-                'revenue_ready': 0,         # 销售额(待发货)
-                'ready_rate': 0,            # 待发货转化率
-                'ready_created_rate': 0,    # 发货/下单比
-            }
+        # 同一个SKU只取第一行（汇总行），跳过后续变体行
+        if pid in seen_skus:
+            continue
+        seen_skus.add(pid)
         
-        # 累加数据（处理多变体情况）
-        data = shop_data[pid]
-        
-        # 流量数据
-        data['visitors'] += safe_int(row.get('Pengunjung Produk (Kunjungan)', 0))
-        data['page_views'] += safe_int(row.get('Halaman Produk Dilihat', 0))
-        data['visitors_no_buy'] += safe_int(row.get('Pengunjung Melihat Tanpa Membeli', 0))
-        data['clicks'] += safe_int(row.get('Klik Pencarian', 0))
-        data['likes'] += safe_int(row.get('Suka', 0))
-        
-        # 加购数据
-        data['cart_visitors'] += safe_int(row.get('Pengunjung Produk (Menambahkan Produk ke Keranjang)', 0))
-        data['add_to_cart'] += safe_int(row.get('Dimasukkan ke Keranjang (Produk)', 0))
-        
-        # 订单数据（已下单）
-        data['orders_created'] += safe_int(row.get('Total Pembeli (Pesanan Dibuat)', 0))
-        data['items_created'] += safe_int(row.get('Produk (Pesanan Dibuat)', 0))
-        data['revenue_created'] += safe_int(row.get('Total Penjualan (Pesanan Dibuat) (IDR)', 0))
-        
-        # 订单数据（待发货）
-        data['orders_ready'] += safe_int(row.get('Total Pembeli (Pesanan Siap Dikirim)', 0))
-        data['items_ready'] += safe_int(row.get('Produk (Pesanan Siap Dikirim)', 0))
-        data['revenue_ready'] += safe_int(row.get('Penjualan (Pesanan Siap Dikirim) (IDR)', 0))
-    
-    # 计算比率字段
-    for pid, data in shop_data.items():
-        # 没买比例
-        if data['visitors'] > 0:
-            data['visitors_no_buy_rate'] = round(data['visitors_no_buy'] / data['visitors'] * 100, 2)
-        
-        # 加购转化率
-        if data['visitors'] > 0:
-            data['cart_rate'] = round(data['cart_visitors'] / data['visitors'] * 100, 2)
-        
-        # 下单转化率
-        if data['visitors'] > 0:
-            data['conversion_rate'] = round(data['orders_created'] / data['visitors'] * 100, 2)
-        
-        # 待发货转化率
-        if data['visitors'] > 0:
-            data['ready_rate'] = round(data['orders_ready'] / data['visitors'] * 100, 2)
-        
-        # 发货/下单比
-        if data['orders_created'] > 0:
-            data['ready_created_rate'] = round(data['orders_ready'] / data['orders_created'] * 100, 2)
+        # 直接读取第一行数据（汇总数据）
+        data = {
+            # === 基础信息 ===
+            'product_id': pid,
+            'product_name': str(row.get('Produk', ''))[:100],
+            'product_status': str(row.get('Status Produk Saat Ini', '')),
+            'parent_sku': str(row.get('SKU Induk', '')) if pd.notna(row.get('SKU Induk')) else '',
+            
+            # === 流量数据 ===
+            'visitors': safe_int(row.get('Pengunjung Produk (Kunjungan)', 0)),
+            'page_views': safe_int(row.get('Halaman Produk Dilihat', 0)),
+            'visitors_no_buy': safe_int(row.get('Pengunjung Melihat Tanpa Membeli', 0)),
+            'visitors_no_buy_rate': safe_float(row.get('Tingkat Pengunjung Melihat Tanpa Membeli', 0)),
+            'clicks': safe_int(row.get('Klik Pencarian', 0)),
+            'likes': safe_int(row.get('Suka', 0)),
+            
+            # === 加购数据 ===
+            'cart_visitors': safe_int(row.get('Pengunjung Produk (Menambahkan Produk ke Keranjang)', 0)),
+            'add_to_cart': safe_int(row.get('Dimasukkan ke Keranjang (Produk)', 0)),
+            'cart_rate': safe_float(row.get('Tingkat Konversi Produk Dimasukkan ke Keranjang', 0)),
+            
+            # === 订单数据（已下单）===
+            'orders_created': safe_int(row.get('Total Pembeli (Pesanan Dibuat)', 0)),
+            'items_created': safe_int(row.get('Produk (Pesanan Dibuat)', 0)),
+            'revenue_created': safe_int(row.get('Total Penjualan (Pesanan Dibuat) (IDR)', 0)),
+            'conversion_rate': safe_float(row.get('Tingkat Konversi (Pesanan yang Dibuat)', 0)),
+            
+            # === 订单数据（待发货）===
+            'orders_ready': safe_int(row.get('Total Pembeli (Pesanan Siap Dikirim)', 0)),
+            'items_ready': safe_int(row.get('Produk (Pesanan Siap Dikirim)', 0)),
+            'revenue_ready': safe_int(row.get('Penjualan (Pesanan Siap Dikirim) (IDR)', 0)),
+            'ready_rate': safe_float(row.get('Tingkat Konversi (Pesanan Siap Dikirim)', 0)),
+            'ready_created_rate': safe_float(row.get('Tingkat Konversi (Pesanan Siap Dikirim dibagi Pesanan Dibuat)', 0)),
+        }
         
         products.append(data)
     
