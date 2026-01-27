@@ -203,134 +203,85 @@ const GMVMaxWorkspace = () => {
     e.target.value = '';
   };
 
-  // 合并数据并导入
-// 合并数据并导入 - 分开调用店铺和广告接口
-const handleImportData = async () => {
-  if (!selectedProduct) return;
-  
-  const sku = selectedProduct.sku;
-  const shopProduct = shopData?.find(p => p.product_id === sku);
-  const adProduct = adData?.find(p => p.product_id === sku);
+  // 合并数据并导入 - 分开调用店铺和广告接口
+  const handleImportData = async () => {
+    if (!selectedProduct) return;
+    
+    const sku = selectedProduct.sku;
+    const shopProduct = shopData?.find(p => p.product_id === sku);
+    const adProduct = adData?.find(p => p.product_id === sku);
 
-  if (!shopProduct && !adProduct) {
-    setUploadMessage(`未找到 SKU: ${sku} 的数据`);
-    return;
-  }
-
-  setUploadLoading(true);
-  let messages = [];
-
-  // 导入店铺数据
-  if (shopProduct) {
-    try {
-      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/shop`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          visitors: shopProduct.visitors || 0,
-          page_views: shopProduct.page_views || 0,
-          clicks: shopProduct.clicks || 0,
-          add_to_cart: shopProduct.add_to_cart || 0,
-          orders: shopProduct.orders || 0
-        })
-      });
-      const result = await res.json();
-      if (result.success) {
-        messages.push('店铺数据✓');
-      } else {
-        messages.push(`店铺失败: ${result.error}`);
-      }
-    } catch (err) {
-      messages.push(`店铺错误: ${err.message}`);
+    if (!shopProduct && !adProduct) {
+      setUploadMessage(`未找到 SKU: ${sku} 的数据`);
+      return;
     }
-  }
 
-  // 导入广告数据
-  if (adProduct) {
-    try {
-      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/ad`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ad_impressions: adProduct.ad_impressions || 0,
-          ad_clicks: adProduct.ad_clicks || 0,
-          ad_conversions: adProduct.ad_conversions || 0,
-          ad_spend: adProduct.ad_spend || 0,
-          ad_revenue: adProduct.ad_revenue || 0
-        })
-      });
-      const result = await res.json();
-      if (result.success) {
-        messages.push(`广告数据✓ ROI:${result.roi}`);
-      } else {
-        messages.push(`广告失败: ${result.error}`);
-      }
-    } catch (err) {
-      messages.push(`广告错误: ${err.message}`);
-    }
-  }
-
-  setUploadMessage(`Day ${selectedDayNumber}: ${messages.join(' | ')}`);
-  setUploadLoading(false);
-
-  // 成功后刷新
-  if (messages.some(m => m.includes('✓'))) {
-    setTimeout(() => {
-      setShowUploadModal(false);
-      setShopData(null);
-      setAdData(null);
-      setUploadMessage('');
-      loadProductDetail(selectedProduct.id);
-    }, 1500);
-  }
-};
-
-
-
-  
     setUploadLoading(true);
+    let messages = [];
 
-    const mergedData = {
-      visitors: shopProduct?.visitors || 0,
-      page_views: shopProduct?.page_views || 0,
-      clicks: shopProduct?.clicks || 0,
-      add_to_cart: shopProduct?.add_to_cart || 0,
-      likes: shopProduct?.likes || 0,
-      organic_orders: shopProduct?.orders || 0,
-      conversion_rate: shopProduct?.conversion_rate || 0,
-      manual_orders: 0,
-      ad_impressions: adProduct?.ad_impressions || 0,
-      ad_clicks: adProduct?.ad_clicks || 0,
-      ad_ctr: adProduct?.ad_ctr || 0,
-      ad_orders: adProduct?.ad_conversions || 0,
-      ad_cvr: adProduct?.ad_cvr || 0,
-      ad_spend: adProduct?.ad_spend || 0,
-      ad_revenue: adProduct?.ad_revenue || 0
-    };
-
-    try {
-      const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mergedData)
-      });
-      const result = await res.json();
-      if (result.success) {
-        setUploadMessage(`Day ${selectedDayNumber} 导入成功！ROI: ${result.roi}`);
-        setTimeout(() => {
-          setShowUploadModal(false);
-          setShopData(null);
-          setAdData(null);
-          setUploadMessage('');
-          loadProductDetail(selectedProduct.id);
-        }, 1500);
-      } else {
-        setUploadMessage(`导入失败: ${result.error}`);
+    // 导入店铺数据
+    if (shopProduct) {
+      try {
+        const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/shop`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            visitors: shopProduct.visitors || 0,
+            page_views: shopProduct.page_views || 0,
+            clicks: shopProduct.clicks || 0,
+            add_to_cart: shopProduct.add_to_cart || 0,
+            orders: shopProduct.orders || 0
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          messages.push('店铺数据✓');
+        } else {
+          messages.push(`店铺失败: ${result.error}`);
+        }
+      } catch (err) {
+        messages.push(`店铺错误: ${err.message}`);
       }
-    } catch (err) {
-      setUploadMessage(`网络错误: ${err.message}`);
     }
+
+    // 导入广告数据
+    if (adProduct) {
+      try {
+        const res = await fetch(`${API_BASE}/daily-data/${selectedProduct.id}/${selectedDayNumber}/ad`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ad_impressions: adProduct.ad_impressions || 0,
+            ad_clicks: adProduct.ad_clicks || 0,
+            ad_conversions: adProduct.ad_conversions || 0,
+            ad_spend: adProduct.ad_spend || 0,
+            ad_revenue: adProduct.ad_revenue || 0
+          })
+        });
+        const result = await res.json();
+        if (result.success) {
+          messages.push(`广告数据✓ ROI:${result.roi}`);
+        } else {
+          messages.push(`广告失败: ${result.error}`);
+        }
+      } catch (err) {
+        messages.push(`广告错误: ${err.message}`);
+      }
+    }
+
+    setUploadMessage(`Day ${selectedDayNumber}: ${messages.join(' | ')}`);
     setUploadLoading(false);
+
+    // 成功后刷新
+    if (messages.some(m => m.includes('✓'))) {
+      setTimeout(() => {
+        setShowUploadModal(false);
+        setShopData(null);
+        setAdData(null);
+        setUploadMessage('');
+        loadProductDetail(selectedProduct.id);
+      }, 1500);
+    }
   };
 
   // 执行决策
@@ -600,7 +551,7 @@ const handleImportData = async () => {
 
             {/* 消息 */}
             {uploadMessage && (
-              <div style={{ marginBottom: '16px', padding: '14px 18px', borderRadius: '12px', background: uploadMessage.includes('成功') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${uploadMessage.includes('成功') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, color: uploadMessage.includes('成功') ? '#10B981' : '#F87171', fontSize: '13px' }}>
+              <div style={{ marginBottom: '16px', padding: '14px 18px', borderRadius: '12px', background: uploadMessage.includes('✓') ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', border: `1px solid ${uploadMessage.includes('✓') ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`, color: uploadMessage.includes('✓') ? '#10B981' : '#F87171', fontSize: '13px' }}>
                 {uploadMessage}
               </div>
             )}
@@ -654,9 +605,6 @@ const handleImportData = async () => {
       return {
         totalOrganic: dailyData.reduce((sum, d) => sum + (d.organic_orders || 0), 0),
         totalManual: dailyData.reduce((sum, d) => sum + (d.manual_orders || 0), 0),
-        totalImpressions: dailyData.reduce((sum, d) => sum + (d.visitors || 0), 0),
-        totalClicks: dailyData.reduce((sum, d) => sum + (d.clicks || 0), 0),
-        avgCVR: dailyData.filter(d => d.visitors > 0).length > 0 ? (dailyData.filter(d => d.visitors > 0).reduce((sum, d) => sum + (d.organic_orders / d.visitors * 100), 0) / dailyData.filter(d => d.visitors > 0).length).toFixed(2) : 0,
         totalAdSpend: dailyData.reduce((sum, d) => sum + (d.ad_spend || 0), 0),
         totalAdRevenue: dailyData.reduce((sum, d) => sum + (d.ad_revenue || 0), 0),
         avgROI: dailyData.filter(d => d.roi > 0).length > 0 ? (dailyData.filter(d => d.roi > 0).reduce((sum, d) => sum + parseFloat(d.roi), 0) / dailyData.filter(d => d.roi > 0).length).toFixed(2) : 0
@@ -679,10 +627,10 @@ const handleImportData = async () => {
           </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: '1300px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', minWidth: '1400px' }}>
             <thead>
               <tr>
-                {['阶段', '日期', '实际单', '补单', '曝光', '点击', '加购', '转化率', '广告曝光', '广告点击', 'CTR', '广告单', '广告转化', '花费', '收入', '设置ROI', '实际ROI', 'AI决策'].map((h, i) => (
+                {['阶段', '日期', '实际单', '自然单', '曝光', '点击', '加购', '转化率', '广告曝光', '广告点击', 'CTR', '广告单', '广告转化', '花费', '收入', '设置ROI', '实际ROI', 'AI决策', '补单'].map((h, i) => (
                   <th key={i} style={{ padding: '14px 10px', textAlign: 'center', fontWeight: '600', color: '#64748B', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>{h}</th>
                 ))}
               </tr>
@@ -693,6 +641,7 @@ const handleImportData = async () => {
                 const cvr = row.visitors > 0 ? (row.organic_orders / row.visitors * 100).toFixed(2) : 0;
                 const adCTR = row.ad_impressions > 0 ? (row.ad_clicks / row.ad_impressions * 100).toFixed(2) : 0;
                 const adCVR = row.ad_clicks > 0 ? (row.ad_orders / row.ad_clicks * 100).toFixed(2) : 0;
+                const naturalOrders = Math.max(0, (row.organic_orders || 0) - (row.ad_orders || 0));
                 
                 return (
                   <tr key={row.day_number} style={{ 
@@ -704,7 +653,7 @@ const handleImportData = async () => {
                     </td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94A3B8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{new Date(row.date).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#10B981', fontWeight: '600', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.organic_orders || '-'}</td>
-                    <td style={{ padding: '12px 10px', textAlign: 'center', color: '#8B5CF6', fontWeight: '600', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.manual_orders || '-'}</td>
+                    <td style={{ padding: '12px 10px', textAlign: 'center', color: '#3B82F6', fontWeight: '600', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{naturalOrders || '-'}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94A3B8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.visitors || '-'}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94A3B8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.clicks || '-'}</td>
                     <td style={{ padding: '12px 10px', textAlign: 'center', color: '#94A3B8', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.add_to_cart || '-'}</td>
@@ -725,6 +674,7 @@ const handleImportData = async () => {
                         </span>
                       ) : <span style={{ color: '#475569' }}>-</span>}
                     </td>
+                    <td style={{ padding: '12px 10px', textAlign: 'center', color: '#8B5CF6', fontWeight: '600', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>{row.manual_orders || '-'}</td>
                   </tr>
                 );
               })}
@@ -808,7 +758,6 @@ const handleImportData = async () => {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
             {products.map(product => {
               const statusConfig = getStatusConfig(product.status);
-              const phaseConfig = getPhaseConfig(product.phase);
               return (
                 <div key={product.id} onClick={() => { loadProductDetail(product.id); setCurrentView('detail'); }} style={{ ...styles.card, cursor: 'pointer', position: 'relative', transition: 'all 0.3s ease' }}>
                   <div style={{ padding: '20px' }}>
