@@ -348,20 +348,32 @@ app.put('/api/daily-data/:productId/:dayNumber/manual', async (req, res) => {
 // 千问 AI 分析 API
 // =============================================
 
-// 构建用户消息
+// 构建用户消息 - 只传原始数据，让AI自己算比率
 function buildUserMessage(dayData, productInfo, historicalData) {
-  const naturalOrders = Math.max(0, (dayData.orders_created || 0) - (dayData.ad_orders || 0));
-  const ctr = dayData.ad_impressions > 0 ? ((dayData.ad_clicks / dayData.ad_impressions) * 100).toFixed(2) : 0;
-  const adCvr = dayData.ad_clicks > 0 ? ((dayData.ad_orders / dayData.ad_clicks) * 100).toFixed(2) : 0;
+  // 计算自然数据
+  const totalVisitors = dayData.visitors || 0;
+  const adClicks = dayData.ad_clicks || 0;
+  const naturalVisitors = Math.max(0, totalVisitors - adClicks);
   
+  const shopClicks = dayData.clicks || 0;
+  const naturalClicks = Math.max(0, shopClicks - adClicks);
+  
+  const totalOrders = dayData.orders_created || 0;
+  const adOrders = dayData.ad_orders || 0;
+  const naturalOrders = Math.max(0, totalOrders - adOrders);
+  
+  // 历史数据（只传原始值）
   let historyText = '';
   if (historicalData && historicalData.length > 0) {
-    historyText = `\n## 历史数据\n${historicalData.map(d => 
-      `Day ${d.day_number}: 曝光${(d.ad_impressions || 0).toLocaleString()}, 订单${d.orders_created || 0}, ROI ${d.roi || 0}`
-    ).join('\n')}`;
+    historyText = `\n## 历史数据（供趋势判断）\n${historicalData.map(d => {
+      const hNaturalOrders = Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0));
+      return `Day ${d.day_number}: 广告曝光${d.ad_impressions || 0}, 广告点击${d.ad_clicks || 0}, 广告单${d.ad_orders || 0}, 自然单${hNaturalOrders}, 花费${d.ad_spend || 0}, 收入${d.ad_revenue || 0}`;
+    }).join('\n')}`;
   }
 
-  return `请分析以下 GMV MAX 广告数据，按规定的JSON格式输出判断：
+  return `请分析以下 GMV MAX 广告数据，按规定的JSON格式输出判断。
+
+⚠️ 重要：CTR、CVR、ROI、转化率等比率指标请你自己计算，确保精度。
 
 ## 产品信息
 - SKU：${productInfo.sku}
@@ -369,35 +381,25 @@ function buildUserMessage(dayData, productInfo, historicalData) {
 - 目标ROI：${productInfo.target_roi || 3}
 - 当前Day：${dayData.day_number}/7
 
-## 店铺数据
-- 访客数：${dayData.visitors || 0}
-- 页面浏览：${dayData.page_views || 0}
-- 点击数：${dayData.clicks || 0}
+## 店铺原始数据
+- 总访客：${totalVisitors}
+- 自然访客：${naturalVisitors}（总访客 - 广告点击）
+- 店铺点击：${shopClicks}
+- 自然点击：${naturalClicks}（店铺点击 - 广告点击）
 - 收藏数：${dayData.likes || 0}
-- 加购人数：${dayData.cart_visitors || 0}
-- 加购数：${dayData.add_to_cart || 0}
-- 加购率：${dayData.cart_rate || 0}%
-- 下单人数：${dayData.orders_created || 0}
-- 下单件数：${dayData.items_created || 0}
-- 下单金额：Rp ${(dayData.revenue_created || 0).toLocaleString()}
-- 转化率：${dayData.conversion_rate || 0}%
+- 加购数：${dayData.add_to_cart || 0}（总加购，含广告+自然）
+- 总单量：${totalOrders}
+- 自然单：${naturalOrders}（总单量 - 广告单）
 
-## 广告数据
-- 广告曝光：${(dayData.ad_impressions || 0).toLocaleString()}
-- 广告点击：${dayData.ad_clicks || 0}
-- CTR：${ctr}%
-- 广告订单：${dayData.ad_orders || 0}
-- 广告转化率：${adCvr}%
-- 广告花费：Rp ${(dayData.ad_spend || 0).toLocaleString()}
-- 广告收入：Rp ${(dayData.ad_revenue || 0).toLocaleString()}
-- 当前ROI：${dayData.roi || 0}
-
-## 计算数据
-- 自然订单：${naturalOrders}
-- 自然单占比：${dayData.orders_created > 0 ? ((naturalOrders / dayData.orders_created) * 100).toFixed(1) : 0}%
+## 广告原始数据（请自行计算CTR、CVR、ROI）
+- 广告曝光：${dayData.ad_impressions || 0}
+- 广告点击：${adClicks}
+- 广告单：${adOrders}
+- 广告花费：${dayData.ad_spend || 0}（单位：Rp）
+- 广告收入：${dayData.ad_revenue || 0}（单位：Rp）
 ${historyText}
 
-请严格按照JSON格式输出，包含所有7个固定key。`;
+请严格按照JSON格式输出，包含所有固定key。`;
 }
 
 // 调用千问 API
@@ -447,13 +449,23 @@ async function callQwenAPI(dayData, productInfo, historicalData) {
   throw new Error('千问API返回格式错误');
 }
 
-// 本地规则引擎（备用）
+// 本地规则引擎（备用）- 使用原始数据自己算比率
 function localRuleEngine(dayData, productInfo) {
   const adImpressions = dayData.ad_impressions || 0;
-  const roi = parseFloat(dayData.roi) || 0;
-  const ordersCreated = dayData.orders_created || 0;
+  const adClicks = dayData.ad_clicks || 0;
   const adOrders = dayData.ad_orders || 0;
-  const naturalOrders = Math.max(0, ordersCreated - adOrders);
+  const adSpend = dayData.ad_spend || 0;
+  const adRevenue = dayData.ad_revenue || 0;
+  
+  // 自己计算比率（精确值）
+  const roi = adSpend > 0 ? adRevenue / adSpend : 0;
+  const ctr = adImpressions > 0 ? (adClicks / adImpressions) * 100 : 0;
+  const cvr = adClicks > 0 ? (adOrders / adClicks) * 100 : 0;
+  
+  const totalOrders = dayData.orders_created || 0;
+  const naturalOrders = Math.max(0, totalOrders - adOrders);
+  const naturalOrdersRate = totalOrders > 0 ? (naturalOrders / totalOrders) * 100 : 0;
+  
   const targetRoi = parseFloat(productInfo.target_roi) || 3;
 
   // 阶段判断
@@ -474,28 +486,29 @@ function localRuleEngine(dayData, productInfo) {
   const keyBottlenecks = [];
   const notToDo = ['不要在48小时内调整价格', '不要更换主图或标题'];
   
-  if (roi > 0 && roi < 2) {
+  // ROI熔断判断（精确比较）
+  if (adSpend > 0 && roi < 2) {
     todayDecision = '暂停止损';
     confidence = 90;
     supplementStrategy = '停止补单';
-    keyBottlenecks.push('ROI严重不达标（<2），系统判定为低效流量');
-  } else if (roi > 0 && roi < targetRoi) {
+    keyBottlenecks.push(`ROI严重不达标（${roi.toFixed(2)}），系统判定为低效流量`);
+  } else if (adSpend > 0 && roi < targetRoi) {
     todayDecision = '收缩防守';
     confidence = 80;
     supplementStrategy = '暂缓补单';
-    keyBottlenecks.push(`ROI ${roi} 未达目标线 ${targetRoi}`);
+    keyBottlenecks.push(`ROI ${roi.toFixed(2)} 未达目标线 ${targetRoi}`);
     notToDo.push('不要加大预算');
   } else if (phase === 'A') {
     todayDecision = '维持观察';
     confidence = 65;
-    supplementStrategy = ordersCreated > 0 ? '注入1-2单' : '不需要补单';
+    supplementStrategy = totalOrders > 0 ? '注入1-2单' : '不需要补单';
     keyBottlenecks.push('样本不足，系统尚未建立有效判断');
     keyBottlenecks.push(`当前曝光 ${adImpressions.toLocaleString()}，需突破 5,000 进入观察期`);
   } else if (phase === 'B') {
     todayDecision = '维持观察';
     confidence = 70;
-    if (naturalOrders < ordersCreated * 0.2 && ordersCreated > 0) {
-      keyBottlenecks.push(`自然单占比过低（${((naturalOrders/ordersCreated)*100).toFixed(1)}%），系统对自然转化信心不足`);
+    if (naturalOrdersRate < 20 && totalOrders > 0) {
+      keyBottlenecks.push(`自然单占比过低（${naturalOrdersRate.toFixed(1)}%），系统对自然转化信心不足`);
     }
     keyBottlenecks.push('成交信号连续性待验证');
     supplementStrategy = '注入1-2单';
@@ -507,8 +520,11 @@ function localRuleEngine(dayData, productInfo) {
     keyBottlenecks.push('数据健康，系统已确认放量意愿');
   }
 
+  // 构建系统判断（包含自己算的精确值）
+  const systemJudgment = `当前处于${phaseName}（阶段${phase}）。广告曝光 ${adImpressions.toLocaleString()}，CTR ${ctr.toFixed(2)}%，CVR ${cvr.toFixed(2)}%，ROI ${roi.toFixed(2)}。系统${phase === 'A' ? '尚未建立有效判断，处于被动观察状态' : (phase === 'B' ? '正在验证转化稳定性与可复制性' : '已确认放量意愿，主动增加曝光权重')}。`;
+
   return {
-    system_judgment: `当前处于${phaseName}（阶段${phase}），广告曝光 ${adImpressions.toLocaleString()}，ROI ${roi}。系统${phase === 'A' ? '尚未建立有效判断，处于被动观察状态' : (phase === 'B' ? '正在验证转化稳定性与可复制性' : '已确认放量意愿，主动增加曝光权重')}。`,
+    system_judgment: systemJudgment,
     key_bottlenecks: keyBottlenecks,
     manual_signal_judgment: supplementStrategy === '注入1-2单' 
       ? '需要人工成交信号介入：建议在自然流量高峰期（10:00-12:00, 20:00-22:00）注入1-2单，间隔4小时以上，制造"稳定成交正在发生"的信号。' 
@@ -517,7 +533,7 @@ function localRuleEngine(dayData, productInfo) {
     not_to_do: notToDo,
     observation_focus: [
       `关注明日曝光${phase === 'A' ? '是否突破5,000' : (phase === 'B' ? '是否持续增长' : '是否保持稳定')}`,
-      roi < targetRoi && roi > 0 ? '监控ROI回升情况' : '观察自然单占比变化'
+      adSpend > 0 && roi < targetRoi ? '监控ROI回升情况' : '观察自然单占比变化'
     ],
     today_decision: todayDecision,
     confidence: confidence,
