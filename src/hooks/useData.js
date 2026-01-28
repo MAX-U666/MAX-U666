@@ -45,14 +45,22 @@ export const useUsers = () => {
   return { users, currentUser, setCurrentUser };
 };
 
-// 产品管理Hook
+// 产品管理Hook - 修复 currentUser 为 null 的情况
 export const useProducts = (currentUser, filterOwner, filterStatus) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const loadProducts = () => {
+    // 如果 currentUser 为 null，不加载产品
+    if (!currentUser) {
+      setProducts([]);
+      return;
+    }
+    
     setLoading(true);
     const params = {};
+    
+    // 安全检查 currentUser.role
     if (filterOwner === 'mine' && currentUser.role !== 'admin') {
       params.owner_id = currentUser.id;
     }
@@ -68,7 +76,9 @@ export const useProducts = (currentUser, filterOwner, filterStatus) => {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadProducts(); }, [filterOwner, filterStatus, currentUser]);
+  useEffect(() => { 
+    loadProducts(); 
+  }, [filterOwner, filterStatus, currentUser?.id]); // 使用 currentUser?.id 避免依赖整个对象
 
   return { products, loading, loadProducts };
 };
