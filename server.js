@@ -564,7 +564,7 @@ async function callQwenAPI(dayData, productInfo, historicalData) {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      model: 'qwen-max',
+      model: 'qwen-turbo',
       input: {
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
