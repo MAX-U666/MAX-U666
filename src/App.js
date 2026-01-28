@@ -1,11 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header, DayTable, NewProductModal, UploadModal, AbnormalModal } from './components';
 import AIDecisionPanel from './components/AIDecisionPanel';
+import LoginPage from './components/LoginPage';
+import UserManagement from './components/UserManagement';
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
-import { useCountdown, useUsers, useProducts, useProductDetail } from './hooks/useData';
+import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
 
 const App = () => {
+  // 登录状态
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  
+  // 用户管理弹窗
+  const [showUserManagement, setShowUserManagement] = useState(false);
+
   const [currentView, setCurrentView] = useState('dashboard');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterOwner, setFilterOwner] = useState('mine');
@@ -27,9 +38,73 @@ const App = () => {
   const [executionStatus, setExecutionStatus] = useState(null);
 
   const countdown = useCountdown();
-  const { users, currentUser, setCurrentUser } = useUsers();
   const { products, loading, loadProducts } = useProducts(currentUser, filterOwner, filterStatus);
   const { selectedProduct, setSelectedProduct, selectedDayNumber, setSelectedDayNumber, loadProductDetail } = useProductDetail();
+
+  // 检查登录状态
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('token');
+      const savedUser = localStorage.getItem('user');
+      
+      if (token && savedUser) {
+        try {
+          const response = await fetch('/api/verify-token', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await response.json();
+          
+          if (data.valid) {
+            setCurrentUser(data.user);
+            setIsLoggedIn(true);
+          } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        } catch (err) {
+          console.error('验证失败:', err);
+        }
+      }
+      setCheckingAuth(false);
+    };
+    
+    checkAuth();
+  }, []);
+
+  // 加载用户列表
+  useEffect(() => {
+    if (isLoggedIn) {
+      fetch('/api/users')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setUsers(data);
+        })
+        .catch(console.error);
+    }
+  }, [isLoggedIn]);
+
+  // 登录处理
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+  };
+
+  // 退出登录
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+    } catch (err) {
+      console.error('退出失败:', err);
+    }
+    
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+  };
 
   const handleCreateProduct = async () => {
     if (!newProduct.sku || !newProduct.name) {
@@ -80,26 +155,7 @@ const App = () => {
     let messages = [];
 
     if (shopProduct) {
-      const result = await updateShopData(selectedProduct.id, selectedDayNumber, {
-        visitors: shopProduct.visitors || 0,
-        page_views: shopProduct.page_views || 0,
-        visitors_no_buy: shopProduct.visitors_no_buy || 0,
-        visitors_no_buy_rate: shopProduct.visitors_no_buy_rate || 0,
-        clicks: shopProduct.clicks || 0,
-        likes: shopProduct.likes || 0,
-        cart_visitors: shopProduct.cart_visitors || 0,
-        add_to_cart: shopProduct.add_to_cart || 0,
-        cart_rate: shopProduct.cart_rate || 0,
-        orders_created: shopProduct.orders_created || 0,
-        items_created: shopProduct.items_created || 0,
-        revenue_created: shopProduct.revenue_created || 0,
-        conversion_rate: shopProduct.conversion_rate || 0,
-        orders_ready: shopProduct.orders_ready || 0,
-        items_ready: shopProduct.items_ready || 0,
-        revenue_ready: shopProduct.revenue_ready || 0,
-        ready_rate: shopProduct.ready_rate || 0,
-        ready_created_rate: shopProduct.ready_created_rate || 0,
-      });
+      const result = await updateShopData(selectedProduct.id, selectedDayNumber, shopProduct);
       messages.push(result.success ? '店铺数据✓' : `店铺失败: ${result.error}`);
     }
 
@@ -156,6 +212,38 @@ const App = () => {
     setExecutionStatus(null);
   };
 
+  // 检查登录状态中
+  if (checkingAuth) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center'
+      }}>
+        <div style={{ textAlign: 'center', color: '#64748B' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            border: '3px solid rgba(255,107,53,0.2)',
+            borderTopColor: '#FF6B35',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px'
+          }} />
+          <p>加载中...</p>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // 未登录显示登录页
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   const currentDayData = selectedProduct?.daily_data?.find(d => d.day_number === (selectedProduct?.current_day || 1));
   const dayStatus = getDayStatus(currentDayData);
 
@@ -167,6 +255,8 @@ const App = () => {
         users={users} selectedProduct={selectedProduct}
         setSelectedProduct={setSelectedProduct} countdown={countdown}
         setFilterOwner={setFilterOwner}
+        onLogout={handleLogout}
+        onUserManagement={() => setShowUserManagement(true)}
       />
       
       <div style={styles.content}>
@@ -218,6 +308,13 @@ const App = () => {
         <AbnormalModal 
           abnormalReason={abnormalReason} setAbnormalReason={setAbnormalReason}
           onClose={() => setShowAbnormalModal(false)} onSubmit={handleAbnormal}
+        />
+      )}
+
+      {showUserManagement && (
+        <UserManagement 
+          currentUser={currentUser}
+          onClose={() => setShowUserManagement(false)}
         />
       )}
     </div>
@@ -311,7 +408,6 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpl
   
   return (
     <div>
-      {/* 警告条 */}
       {dayStatus.label === '未提交' && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -325,7 +421,6 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpl
         </div>
       )}
       
-      {/* 操作栏 */}
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button onClick={onUpload} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }}>📊 上传数据</button>
         <button style={styles.buttonSecondary}>结果回写</button>
@@ -334,12 +429,10 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpl
         </div>
       </div>
 
-      {/* 7天表格 */}
       <div style={{ marginBottom: '16px' }}>
         <DayTable selectedProduct={selectedProduct} />
       </div>
 
-      {/* AI 决策面板 - 新组件 */}
       <AIDecisionPanel 
         selectedProduct={selectedProduct}
         currentDayData={currentDayData}
