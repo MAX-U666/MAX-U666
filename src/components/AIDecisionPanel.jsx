@@ -376,7 +376,11 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
             {!activeTab && (
               <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
                 <div style={{ fontWeight: '700', color: '#FF6B35', marginBottom: '12px', fontSize: '13px' }}>🧠 系统判断</div>
-                <p style={{ margin: 0, fontSize: '12px', color: '#CBD5E1', lineHeight: '1.8' }}>{analysisResult.system_judgment}</p>
+                <p style={{ margin: 0, fontSize: '12px', color: '#CBD5E1', lineHeight: '1.8' }}>
+  {typeof analysisResult.system_judgment === 'string' 
+    ? analysisResult.system_judgment 
+    : analysisResult.system_judgment?.judgment || JSON.stringify(analysisResult.system_judgment)}
+</p>
               </div>
             )}
           </>
