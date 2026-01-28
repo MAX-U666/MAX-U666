@@ -4,6 +4,7 @@ const cors = require('cors');
 const multer = require('multer');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 app.use(cors());
@@ -20,12 +21,44 @@ const pool = mysql.createPool({
 });
 
 // =============================================
+// Token 管理
+// =============================================
+const tokens = new Map(); // token -> user
+
+function generateToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: '未登录' });
+  }
+  
+  const token = authHeader.split(' ')[1];
+  const user = tokens.get(token);
+  
+  if (!user) {
+    return res.status(401).json({ error: 'Token 无效' });
+  }
+  
+  req.user = user;
+  next();
+}
+
+function verifyAdmin(req, res, next) {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: '需要管理员权限' });
+  }
+  next();
+}
+
+// =============================================
 // 千问 qwen-max 配置
 // =============================================
 const QWEN_API_KEY = 'sk-a9ddec6e8cbe4be1bbf15326a6f4ebd5';
 const QWEN_API_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
 
-// System Prompt - 按千问建议的严格规则
 const SYSTEM_PROMPT = `【你必须严格遵守的规则】
 
 你是【Shopee GMV MAX 广告系统博弈专家】，长期操盘高客单价、高溢价商品。
@@ -70,15 +103,137 @@ const SYSTEM_PROMPT = `【你必须严格遵守的规则】
 }`;
 
 // =============================================
-// 用户相关 API
+// 登录相关 API
+// =============================================
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.json({ success: false, error: '请输入用户名和密码' });
+    }
+    
+    const [users] = await pool.query(
+      'SELECT * FROM users WHERE name = ? AND password = ?',
+      [username, password]
+    );
+    
+    if (users.length === 0) {
+      return res.json({ success: false, error: '用户名或密码错误' });
+    }
+    
+    const user = users[0];
+    const token = generateToken();
+    
+    tokens.set(token, {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      avatar: user.avatar,
+      color: user.color
+    });
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar,
+        color: user.color
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    tokens.delete(token);
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/verify-token', (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.json({ valid: false });
+  }
+  
+  const token = authHeader.split(' ')[1];
+  const user = tokens.get(token);
+  
+  if (!user) {
+    return res.json({ valid: false });
+  }
+  
+  res.json({ valid: true, user });
+});
+
+// =============================================
+// 用户管理 API
 // =============================================
 
 app.get('/api/users', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM users');
+    const [rows] = await pool.query('SELECT id, name, role, avatar, color, created_at FROM users');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/users', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { name, password, role, avatar, color } = req.body;
+    
+    if (!name || !password) {
+      return res.json({ success: false, error: '用户名和密码不能为空' });
+    }
+    
+    const [existing] = await pool.query('SELECT id FROM users WHERE name = ?', [name]);
+    if (existing.length > 0) {
+      return res.json({ success: false, error: '用户名已存在' });
+    }
+    
+    await pool.query(
+      'INSERT INTO users (name, password, role, avatar, color) VALUES (?, ?, ?, ?, ?)',
+      [name, password, role || 'operator', avatar || '👨‍💼', color || '#3b82f6']
+    );
+    
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.delete('/api/users/:id', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (parseInt(id) === req.user.id) {
+      return res.json({ success: false, error: '不能删除自己' });
+    }
+    
+    await pool.query('DELETE FROM users WHERE id = ?', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/users/:id/reset-password', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.query('UPDATE users SET password = ? WHERE id = ?', ['123456', id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
@@ -348,9 +503,7 @@ app.put('/api/daily-data/:productId/:dayNumber/manual', async (req, res) => {
 // 千问 AI 分析 API
 // =============================================
 
-// 构建用户消息 - 只传原始数据，让AI自己算比率
 function buildUserMessage(dayData, productInfo, historicalData) {
-  // 计算自然数据
   const totalVisitors = dayData.visitors || 0;
   const adClicks = dayData.ad_clicks || 0;
   const naturalVisitors = Math.max(0, totalVisitors - adClicks);
@@ -362,7 +515,6 @@ function buildUserMessage(dayData, productInfo, historicalData) {
   const adOrders = dayData.ad_orders || 0;
   const naturalOrders = Math.max(0, totalOrders - adOrders);
   
-  // 历史数据（只传原始值）
   let historyText = '';
   if (historicalData && historicalData.length > 0) {
     historyText = `\n## 历史数据（供趋势判断）\n${historicalData.map(d => {
@@ -402,7 +554,6 @@ ${historyText}
 请严格按照JSON格式输出，包含所有固定key。`;
 }
 
-// 调用千问 API
 async function callQwenAPI(dayData, productInfo, historicalData) {
   const userMessage = buildUserMessage(dayData, productInfo, historicalData);
 
@@ -421,8 +572,8 @@ async function callQwenAPI(dayData, productInfo, historicalData) {
         ]
       },
       parameters: {
-        temperature: 0.01,      // 关闭随机性，保证可复现
-        top_p: 0.5,             // 抑制幻觉
+        temperature: 0.01,
+        top_p: 0.5,
         max_tokens: 4096,
         result_format: 'message'
       }
@@ -438,7 +589,6 @@ async function callQwenAPI(dayData, productInfo, historicalData) {
   
   if (data.output && data.output.choices && data.output.choices[0]) {
     const content = data.output.choices[0].message.content;
-    // 提取 JSON
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
@@ -449,7 +599,6 @@ async function callQwenAPI(dayData, productInfo, historicalData) {
   throw new Error('千问API返回格式错误');
 }
 
-// 本地规则引擎（备用）- 使用原始数据自己算比率
 function localRuleEngine(dayData, productInfo) {
   const adImpressions = dayData.ad_impressions || 0;
   const adClicks = dayData.ad_clicks || 0;
@@ -457,7 +606,6 @@ function localRuleEngine(dayData, productInfo) {
   const adSpend = dayData.ad_spend || 0;
   const adRevenue = dayData.ad_revenue || 0;
   
-  // 自己计算比率（精确值）
   const roi = adSpend > 0 ? adRevenue / adSpend : 0;
   const ctr = adImpressions > 0 ? (adClicks / adImpressions) * 100 : 0;
   const cvr = adClicks > 0 ? (adOrders / adClicks) * 100 : 0;
@@ -468,7 +616,6 @@ function localRuleEngine(dayData, productInfo) {
   
   const targetRoi = parseFloat(productInfo.target_roi) || 3;
 
-  // 阶段判断
   let phase, phaseName;
   if (adImpressions < 5000) {
     phase = 'A';
@@ -481,12 +628,10 @@ function localRuleEngine(dayData, productInfo) {
     phaseName = '放量观察期';
   }
 
-  // 今日决策
   let todayDecision, confidence, supplementStrategy;
   const keyBottlenecks = [];
   const notToDo = ['不要在48小时内调整价格', '不要更换主图或标题'];
   
-  // ROI熔断判断（精确比较）
   if (adSpend > 0 && roi < 2) {
     todayDecision = '暂停止损';
     confidence = 90;
@@ -520,7 +665,6 @@ function localRuleEngine(dayData, productInfo) {
     keyBottlenecks.push('数据健康，系统已确认放量意愿');
   }
 
-  // 构建系统判断（包含自己算的精确值）
   const systemJudgment = `当前处于${phaseName}（阶段${phase}）。广告曝光 ${adImpressions.toLocaleString()}，CTR ${ctr.toFixed(2)}%，CVR ${cvr.toFixed(2)}%，ROI ${roi.toFixed(2)}。系统${phase === 'A' ? '尚未建立有效判断，处于被动观察状态' : (phase === 'B' ? '正在验证转化稳定性与可复制性' : '已确认放量意愿，主动增加曝光权重')}。`;
 
   return {
@@ -543,20 +687,17 @@ function localRuleEngine(dayData, productInfo) {
   };
 }
 
-// AI 分析接口
 app.post('/api/ai-analysis/:productId/:dayNumber', async (req, res) => {
   try {
     const { productId, dayNumber } = req.params;
     const { useAI = true } = req.body;
     
-    // 获取产品信息
     const [products] = await pool.query('SELECT * FROM products WHERE id = ?', [productId]);
     if (products.length === 0) {
       return res.status(404).json({ error: '产品不存在' });
     }
     const productInfo = products[0];
     
-    // 获取当天数据
     const [dailyData] = await pool.query(
       'SELECT * FROM daily_data WHERE product_id = ? AND day_number = ?',
       [productId, dayNumber]
@@ -566,7 +707,6 @@ app.post('/api/ai-analysis/:productId/:dayNumber', async (req, res) => {
     }
     const dayData = dailyData[0];
     
-    // 获取历史数据
     const [historicalData] = await pool.query(
       'SELECT * FROM daily_data WHERE product_id = ? AND day_number < ? ORDER BY day_number',
       [productId, dayNumber]
@@ -587,7 +727,6 @@ app.post('/api/ai-analysis/:productId/:dayNumber', async (req, res) => {
       result = localRuleEngine(dayData, productInfo);
     }
     
-    // 保存AI分析结果
     await pool.query(
       `UPDATE daily_data SET 
         ai_action = ?, 
