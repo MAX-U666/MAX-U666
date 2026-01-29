@@ -138,6 +138,11 @@ export const uploadExcel = async (file) => {
   return response.json();
 };
 
+// 上传文件（通用）
+export const uploadFile = async (file) => {
+  return uploadExcel(file);
+};
+
 export default {
   login,
   logout,
@@ -155,5 +160,6 @@ export default {
   getAIAnalysis,
   executeDecision,
   reportAbnormal,
-  uploadExcel
+  uploadExcel,
+  uploadFile
 };
