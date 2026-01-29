@@ -76,14 +76,78 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     const lines = report.split('\n');
     const result = [];
     let inCodeBlock = false;
+    let inActionCard = false;
     let codeContent = [];
+    let actionCardContent = [];
     let codeBlockKey = 0;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
+      const trimmedLine = line.trim();
+      
+      // 检测行动卡开始（【今日唯一动作】或类似标记）
+      if (!inCodeBlock && !inActionCard && (trimmedLine.startsWith('【今日') || trimmedLine.includes('《印尼首单跃迁行动卡》'))) {
+        inActionCard = true;
+        if (!trimmedLine.includes('《')) {
+          actionCardContent.push(line);
+        }
+        continue;
+      }
+      
+      // 行动卡内容收集（直到遇到空行或新章节）
+      if (inActionCard) {
+        if (trimmedLine === '' || trimmedLine.startsWith('##') || trimmedLine.startsWith('---') || (trimmedLine.startsWith('**') && !trimmedLine.includes('今日') && !trimmedLine.includes('严禁') && !trimmedLine.includes('盯盘'))) {
+          // 行动卡结束，渲染
+          if (actionCardContent.length > 0) {
+            result.push(
+              <div key={`action-${codeBlockKey++}`} style={{ 
+                background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(139,92,246,0.1) 100%)', 
+                border: '2px solid rgba(255,107,53,0.4)', 
+                borderRadius: '12px', 
+                padding: '20px', 
+                margin: '16px 0',
+                boxShadow: '0 4px 20px rgba(255,107,53,0.1)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,107,53,0.3)' }}>
+                  <span style={{ fontSize: '20px' }}>📌</span>
+                  <span style={{ color: '#FF6B35', fontWeight: '700', fontSize: '14px' }}>印尼首单跃迁行动卡</span>
+                </div>
+                {actionCardContent.map((cardLine, j) => {
+                  const cl = cardLine.trim();
+                  if (cl.startsWith('【') && cl.endsWith('】')) {
+                    return <div key={j} style={{ color: '#FF6B35', fontWeight: '700', fontSize: '13px', margin: '16px 0 8px 0' }}>{cl}</div>;
+                  }
+                  if (cl.startsWith('✅')) {
+                    return <div key={j} style={{ color: '#10B981', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+                  }
+                  if (cl.startsWith('❌')) {
+                    return <div key={j} style={{ color: '#F87171', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+                  }
+                  if (cl.startsWith('⏰')) {
+                    return <div key={j} style={{ color: '#FBBF24', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+                  }
+                  if (cl.startsWith('①') || cl.startsWith('②') || cl.startsWith('③')) {
+                    return <div key={j} style={{ color: '#94A3B8', fontSize: '12px', margin: '2px 0', paddingLeft: '20px' }}>{cl}</div>;
+                  }
+                  if (cl) {
+                    return <div key={j} style={{ color: '#E2E8F0', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+                  }
+                  return null;
+                })}
+              </div>
+            );
+            actionCardContent = [];
+          }
+          inActionCard = false;
+          // 继续处理当前行
+        } else {
+          actionCardContent.push(line);
+          continue;
+        }
+      }
       
       // 代码块开始/结束
-      if (line.startsWith('```')) {
+      if (trimmedLine.startsWith('```')) {
         if (inCodeBlock) {
           // 代码块结束，渲染代码块
           result.push(
@@ -95,16 +159,16 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
               margin: '12px 0',
               fontFamily: 'monospace',
               fontSize: '13px',
-              lineHeight: '1.6',
+              lineHeight: '1.8',
               whiteSpace: 'pre-wrap',
               color: '#E2E8F0'
             }}>
               {codeContent.map((codeLine, j) => (
                 <div key={j} style={{ 
-                  color: codeLine.startsWith('✅') ? '#10B981' : 
-                         codeLine.startsWith('❌') ? '#F87171' : 
-                         codeLine.startsWith('⏰') ? '#FBBF24' :
-                         codeLine.startsWith('【') ? '#FF6B35' : '#E2E8F0'
+                  color: codeLine.trim().startsWith('✅') ? '#10B981' : 
+                         codeLine.trim().startsWith('❌') ? '#F87171' : 
+                         codeLine.trim().startsWith('⏰') ? '#FBBF24' :
+                         codeLine.trim().startsWith('【') ? '#FF6B35' : '#E2E8F0'
                 }}>{codeLine}</div>
               ))}
             </div>
@@ -123,7 +187,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         continue;
       }
       
-      // 标题
+      // 标题 - 支持更多层级
       if (line.startsWith('## ')) {
         result.push(<h3 key={i} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 12px 0', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: '8px' }}>{line.replace('## ', '')}</h3>);
         continue;
@@ -132,15 +196,25 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         result.push(<h4 key={i} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '16px 0 8px 0' }}>{line.replace('### ', '')}</h4>);
         continue;
       }
+      if (line.startsWith('#### ') || line.startsWith('##### ') || line.startsWith('###### ')) {
+        const text = line.replace(/^#+\s/, '');
+        result.push(<h5 key={i} style={{ color: '#3B82F6', fontSize: '13px', fontWeight: '600', margin: '12px 0 6px 0' }}>{text}</h5>);
+        continue;
+      }
+      // 带数字的标题（如 "7. 印尼专属增强模块"）
+      if (/^\d+\.\s+[^\d]/.test(trimmedLine) && trimmedLine.length < 50) {
+        result.push(<h4 key={i} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '16px 0 8px 0' }}>{trimmedLine}</h4>);
+        continue;
+      }
       // 引用块
       if (line.startsWith('> ')) {
         result.push(<div key={i} style={{ borderLeft: '3px solid #3B82F6', paddingLeft: '12px', margin: '8px 0', color: '#94A3B8', fontStyle: 'italic' }}>{line.replace('> ', '')}</div>);
         continue;
       }
       // 列表项
-      if (line.startsWith('- ')) {
-        const content = line.replace('- ', '');
-        const isError = content.startsWith('❌') || content.includes('不要') || content.includes('严禁');
+      if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('• ') || trimmedLine.startsWith('* ')) {
+        const content = trimmedLine.replace(/^[-•*]\s/, '');
+        const isError = content.startsWith('❌') || content.includes('不要') || content.includes('严禁') || content.includes('不可');
         const isSuccess = content.startsWith('✅') || content.startsWith('✓');
         result.push(
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: isError ? '#F87171' : isSuccess ? '#10B981' : '#CBD5E1' }}>
@@ -148,11 +222,6 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
             <span>{content}</span>
           </div>
         );
-        continue;
-      }
-      // 数字列表
-      if (/^\d+\.\s/.test(line)) {
-        result.push(<div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: '#10B981' }}>{line}</div>);
         continue;
       }
       // 加粗文本
@@ -166,14 +235,55 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         continue;
       }
       // 分隔线
-      if (line === '---') {
+      if (trimmedLine === '---') {
         result.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />);
         continue;
       }
       // 普通段落
-      if (line.trim()) {
+      if (trimmedLine) {
         result.push(<p key={i} style={{ margin: '8px 0', color: '#CBD5E1', lineHeight: '1.8' }}>{line}</p>);
       }
+    }
+    
+    // 处理未闭合的行动卡
+    if (actionCardContent.length > 0) {
+      result.push(
+        <div key={`action-final`} style={{ 
+          background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(139,92,246,0.1) 100%)', 
+          border: '2px solid rgba(255,107,53,0.4)', 
+          borderRadius: '12px', 
+          padding: '20px', 
+          margin: '16px 0',
+          boxShadow: '0 4px 20px rgba(255,107,53,0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,107,53,0.3)' }}>
+            <span style={{ fontSize: '20px' }}>📌</span>
+            <span style={{ color: '#FF6B35', fontWeight: '700', fontSize: '14px' }}>印尼首单跃迁行动卡</span>
+          </div>
+          {actionCardContent.map((cardLine, j) => {
+            const cl = cardLine.trim();
+            if (cl.startsWith('【') && cl.endsWith('】')) {
+              return <div key={j} style={{ color: '#FF6B35', fontWeight: '700', fontSize: '13px', margin: '16px 0 8px 0' }}>{cl}</div>;
+            }
+            if (cl.startsWith('✅')) {
+              return <div key={j} style={{ color: '#10B981', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+            }
+            if (cl.startsWith('❌')) {
+              return <div key={j} style={{ color: '#F87171', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+            }
+            if (cl.startsWith('⏰')) {
+              return <div key={j} style={{ color: '#FBBF24', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+            }
+            if (cl.startsWith('①') || cl.startsWith('②') || cl.startsWith('③')) {
+              return <div key={j} style={{ color: '#94A3B8', fontSize: '12px', margin: '2px 0', paddingLeft: '20px' }}>{cl}</div>;
+            }
+            if (cl) {
+              return <div key={j} style={{ color: '#E2E8F0', fontSize: '13px', margin: '4px 0', paddingLeft: '8px' }}>{cl}</div>;
+            }
+            return null;
+          })}
+        </div>
+      );
     }
     
     return result;
