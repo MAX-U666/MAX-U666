@@ -7,7 +7,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
   const [analysisResult, setAnalysisResult] = useState(null);
   const [analysisSource, setAnalysisSource] = useState(null);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState(null);
+  const [activeTab, setActiveTab] = useState('judgment');
 
   const handleGenerateAnalysis = async () => {
     setIsAnalyzing(true);
@@ -34,7 +34,12 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
 
   const handleConfirmExecute = () => {
     if (analysisResult) {
-      onExecute(analysisResult.today_decision, analysisResult.key_bottlenecks?.join('; ') || '', analysisResult.confidence);
+      onExecute(
+        analysisResult.today_decision, 
+        analysisResult.key_bottlenecks?.join('; ') || '', 
+        analysisResult.confidence,
+        analysisResult // 传递完整分析结果
+      );
     }
   };
 
@@ -54,193 +59,162 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     return '#64748B';
   };
 
-  const yesterdayData = selectedProduct?.daily_data?.find(d => d.day_number === currentDay - 1);
-
-  const calcChange = (today, yesterday) => {
-    if (!yesterday || yesterday === 0) return null;
-    return ((today - yesterday) / yesterday * 100).toFixed(1);
+  // 获取分析数据（从当前结果或历史记录）
+  const getAnalysisData = () => {
+    if (analysisResult) return analysisResult;
+    if (currentDayData?.ai_full_analysis) return currentDayData.ai_full_analysis;
+    return null;
   };
 
-  // 【依据】面板
-  const renderBasisPanel = () => {
-    const adImpressions = currentDayData?.ad_impressions || 0;
-    const adClicks = currentDayData?.ad_clicks || 0;
-    const adOrders = currentDayData?.ad_orders || 0;
-    const adSpend = currentDayData?.ad_spend || 0;
-    const adRevenue = currentDayData?.ad_revenue || 0;
-    const ctr = adImpressions > 0 ? (adClicks / adImpressions * 100).toFixed(2) : 0;
-    const cvr = adClicks > 0 ? (adOrders / adClicks * 100).toFixed(2) : 0;
-    const roi = adSpend > 0 ? (adRevenue / adSpend).toFixed(2) : 0;
+  const analysis = getAnalysisData();
 
-    return (
-      <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '12px', padding: '20px', marginTop: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h4 style={{ margin: 0, color: '#3B82F6', fontSize: '14px' }}>📋 决策依据</h4>
-          <button onClick={() => setActiveTab(null)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '18px' }}>×</button>
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>当前阶段</div>
-            <div style={{ fontSize: '20px', fontWeight: '700', color: getPhaseColor(analysisResult?.phase) }}>
-              阶段 {analysisResult?.phase || '-'} <span style={{ fontSize: '12px', fontWeight: '400' }}>({analysisResult?.phase_name || '-'})</span>
-            </div>
-          </div>
-          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '4px' }}>阶段判定条件</div>
-            <div style={{ fontSize: '12px', color: '#CBD5E1', lineHeight: '1.6' }}>
-              {adImpressions < 5000 ? `曝光 ${adImpressions.toLocaleString()} < 5,000 → 阶段A` : 
-               (adImpressions >= 20000 && roi >= 3) ? `曝光 ≥20,000 且 ROI≥3 → 阶段C` : 
-               `曝光 ≥5,000 但未达C条件 → 阶段B`}
-            </div>
-          </div>
-        </div>
+  // Tab 按钮样式
+  const TabButton = ({ id, icon, label, color }) => (
+    <button
+      onClick={() => setActiveTab(id)}
+      style={{
+        flex: 1,
+        padding: '10px 8px',
+        borderRadius: '8px',
+        border: activeTab === id ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.1)',
+        background: activeTab === id ? `${color}15` : 'rgba(255,255,255,0.03)',
+        color: activeTab === id ? color : '#94A3B8',
+        fontSize: '12px',
+        fontWeight: '600',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        transition: 'all 0.2s'
+      }}
+    >
+      {icon} {label}
+    </button>
+  );
 
-        <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '12px' }}>关键指标</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', marginBottom: '16px' }}>
-          {[
-            { label: '广告曝光', value: adImpressions.toLocaleString(), color: '#F97316' },
-            { label: 'CTR', value: `${ctr}%`, color: parseFloat(ctr) >= 1.5 ? '#10B981' : '#F59E0B' },
-            { label: 'CVR', value: `${cvr}%`, color: parseFloat(cvr) >= 3 ? '#10B981' : '#F59E0B' },
-            { label: 'ROI', value: roi, color: parseFloat(roi) >= 3 ? '#10B981' : '#EF4444' }
-          ].map((item, i) => (
-            <div key={i} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px', textAlign: 'center' }}>
-              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>{item.label}</div>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: item.color }}>{item.value}</div>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>核心卡点分析</div>
-        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
-          {analysisResult?.key_bottlenecks?.map((item, i) => (
-            <div key={i} style={{ fontSize: '12px', color: '#CBD5E1', marginBottom: '6px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <span style={{ color: '#F59E0B' }}>•</span> {item}
-            </div>
-          )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无分析</div>}
-        </div>
+  // 渲染系统判断 Tab
+  const renderJudgmentTab = () => (
+    <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '12px', padding: '20px' }}>
+      <h4 style={{ margin: '0 0 16px 0', color: '#3B82F6', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        📋 系统放量判断
+      </h4>
+      
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+        <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+          {typeof analysis?.system_judgment === 'string' 
+            ? analysis.system_judgment 
+            : analysis?.system_judgment?.judgment || '暂无分析'}
+        </p>
       </div>
-    );
-  };
 
-  // 【效果】面板
-  const renderEffectPanel = () => {
-    const metrics = [
-      { label: '广告曝光', today: currentDayData?.ad_impressions || 0, yesterday: yesterdayData?.ad_impressions || 0 },
-      { label: '广告点击', today: currentDayData?.ad_clicks || 0, yesterday: yesterdayData?.ad_clicks || 0 },
-      { label: '广告单', today: currentDayData?.ad_orders || 0, yesterday: yesterdayData?.ad_orders || 0 },
-      { label: '花费', today: currentDayData?.ad_spend || 0, yesterday: yesterdayData?.ad_spend || 0, format: 'money' },
-      { label: '收入', today: currentDayData?.ad_revenue || 0, yesterday: yesterdayData?.ad_revenue || 0, format: 'money' },
-      { label: 'ROI', today: currentDayData?.roi || 0, yesterday: yesterdayData?.roi || 0, format: 'decimal' }
-    ];
-
-    const overallTrend = () => {
-      const roiChange = calcChange(currentDayData?.roi || 0, yesterdayData?.roi || 0);
-      const impressionChange = calcChange(currentDayData?.ad_impressions || 0, yesterdayData?.ad_impressions || 0);
-      if (!roiChange && !impressionChange) return { text: '无昨日数据对比', color: '#64748B', icon: '➖' };
-      if (parseFloat(roiChange) > 0 && parseFloat(impressionChange) > 0) return { text: '数据向好', color: '#10B981', icon: '📈' };
-      if (parseFloat(roiChange) < -10 || parseFloat(impressionChange) < -20) return { text: '数据恶化', color: '#EF4444', icon: '📉' };
-      return { text: '数据持平', color: '#F59E0B', icon: '➡️' };
-    };
-
-    const trend = overallTrend();
-
-    return (
-      <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '20px', marginTop: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h4 style={{ margin: 0, color: '#10B981', fontSize: '14px' }}>📊 效果对比</h4>
-          <button onClick={() => setActiveTab(null)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '18px' }}>×</button>
-        </div>
-
-        <div style={{ background: `${trend.color}20`, border: `1px solid ${trend.color}40`, borderRadius: '8px', padding: '12px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>{trend.icon}</span>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: trend.color }}>{trend.text}</div>
-            <div style={{ fontSize: '11px', color: '#94A3B8' }}>对比昨日(Day {currentDay - 1})数据</div>
+      <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>🔍 核心卡点</h5>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
+        {analysis?.key_bottlenecks?.map((item, i) => (
+          <div key={i} style={{ fontSize: '12px', color: '#CBD5E1', marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span style={{ color: '#F59E0B' }}>•</span> {item}
           </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-          {metrics.map((m, i) => {
-            const change = calcChange(m.today, m.yesterday);
-            const isUp = change && parseFloat(change) > 0;
-            const isDown = change && parseFloat(change) < 0;
-            const formatValue = (v, fmt) => {
-              if (fmt === 'money') return `Rp${(v/1000).toFixed(0)}k`;
-              if (fmt === 'decimal') return parseFloat(v).toFixed(2);
-              return v.toLocaleString();
-            };
-            return (
-              <div key={i} style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '10px' }}>
-                <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '6px' }}>{m.label}</div>
-                <div style={{ fontSize: '14px', fontWeight: '600', color: '#E2E8F0', marginBottom: '4px' }}>{formatValue(m.today, m.format)}</div>
-                <div style={{ fontSize: '11px', color: isUp ? '#10B981' : isDown ? '#EF4444' : '#64748B' }}>
-                  {change ? `${isUp ? '↑' : '↓'} ${Math.abs(parseFloat(change))}%` : '- 无对比'}
-                  <span style={{ color: '#475569', marginLeft: '4px' }}>vs {formatValue(m.yesterday, m.format)}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无卡点分析</div>}
       </div>
-    );
-  };
+    </div>
+  );
 
-  // 【风险】面板
-  const renderRiskPanel = () => {
-    const roi = currentDayData?.ad_spend > 0 ? (currentDayData.ad_revenue / currentDayData.ad_spend) : 0;
-    const risks = [];
-    
-    if (roi > 0 && roi < 2) {
-      risks.push({ level: '严重', text: `ROI=${roi.toFixed(2)} 严重低于盈亏线，建议立即止损`, color: '#EF4444' });
-    } else if (roi > 0 && roi < 3) {
-      risks.push({ level: '警告', text: `ROI=${roi.toFixed(2)} 未达目标线3.0，需收缩防守`, color: '#F59E0B' });
-    }
-    
-    if ((currentDayData?.ad_impressions || 0) > 20000 && (currentDayData?.ad_orders || 0) < 5) {
-      risks.push({ level: '警告', text: '高曝光低转化，可能进入泛流量池', color: '#F59E0B' });
-    }
-    
-    if (risks.length === 0) {
-      risks.push({ level: '正常', text: '当前无明显风险', color: '#10B981' });
-    }
-
-    return (
-      <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '20px', marginTop: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h4 style={{ margin: 0, color: '#EF4444', fontSize: '14px' }}>⚠️ 风险提示</h4>
-          <button onClick={() => setActiveTab(null)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', fontSize: '18px' }}>×</button>
-        </div>
-
-        <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>风险检测</div>
-          {risks.map((r, i) => (
-            <div key={i} style={{ background: `${r.color}15`, border: `1px solid ${r.color}40`, borderRadius: '8px', padding: '10px 12px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ background: r.color, color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: '600' }}>{r.level}</span>
-              <span style={{ fontSize: '12px', color: '#CBD5E1' }}>{r.text}</span>
-            </div>
-          ))}
-        </div>
-
-        <div style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>禁止操作</div>
-        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
-          {analysisResult?.not_to_do?.map((item, i) => (
-            <div key={i} style={{ fontSize: '12px', color: '#F87171', marginBottom: '6px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <span>❌</span> {item}
-            </div>
-          )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无禁止操作</div>}
-        </div>
-
-        <div style={{ marginTop: '12px', fontSize: '12px', color: '#94A3B8', marginBottom: '8px' }}>熔断规则</div>
-        <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', fontSize: '11px', color: '#94A3B8', lineHeight: '1.8' }}>
-          • ROI &lt; 2 → 立即止损<br/>
-          • ROI &lt; 3 → 收缩防守<br/>
-          • 近72h调价 → 暂缓补单<br/>
-          • 高曝光+低CVR → 判定泛流量池
-        </div>
+  // 渲染执行策略 Tab
+  const renderStrategyTab = () => (
+    <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '20px' }}>
+      <h4 style={{ margin: '0 0 16px 0', color: '#10B981', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        🎯 执行策略
+      </h4>
+      
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+        <h5 style={{ margin: '0 0 8px 0', color: '#10B981', fontSize: '12px' }}>补单策略</h5>
+        <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+          {analysis?.manual_signal_judgment || '暂无补单建议'}
+        </p>
       </div>
-    );
-  };
+
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '16px' }}>
+        <h5 style={{ margin: '0 0 8px 0', color: '#10B981', fontSize: '12px' }}>信号强化</h5>
+        <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+          {analysis?.signal_enhancement || '暂无建议'}
+        </p>
+      </div>
+
+      <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>✅ 今日必做</h5>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
+        {analysis?.execution_checklist?.map((item, i) => (
+          <div key={i} style={{ fontSize: '12px', color: '#10B981', marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span>✓</span> {item}
+          </div>
+        )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无执行清单</div>}
+      </div>
+    </div>
+  );
+
+  // 渲染风险提示 Tab
+  const renderRiskTab = () => (
+    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '20px' }}>
+      <h4 style={{ margin: '0 0 16px 0', color: '#EF4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        ⚠️ 风险提示
+      </h4>
+      
+      <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>❌ 禁止操作</h5>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+        {analysis?.not_to_do?.map((item, i) => (
+          <div key={i} style={{ fontSize: '12px', color: '#F87171', marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span>❌</span> {item}
+          </div>
+        )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无禁止操作</div>}
+      </div>
+
+      <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>👀 观察重点</h5>
+      <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '12px' }}>
+        {analysis?.observation_focus?.map((item, i) => (
+          <div key={i} style={{ fontSize: '12px', color: '#FBBF24', marginBottom: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+            <span>⏰</span> {item}
+          </div>
+        )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无观察重点</div>}
+      </div>
+    </div>
+  );
+
+  // 渲染印尼专项 Tab
+  const renderIdnTab = () => (
+    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '12px', padding: '20px', backgroundImage: 'linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(255,255,255,0.05) 100%)' }}>
+      <h4 style={{ margin: '0 0 16px 0', color: '#EF4444', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        🇮🇩 印尼市场专项
+      </h4>
+      
+      {analysis?.idn_enhancement ? (
+        <>
+          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
+            <h5 style={{ margin: '0 0 8px 0', color: '#FBBF24', fontSize: '12px' }}>💡 关键洞察</h5>
+            <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+              {analysis.idn_enhancement.key_insight || '暂无'}
+            </p>
+          </div>
+
+          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px', marginBottom: '12px' }}>
+            <h5 style={{ margin: '0 0 8px 0', color: '#60A5FA', fontSize: '12px' }}>📦 物流建议</h5>
+            <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+              {analysis.idn_enhancement.logistics_note || '暂无'}
+            </p>
+          </div>
+
+          <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: '8px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 8px 0', color: '#34D399', fontSize: '12px' }}>🌏 本地化提示</h5>
+            <p style={{ margin: 0, fontSize: '13px', color: '#E2E8F0', lineHeight: '1.8' }}>
+              {analysis.idn_enhancement.localization_tip || '暂无'}
+            </p>
+          </div>
+        </>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '20px', color: '#64748B' }}>
+          暂无印尼专项分析
+        </div>
+      )}
+    </div>
+  );
 
   // 未提交数据
   if (!currentDayData || currentDayData.status === '未提交') {
@@ -260,7 +234,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     );
   }
 
-  // 已执行
+  // 已执行状态 - 显示历史分析
   if (currentDayData.status === '已执行') {
     return (
       <div style={styles.card}>
@@ -270,16 +244,57 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           </div>
           <span style={{ fontSize: '14px', fontWeight: '700', color: '#E2E8F0' }}>Day {currentDay} AI决策 - 已执行</span>
         </div>
-        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>✅</div>
-          <div style={{ fontSize: '24px', fontWeight: '700', color: '#10B981', marginBottom: '8px' }}>{currentDayData.ai_action || '维持观察'}</div>
-          <div style={{ fontSize: '13px', color: '#64748B' }}>{currentDayData.ai_reason}</div>
+        
+        <div style={{ padding: '20px' }}>
+          {/* 执行结果摘要 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+            <div style={{ background: `${getPhaseColor(currentDayData.phase)}15`, border: `1px solid ${getPhaseColor(currentDayData.phase)}40`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>阶段</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: getPhaseColor(currentDayData.phase) }}>阶段 {currentDayData.phase || 'A'}</div>
+            </div>
+            <div style={{ background: `${getDecisionColor(currentDayData.ai_action)}15`, border: `1px solid ${getDecisionColor(currentDayData.ai_action)}40`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>执行决策</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: getDecisionColor(currentDayData.ai_action) }}>{currentDayData.ai_action || '维持观察'}</div>
+            </div>
+            <div style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>置信度</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#A78BFA' }}>{currentDayData.ai_confidence || 70}%</div>
+            </div>
+            <div style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>ROI</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: (currentDayData.roi || 0) >= 3 ? '#10B981' : '#F59E0B' }}>{currentDayData.roi || '-'}</div>
+            </div>
+          </div>
+
+          {/* Tab 切换 */}
+          {analysis && (
+            <>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <TabButton id="judgment" icon="📋" label="系统判断" color="#3B82F6" />
+                <TabButton id="strategy" icon="🎯" label="执行策略" color="#10B981" />
+                <TabButton id="risk" icon="⚠️" label="风险提示" color="#EF4444" />
+                <TabButton id="idn" icon="🇮🇩" label="印尼专项" color="#EF4444" />
+              </div>
+
+              {activeTab === 'judgment' && renderJudgmentTab()}
+              {activeTab === 'strategy' && renderStrategyTab()}
+              {activeTab === 'risk' && renderRiskTab()}
+              {activeTab === 'idn' && renderIdnTab()}
+            </>
+          )}
+
+          {!analysis && (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#64748B' }}>
+              <p>此决策无详细分析记录</p>
+              <p style={{ fontSize: '12px' }}>原因：{currentDayData.ai_reason || '无'}</p>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  // 主界面
+  // 待决策状态 - 主界面
   return (
     <div style={styles.card}>
       {/* 标题栏 */}
@@ -290,8 +305,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           </div>
           <span style={{ fontSize: '14px', fontWeight: '700', color: '#E2E8F0' }}>Day {currentDay} AI决策</span>
           {analysisSource && (
-            <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: analysisSource === 'qwen-max' ? 'rgba(139,92,246,0.2)' : 'rgba(100,116,139,0.2)', color: analysisSource === 'qwen-max' ? '#A78BFA' : '#94A3B8' }}>
-              {analysisSource === 'qwen-max' ? '🤖 千问' : '📋 规则'}
+            <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: analysisSource === 'qwen-turbo' ? 'rgba(139,92,246,0.2)' : 'rgba(100,116,139,0.2)', color: analysisSource === 'qwen-turbo' ? '#A78BFA' : '#94A3B8' }}>
+              {analysisSource === 'qwen-turbo' ? '🤖 千问' : '📋 规则'}
             </span>
           )}
         </div>
@@ -330,8 +345,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         {/* 分析结果 */}
         {analysisResult && (
           <>
-            {/* 决策卡片 */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '12px', alignItems: 'stretch', marginBottom: '16px' }}>
+            {/* 决策摘要卡片 */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
               <div style={{ background: `${getPhaseColor(analysisResult.phase)}15`, border: `1px solid ${getPhaseColor(analysisResult.phase)}40`, borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
                 <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>当前阶段</div>
                 <div style={{ fontSize: '20px', fontWeight: '700', color: getPhaseColor(analysisResult.phase) }}>阶段 {analysisResult.phase}</div>
@@ -346,43 +361,25 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
                 <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>补单策略</div>
                 <div style={{ fontSize: '16px', fontWeight: '700', color: getSupplementColor(analysisResult.supplement_strategy) }}>{analysisResult.supplement_strategy}</div>
               </div>
-              <div style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: '12px', padding: '16px', textAlign: 'center' }}>
-                <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '8px' }}>24h观察</div>
-                <div style={{ fontSize: '11px', color: '#94A3B8', textAlign: 'left' }}>
-                  {analysisResult.observation_focus?.slice(0, 2).map((item, i) => (
-                    <div key={i} style={{ marginBottom: '4px' }}>⏰ {item.length > 15 ? item.slice(0, 15) + '...' : item}</div>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '100px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button onClick={handleConfirmExecute} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>✓ 确认执行</button>
                 <button onClick={onAbnormal} style={{ flex: 1, padding: '12px 16px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', color: '#EF4444', fontSize: '13px', cursor: 'pointer' }}>上报异常</button>
               </div>
             </div>
 
-            {/* 溯源按钮 */}
+            {/* Tab 切换 */}
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <button onClick={() => setActiveTab(activeTab === 'basis' ? null : 'basis')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: activeTab === 'basis' ? '1px solid #3B82F6' : '1px solid rgba(255,255,255,0.1)', background: activeTab === 'basis' ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.03)', color: activeTab === 'basis' ? '#3B82F6' : '#94A3B8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>📋 依据</button>
-              <button onClick={() => setActiveTab(activeTab === 'effect' ? null : 'effect')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: activeTab === 'effect' ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)', background: activeTab === 'effect' ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)', color: activeTab === 'effect' ? '#10B981' : '#94A3B8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>📊 效果</button>
-              <button onClick={() => setActiveTab(activeTab === 'risk' ? null : 'risk')} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: activeTab === 'risk' ? '1px solid #EF4444' : '1px solid rgba(255,255,255,0.1)', background: activeTab === 'risk' ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.03)', color: activeTab === 'risk' ? '#EF4444' : '#94A3B8', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>⚠️ 风险</button>
+              <TabButton id="judgment" icon="📋" label="系统判断" color="#3B82F6" />
+              <TabButton id="strategy" icon="🎯" label="执行策略" color="#10B981" />
+              <TabButton id="risk" icon="⚠️" label="风险提示" color="#EF4444" />
+              <TabButton id="idn" icon="🇮🇩" label="印尼专项" color="#EF4444" />
             </div>
 
-            {/* 溯源面板 */}
-            {activeTab === 'basis' && renderBasisPanel()}
-            {activeTab === 'effect' && renderEffectPanel()}
-            {activeTab === 'risk' && renderRiskPanel()}
-
-            {/* 默认显示系统判断 */}
-            {!activeTab && (
-              <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '12px' }}>
-                <div style={{ fontWeight: '700', color: '#FF6B35', marginBottom: '12px', fontSize: '13px' }}>🧠 系统判断</div>
-                <p style={{ margin: 0, fontSize: '12px', color: '#CBD5E1', lineHeight: '1.8' }}>
-  {typeof analysisResult.system_judgment === 'string' 
-    ? analysisResult.system_judgment 
-    : analysisResult.system_judgment?.judgment || JSON.stringify(analysisResult.system_judgment)}
-</p>
-              </div>
-            )}
+            {/* Tab 内容 */}
+            {activeTab === 'judgment' && renderJudgmentTab()}
+            {activeTab === 'strategy' && renderStrategyTab()}
+            {activeTab === 'risk' && renderRiskTab()}
+            {activeTab === 'idn' && renderIdnTab()}
           </>
         )}
       </div>
