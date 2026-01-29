@@ -44,8 +44,8 @@ export const verifyToken = () =>
   request('/verify-token');
 
 // 获取用户列表
-export const getUsers = () => 
-  request('/users');
+export const getUsers = () => request('/users');
+export const fetchUsers = () => request('/users');
 
 // 添加用户
 export const addUser = (userData) => 
@@ -67,10 +67,14 @@ export const getProducts = (params = {}) => {
   const query = new URLSearchParams(params).toString();
   return request(`/products${query ? `?${query}` : ''}`);
 };
+export const fetchProducts = (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  return request(`/products${query ? `?${query}` : ''}`);
+};
 
 // 获取产品详情
-export const getProduct = (id) => 
-  request(`/products/${id}`);
+export const getProduct = (id) => request(`/products/${id}`);
+export const fetchProductDetail = (id) => request(`/products/${id}`);
 
 // 创建产品
 export const createProduct = (productData) => 
@@ -148,11 +152,14 @@ export default {
   logout,
   verifyToken,
   getUsers,
+  fetchUsers,
   addUser,
   deleteUser,
   resetPassword,
   getProducts,
+  fetchProducts,
   getProduct,
+  fetchProductDetail,
   createProduct,
   updateShopData,
   updateAdData,
