@@ -35,23 +35,48 @@ const SYSTEM_PROMPT = `【你必须严格遵守的规则】
 
 ## 四、风险熔断规则
 - ROI < 3 的建议必须自动熔断，给出收缩/止损建议
-- 近72小时价格波动 > 10%，必须暂缓所有补单建议
+- 近72小时价格波动 > 10%（印尼市场>7%），必须暂缓所有补单建议
 - 曝光激增 + CVR断崖式下跌，判断为泛流量池误入，优先防守
 
-## 五、输出格式（必须严格JSON，7个固定key）
+## 五、印尼市场特殊规则（当region=ID时启用）
+- 印尼COD确认延迟平均2.3天，补单涟漪半衰期τ=29.6h（非台马的18.3h）
+- 印尼价格敏感阈值为7%（非10%）
+- 印尼用户对JNE/J&T物流信任度高，补单必须完成COD确认+物流单号回传
+- 印尼ATC率均值比台马低35-42%，需用印尼本地基准判断
+
+## 六、输出格式要求
+你必须返回一个JSON对象，包含两部分：
+1. full_report: 完整的分析报告文字（用markdown格式，包含所有分析细节，这是给老板看的）
+2. json_data: 结构化数据（给系统解析用）
+
+JSON格式如下：
 {
-  "system_judgment": "系统放量判断（含阶段、意愿、理由）",
-  "key_bottlenecks": ["核心卡点1", "核心卡点2"],
-  "manual_signal_judgment": "是否需要补单及策略",
-  "signal_enhancement": "应强化的信号方向",
-  "not_to_do": ["禁止操作1", "禁止操作2", "禁止操作3"],
-  "observation_focus": ["24-48小时观察重点1", "观察重点2"],
-  "today_decision": "维持观察/加大投放/收缩防守/暂停止损（四选一）",
-  "confidence": 70-100的数字,
-  "phase": "A/B/C",
-  "phase_name": "样本不足期/放量观察期/放量确认期",
-  "supplement_strategy": "不需要补单/注入1-2单/暂缓补单/停止补单"
-}`;
+  "full_report": "完整分析报告（markdown格式，包含【系统放量判断】【核心卡点分析】【补单策略判断】【系统信号强化方向】【明确不建议的行为】【24-48小时观察重点】【印尼专属增强模块】等所有章节，每个章节要详细分析，有数据支撑，有具体建议）",
+  "json_data": {
+    "phase": "A/B/C",
+    "phase_name": "样本不足期/放量观察期/放量确认期",
+    "today_decision": "维持观察/加大投放/收缩防守/暂停止损",
+    "confidence": 70-100,
+    "supplement_strategy": "不需要补单/注入1-2单/暂缓补单/停止补单",
+    "key_bottlenecks": ["卡点1", "卡点2"],
+    "not_to_do": ["禁止1", "禁止2"],
+    "observation_focus": ["观察点1", "观察点2"],
+    "execution_checklist": ["今日必做1", "今日必做2"],
+    "idn_enhancement": {
+      "key_insight": "印尼洞察",
+      "logistics_note": "物流建议",
+      "localization_tip": "本地化建议"
+    }
+  }
+}
+
+full_report 要求：
+- 使用markdown格式，包含标题、列表、强调等
+- 每个章节都要详细分析，不能省略
+- 要有具体数据支撑（CTR、CVR、ROI等计算结果）
+- 要有印尼市场专项分析
+- 要有可执行的具体建议
+- 篇幅要充足，像专业分析师写的报告`;
 
 module.exports = function(pool) {
   const router = express.Router();
@@ -322,46 +347,59 @@ module.exports = function(pool) {
     const adClicks = dayData.ad_clicks || 0;
     const naturalVisitors = Math.max(0, totalVisitors - adClicks);
     const shopClicks = dayData.clicks || 0;
-    const naturalClicks = Math.max(0, shopClicks - adClicks);
     const totalOrders = dayData.orders_created || 0;
     const adOrders = dayData.ad_orders || 0;
     const naturalOrders = Math.max(0, totalOrders - adOrders);
+    const addToCart = dayData.add_to_cart || 0;
+    const likes = dayData.likes || 0;
+    
+    const adImpressions = dayData.ad_impressions || 0;
+    const adSpend = dayData.ad_spend || 0;
+    const adRevenue = dayData.ad_revenue || 0;
+    
     let historyText = '';
     if (historicalData && historicalData.length > 0) {
       historyText = `\n## 历史数据（供趋势判断）\n${historicalData.map(d => {
-        const hNaturalOrders = Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0));
-        return `Day ${d.day_number}: 广告曝光${d.ad_impressions || 0}, 广告点击${d.ad_clicks || 0}, 广告单${d.ad_orders || 0}, 自然单${hNaturalOrders}, 花费${d.ad_spend || 0}, 收入${d.ad_revenue || 0}`;
+        const hRoi = d.ad_spend > 0 ? (d.ad_revenue / d.ad_spend).toFixed(2) : 0;
+        return `Day ${d.day_number}: 曝光${d.ad_impressions || 0}, 点击${d.ad_clicks || 0}, 广告单${d.ad_orders || 0}, 自然单${Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0))}, 花费${d.ad_spend || 0}, ROI=${hRoi}`;
       }).join('\n')}`;
     }
-    return `请分析以下 GMV MAX 广告数据，按规定的JSON格式输出判断。
 
-⚠️ 重要：CTR、CVR、ROI、转化率等比率指标请你自己计算，确保精度。
+    return `请分析以下 Shopee GMV MAX 广告数据，返回包含 full_report 和 json_data 的JSON对象。
 
-## 产品信息
+## 基础信息
 - SKU：${productInfo.sku}
 - 产品名称：${productInfo.name}
 - 目标ROI：${productInfo.target_roi || 3}
 - 当前Day：${dayData.day_number}/7
+- region：ID（印尼市场）
+- 币种：IDR
 
-## 店铺原始数据
+## 店铺数据
 - 总访客：${totalVisitors}
-- 自然访客：${naturalVisitors}（总访客 - 广告点击）
+- 自然访客：${naturalVisitors}
 - 店铺点击：${shopClicks}
-- 自然点击：${naturalClicks}（店铺点击 - 广告点击）
-- 收藏数：${dayData.likes || 0}
-- 加购数：${dayData.add_to_cart || 0}（总加购，含广告+自然）
+- 收藏数：${likes}
+- 加购数：${addToCart}
 - 总单量：${totalOrders}
-- 自然单：${naturalOrders}（总单量 - 广告单）
+- 自然单：${naturalOrders}
 
-## 广告原始数据（请自行计算CTR、CVR、ROI）
-- 广告曝光：${dayData.ad_impressions || 0}
+## 广告数据（请自行计算CTR、CVR、ROI）
+- 广告曝光：${adImpressions}
 - 广告点击：${adClicks}
+- 广告加购：${addToCart}
 - 广告单：${adOrders}
-- 广告花费：${dayData.ad_spend || 0}（单位：Rp）
-- 广告收入：${dayData.ad_revenue || 0}（单位：Rp）
+- 广告花费：${adSpend} IDR
+- 广告收入：${adRevenue} IDR
+
+## 印尼市场参考基准
+- 印尼美妆类目ATC均值：7.8%
+- 印尼美妆类目收藏率均值：11.2%
+- 印尼补单涟漪半衰期：τ=29.6h
+- 印尼价格敏感阈值：7%
 ${historyText}
 
-请严格按照JSON格式输出，包含所有固定key。`;
+请返回JSON，full_report要写完整详细的分析报告（markdown格式），json_data要包含结构化数据。`;
   }
   
   async function callQwenAPI(dayData, productInfo, historicalData) {
@@ -372,7 +410,7 @@ ${historyText}
       body: JSON.stringify({
         model: 'qwen-turbo',
         input: { messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }] },
-        parameters: { temperature: 0.01, top_p: 0.5, max_tokens: 4096, result_format: 'message' }
+        parameters: { temperature: 0.01, top_p: 0.5, max_tokens: 8192, result_format: 'message' }
       })
     });
     if (!response.ok) {
@@ -384,7 +422,16 @@ ${historyText}
       const content = data.output.choices[0].message.content;
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(jsonMatch[0]);
+        // 兼容处理：如果返回了 full_report 和 json_data 结构
+        if (parsed.full_report && parsed.json_data) {
+          return {
+            ...parsed.json_data,
+            full_report: parsed.full_report
+          };
+        }
+        // 兼容旧格式
+        return parsed;
       }
       throw new Error('AI返回内容不含有效JSON');
     }
@@ -404,6 +451,8 @@ ${historyText}
     const naturalOrders = Math.max(0, totalOrders - adOrders);
     const naturalOrdersRate = totalOrders > 0 ? (naturalOrders / totalOrders) * 100 : 0;
     const targetRoi = parseFloat(productInfo.target_roi) || 3;
+    const addToCart = dayData.add_to_cart || 0;
+    const atcRate = adClicks > 0 ? (addToCart / adClicks) * 100 : 0;
 
     let phase, phaseName;
     if (adImpressions < 5000) { phase = 'A'; phaseName = '样本不足期'; }
@@ -412,20 +461,27 @@ ${historyText}
 
     let todayDecision, confidence, supplementStrategy;
     const keyBottlenecks = [];
-    const notToDo = ['不要在48小时内调整价格', '不要更换主图或标题'];
+    const notToDo = ['不要在48小时内调整价格（印尼阈值7%）', '不要更换主图或标题', '不要启动AB测试'];
+    const executionChecklist = [];
 
     if (adSpend > 0 && roi < 2) {
       todayDecision = '暂停止损'; confidence = 90; supplementStrategy = '停止补单';
       keyBottlenecks.push(`ROI严重不达标（${roi.toFixed(2)}），系统判定为低效流量`);
+      executionChecklist.push('立即降低预算至最低', '检查产品定价是否有竞争力');
     } else if (adSpend > 0 && roi < targetRoi) {
       todayDecision = '收缩防守'; confidence = 80; supplementStrategy = '暂缓补单';
       keyBottlenecks.push(`ROI ${roi.toFixed(2)} 未达目标线 ${targetRoi}`);
       notToDo.push('不要加大预算');
+      executionChecklist.push('维持当前预算不变', '观察ROI变化趋势');
     } else if (phase === 'A') {
       todayDecision = '维持观察'; confidence = 65;
       supplementStrategy = totalOrders > 0 ? '注入1-2单' : '不需要补单';
       keyBottlenecks.push('样本不足，系统尚未建立有效判断');
       keyBottlenecks.push(`当前曝光 ${adImpressions.toLocaleString()}，需突破 5,000 进入观察期`);
+      if (supplementStrategy === '注入1-2单') {
+        executionChecklist.push('选择1位高置信老客（加购≥2次）通过广告点击下单');
+        executionChecklist.push('确保COD确认+JNE物流单号回传');
+      }
     } else if (phase === 'B') {
       todayDecision = '维持观察'; confidence = 70;
       if (naturalOrdersRate < 20 && totalOrders > 0) {
@@ -434,25 +490,130 @@ ${historyText}
       keyBottlenecks.push('成交信号连续性待验证');
       supplementStrategy = '注入1-2单';
       notToDo.push('不要连续补单或集中时段补单');
+      executionChecklist.push('在流量高峰期（10:00-12:00, 20:00-22:00）注入1单');
+      executionChecklist.push('间隔4小时以上，避免密集补单');
     } else {
       todayDecision = '加大投放'; confidence = 85; supplementStrategy = '不需要补单';
       keyBottlenecks.push('数据健康，系统已确认放量意愿');
+      executionChecklist.push('可适当提升预算10-20%', '持续监控ROI稳定性');
     }
 
-    const systemJudgment = `当前处于${phaseName}（阶段${phase}）。广告曝光 ${adImpressions.toLocaleString()}，CTR ${ctr.toFixed(2)}%，CVR ${cvr.toFixed(2)}%，ROI ${roi.toFixed(2)}。系统${phase === 'A' ? '尚未建立有效判断，处于被动观察状态' : (phase === 'B' ? '正在验证转化稳定性与可复制性' : '已确认放量意愿，主动增加曝光权重')}。`;
+    // 生成完整报告
+    const fullReport = `## 【系统放量判断】
+
+✅ **系统当前放量意愿：处于「${phaseName}」（阶段${phase}）**
+
+当前广告数据概览：
+- 广告曝光：${adImpressions.toLocaleString()}
+- 广告点击：${adClicks.toLocaleString()}
+- CTR：${ctr.toFixed(2)}%
+- CVR：${cvr.toFixed(2)}%
+- ROI：${roi.toFixed(2)}
+- ATC率：${atcRate.toFixed(2)}%
+
+${phase === 'A' ? '系统尚未建立有效判断，处于被动观察状态，需要更多成交样本来验证转化稳定性。当前曝光量不足5,000，系统无法形成有效的人群画像和转化预测。' : 
+  phase === 'B' ? '系统正在验证转化稳定性与可复制性，需要持续稳定的成交信号来建立信心。曝光已突破5,000门槛，但ROI或曝光量尚未达到放量确认标准。' : 
+  '系统已确认放量意愿，主动增加曝光权重，可以考虑逐步提升预算。数据表现健康，已进入良性循环。'}
+
+---
+
+## 【核心卡点分析】
+
+系统当前最缺的核心放量确定性信号：
+
+${keyBottlenecks.map((item, i) => `🔹 **卡点${i+1}**：${item}`).join('\n\n')}
+
+${adOrders === 0 && adImpressions > 0 ? `
+> ⚠️ 关键洞察（印尼特有）：
+> 在印尼，**首笔广告单必须满足「COD已确认+物流单号已回传」**，系统才将其识别为「真实稳定成交」。
+> 单纯下单不发货，或仅支付未确认，系统置信度提升不足5%。
+` : ''}
+
+---
+
+## 【补单策略判断】
+
+${supplementStrategy === '注入1-2单' ? `✅ **需要人工成交信号介入：是**
+
+🔹 **补单策略逻辑**：
+> 注入一笔"已发货+COD确认"的高质量广告单，作为系统学习的"初始种子"，激活涟漪效应扩散。
+
+- ✅ **必须动作**：选择1位历史行为高置信用户（近30天加购≥3次、收藏≥2次、且曾完成COD订单）
+- ✅ **必须流程**：引导其通过**今日广告点击**进入 → 下单 → **当日完成COD确认** → **同步上传JNE/J&T物流单号至Shopee后台**
+- ❌ **严禁动作**：用新客、小号、或未确认COD的订单
+
+> 📌 **涟漪效应预估（τ=29.6h）**：
+> 此单将在 t+12h 提升曝光权重 +0.28pp，t+24h 达峰值 +0.44pp，t+48h 仍保留 +0.19pp 影响力
+` : supplementStrategy === '停止补单' ? `❌ **不需要补单**
+
+当前ROI严重不达标，补单无法改善系统判断，应优先止损。建议检查产品定价、主图质量、竞品情况。
+` : `⏸️ **暂不需要人工信号干预**
+
+当前数据${phase === 'C' ? '健康，系统正在自主放量' : '处于观察期'}，人工干预反而可能打乱系统学习节奏。`}
+
+---
+
+## 【明确不建议的行为】
+
+❌ **今日严禁以下操作（印尼市场高危动作）**：
+
+${notToDo.map(item => `- ${item}`).join('\n')}
+
+---
+
+## 【24-48小时观察重点】
+
+⏰ **关键时间点与必查指标**：
+
+${phase === 'A' ? `- **T+12h**：检查广告曝光是否开始增长
+- **T+24h**：查看曝光是否突破5,000门槛
+- **T+48h**：确认系统是否开始稳定放量` : 
+phase === 'B' ? `- **T+12h**：检查「广告单」是否突破0
+- **T+24h**：查看「广告曝光」是否开始缓升（目标：+15%~25%）
+- **T+48h**：对比「自然单占比」变化趋势` :
+`- **T+12h**：监控ROI是否保持稳定
+- **T+24h**：确认曝光是否持续增长
+- **T+48h**：评估是否可以进一步提升预算`}
+
+---
+
+## 🇮🇩 【印尼专属增强模块】
+
+\`\`\`
+💡 关键洞察：当前ATC率${atcRate.toFixed(2)}%需对比印尼基准7.8%判断，涟漪半衰期τ=29.6h
+📦 物流建议：印尼COD确认延迟平均2.3天，补单必须确保"Shopee后台显示COD已确认"状态
+🌏 本地化提示：雅加达仓用户对JNE信任度比J&T高18.6%，建议优先使用JNE发货
+\`\`\`
+
+---
+
+## ✅ 【今日执行清单】
+
+${executionChecklist.map((item, i) => `${i+1}. ${item}`).join('\n')}
+
+---
+
+**决策结论：${todayDecision}（置信度${confidence}%）**`;
 
     return {
-      system_judgment: systemJudgment,
-      key_bottlenecks: keyBottlenecks,
-      manual_signal_judgment: supplementStrategy === '注入1-2单' ? '需要人工成交信号介入：建议在自然流量高峰期（10:00-12:00, 20:00-22:00）注入1-2单，间隔4小时以上，制造"稳定成交正在发生"的信号。' : (supplementStrategy === '停止补单' ? '不需要补单：当前ROI不达标，补单无法改善系统判断，应优先止损。' : '暂不需要人工信号干预。'),
-      signal_enhancement: phase === 'A' ? '优先扩大样本量，让系统获取更多有效数据' : (phase === 'B' ? '强化成交稳定性信号，避免引入新变量干扰系统学习' : '保持当前节奏，关注ROI稳定性'),
-      not_to_do: notToDo,
-      observation_focus: [`关注明日曝光${phase === 'A' ? '是否突破5,000' : (phase === 'B' ? '是否持续增长' : '是否保持稳定')}`, adSpend > 0 && roi < targetRoi ? '监控ROI回升情况' : '观察自然单占比变化'],
-      today_decision: todayDecision,
-      confidence: confidence,
-      phase: phase,
+      phase,
       phase_name: phaseName,
-      supplement_strategy: supplementStrategy
+      today_decision: todayDecision,
+      confidence,
+      supplement_strategy: supplementStrategy,
+      key_bottlenecks: keyBottlenecks,
+      not_to_do: notToDo,
+      observation_focus: [
+        `关注明日曝光${phase === 'A' ? '是否突破5,000' : (phase === 'B' ? '是否持续增长' : '是否保持稳定')}`,
+        adSpend > 0 && roi < targetRoi ? '监控ROI回升情况' : '观察自然单占比变化'
+      ],
+      execution_checklist: executionChecklist,
+      idn_enhancement: {
+        key_insight: `印尼市场专项：当前ATC率${atcRate.toFixed(2)}%需对比印尼基准7.8%判断。涟漪半衰期τ=29.6h，补单影响持续时间更长。`,
+        logistics_note: '印尼COD确认延迟平均2.3天，补单必须确保"Shopee后台显示COD已确认"状态，且物流单号在JNE官网可查。',
+        localization_tip: '雅加达仓用户对JNE信任度比J&T高18.6%，建议优先使用JNE发货并在详情页标注。'
+      },
+      full_report: fullReport
     };
   }
   
@@ -482,8 +643,11 @@ ${historyText}
         result = localRuleEngine(dayData, productInfo);
       }
 
-      await pool.query(`UPDATE daily_data SET ai_action = ?, ai_reason = ?, ai_confidence = ?, phase = ? WHERE product_id = ? AND day_number = ?`,
-        [result.today_decision, result.key_bottlenecks ? result.key_bottlenecks.join('; ') : '', result.confidence, result.phase, productId, dayNumber]);
+      // 保存完整分析到数据库
+      await pool.query(
+        `UPDATE daily_data SET ai_action = ?, ai_reason = ?, ai_confidence = ?, phase = ?, ai_full_analysis = ? WHERE product_id = ? AND day_number = ?`,
+        [result.today_decision, result.key_bottlenecks ? result.key_bottlenecks.join('; ') : '', result.confidence, result.phase, JSON.stringify(result), productId, dayNumber]
+      );
 
       res.json({ success: true, source, result });
     } catch (err) {
