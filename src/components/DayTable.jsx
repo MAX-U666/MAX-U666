@@ -2,36 +2,29 @@ import React, { useState } from 'react';
 import { MiniLogo } from './Logo';
 import { styles } from '../styles/theme';
 
-const DayTable = ({ selectedProduct }) => {
+const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
   const [viewMode, setViewMode] = useState('compact'); // compact | full
   
   if (!selectedProduct?.daily_data) return null;
   
   const dailyData = selectedProduct.daily_data;
-  const currentDay = selectedProduct.current_day || 1;
+  const currentDay = selectedDay || selectedProduct.current_day || 1;
 
   // 汇总统计
   const summary = {
-    // 订单汇总
     totalOrdersCreated: dailyData.reduce((sum, d) => sum + (d.orders_created || d.organic_orders || 0), 0),
     totalOrdersReady: dailyData.reduce((sum, d) => sum + (d.orders_ready || 0), 0),
     totalManual: dailyData.reduce((sum, d) => sum + (d.manual_orders || 0), 0),
-    
-    // 收入汇总
     totalRevenueCreated: dailyData.reduce((sum, d) => sum + (d.revenue_created || 0), 0),
     totalRevenueReady: dailyData.reduce((sum, d) => sum + (d.revenue_ready || 0), 0),
-    
-    // 广告汇总
     totalAdSpend: dailyData.reduce((sum, d) => sum + (d.ad_spend || 0), 0),
     totalAdRevenue: dailyData.reduce((sum, d) => sum + (d.ad_revenue || 0), 0),
-    
-    // 平均ROI
     avgROI: dailyData.filter(d => d.roi > 0).length > 0 
       ? (dailyData.filter(d => d.roi > 0).reduce((sum, d) => sum + parseFloat(d.roi), 0) / dailyData.filter(d => d.roi > 0).length).toFixed(2) 
       : 0
   };
 
-  // 紧凑模式的列（新增自然访客、自然点击）
+  // 紧凑模式的列
   const compactHeaders = [
     { key: 'day', label: '阶段', width: '70px' },
     { key: 'date', label: '日期', width: '60px' },
@@ -54,11 +47,10 @@ const DayTable = ({ selectedProduct }) => {
     { key: 'manual_orders', label: '补单', width: '45px' },
   ];
 
-  // 完整模式的列（26列 + 新增自然访客、自然点击）
+  // 完整模式的列
   const fullHeaders = [
     { key: 'day', label: '阶段', width: '70px' },
     { key: 'date', label: '日期', width: '60px' },
-    // 流量数据
     { key: 'visitors', label: '总访客', width: '60px', group: 'traffic' },
     { key: 'natural_visitors', label: '自然访客', width: '70px', group: 'traffic' },
     { key: 'page_views', label: '浏览', width: '55px', group: 'traffic' },
@@ -66,22 +58,18 @@ const DayTable = ({ selectedProduct }) => {
     { key: 'clicks', label: '总点击', width: '55px', group: 'traffic' },
     { key: 'natural_clicks', label: '自然点击', width: '70px', group: 'traffic' },
     { key: 'likes', label: '收藏', width: '45px', group: 'traffic' },
-    // 加购数据
     { key: 'cart_visitors', label: '加购人', width: '60px', group: 'cart' },
     { key: 'add_to_cart', label: '加购数', width: '60px', group: 'cart' },
     { key: 'cart_rate', label: '加购率', width: '60px', group: 'cart' },
-    // 订单数据（已下单）
     { key: 'orders_created', label: '总单量', width: '60px', group: 'order' },
     { key: 'natural_orders', label: '自然单', width: '60px', group: 'order' },
     { key: 'items_created', label: '下单件', width: '60px', group: 'order' },
     { key: 'revenue_created', label: '下单额', width: '80px', group: 'order' },
     { key: 'conversion_rate', label: '转化率', width: '60px', group: 'order' },
-    // 订单数据（待发货）
     { key: 'orders_ready', label: '发货人', width: '60px', group: 'ship' },
     { key: 'items_ready', label: '发货件', width: '60px', group: 'ship' },
     { key: 'revenue_ready', label: '发货额', width: '80px', group: 'ship' },
     { key: 'ready_created_rate', label: '发货比', width: '60px', group: 'ship' },
-    // 广告数据
     { key: 'ad_impressions', label: '广告曝光', width: '80px', group: 'ad' },
     { key: 'ad_clicks', label: '广告点击', width: '70px', group: 'ad' },
     { key: 'ad_ctr', label: '广告点击率', width: '75px', group: 'ad' },
@@ -89,7 +77,6 @@ const DayTable = ({ selectedProduct }) => {
     { key: 'ad_spend', label: '花费', width: '75px', group: 'ad' },
     { key: 'ad_revenue', label: '收入', width: '75px', group: 'ad' },
     { key: 'roi', label: 'ROI', width: '55px', group: 'ad' },
-    // AI决策
     { key: 'ai_action', label: 'AI决策', width: '90px' },
     { key: 'manual_orders', label: '补单', width: '45px' },
   ];
@@ -101,13 +88,9 @@ const DayTable = ({ selectedProduct }) => {
     const ordersCreated = row.orders_created || row.organic_orders || 0;
     const adOrders = row.ad_orders || 0;
     const naturalOrders = Math.max(0, ordersCreated - adOrders);
-    
-    // 计算自然访客 = 总访客 - 广告点击
     const totalVisitors = row.visitors || 0;
     const adClicks = row.ad_clicks || 0;
     const naturalVisitors = Math.max(0, totalVisitors - adClicks);
-    
-    // 计算自然点击 = 总点击 - 广告点击
     const totalClicks = row.clicks || 0;
     const naturalClicks = Math.max(0, totalClicks - adClicks);
     
@@ -214,6 +197,13 @@ const DayTable = ({ selectedProduct }) => {
     }
   };
 
+  // 处理行点击
+  const handleRowClick = (dayNumber) => {
+    if (onDaySelect) {
+      onDaySelect(dayNumber);
+    }
+  };
+
   return (
     <div style={{ ...styles.card, background: 'rgba(255,255,255,0.02)' }}>
       {/* 表头统计 */}
@@ -305,15 +295,21 @@ const DayTable = ({ selectedProduct }) => {
           </thead>
           <tbody>
             {dailyData.map((row) => {
-              const isCurrentDay = row.day_number === currentDay;
+              const isSelected = row.day_number === currentDay;
+              const hasData = row.status !== '未提交';
               
               return (
                 <tr 
-                  key={row.day_number} 
+                  key={row.day_number}
+                  onClick={() => handleRowClick(row.day_number)}
                   style={{ 
-                    background: isCurrentDay ? 'rgba(255,107,53,0.08)' : 'transparent',
-                    borderLeft: isCurrentDay ? '3px solid #FF6B35' : '3px solid transparent'
+                    background: isSelected ? 'rgba(255,107,53,0.08)' : 'transparent',
+                    borderLeft: isSelected ? '3px solid #FF6B35' : '3px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s'
                   }}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                  onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                 >
                   {headers.map((h, i) => (
                     <td 
@@ -323,12 +319,12 @@ const DayTable = ({ selectedProduct }) => {
                         textAlign: 'center', 
                         borderBottom: '1px solid rgba(255,255,255,0.04)',
                         color: h.key === 'day' 
-                          ? (isCurrentDay ? '#FF6B35' : '#E2E8F0')
+                          ? (isSelected ? '#FF6B35' : '#E2E8F0')
                           : getCellColor(h.key, row),
                         fontWeight: ['day', 'orders_created', 'natural_orders', 'natural_visitors', 'natural_clicks', 'roi', 'ad_spend', 'ad_revenue', 'revenue_created'].includes(h.key) ? '600' : '400'
                       }}
                     >
-                      {h.key === 'day' && isCurrentDay && <span style={{ marginRight: '4px' }}>▸</span>}
+                      {h.key === 'day' && isSelected && <span style={{ marginRight: '4px' }}>▸</span>}
                       {formatValue(row, h.key)}
                     </td>
                   ))}
@@ -356,6 +352,11 @@ const DayTable = ({ selectedProduct }) => {
           <span>📢 <strong>广告</strong>: 曝光/点击/点击率/广告单/花费/收入/ROI</span>
         </div>
       )}
+      
+      {/* 提示 */}
+      <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '10px', color: '#64748B', textAlign: 'center' }}>
+        💡 点击任意行查看该天的 AI 决策分析
+      </div>
     </div>
   );
 };
