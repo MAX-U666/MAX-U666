@@ -348,9 +348,9 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
               Day {currentDay} AI决策 {isExecuted ? '- 已执行' : ''}
             </span>
           </div>
-          {!isExecuted && !analysisResult && (
+          {!analysisResult && !analysis?.full_report && (
             <button onClick={handleGenerateAnalysis} disabled={isAnalyzing} style={{ ...styles.buttonPrimary, opacity: isAnalyzing ? 0.7 : 1 }}>
-              {isAnalyzing ? '🔄 分析中...' : '🧠 生成AI决策'}
+              {isAnalyzing ? '🔄 分析中...' : isExecuted ? '🔄 重新分析' : '🧠 生成AI决策'}
             </button>
           )}
         </div>
@@ -364,10 +364,12 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           )}
 
           {/* 未生成分析 */}
-          {!showAnalysis && !isAnalyzing && (
+          {!showAnalysis && !isAnalyzing && !analysis?.full_report && (
             <div style={{ textAlign: 'center', padding: '40px', color: '#64748B' }}>
               <MiniLogo size={48} color="#FF6B35" />
-              <p style={{ marginTop: '16px', fontSize: '14px' }}>点击「生成AI决策」获取智能分析</p>
+              <p style={{ marginTop: '16px', fontSize: '14px' }}>
+                {isExecuted ? '此决策无历史分析记录，点击「重新分析」生成报告' : '点击「生成AI决策」获取智能分析'}
+              </p>
             </div>
           )}
 
