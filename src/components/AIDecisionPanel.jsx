@@ -73,59 +73,110 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
   const renderFullReport = (report) => {
     if (!report) return null;
     
-    // 简单的 markdown 渲染
     const lines = report.split('\n');
-    return lines.map((line, i) => {
+    const result = [];
+    let inCodeBlock = false;
+    let codeContent = [];
+    let codeBlockKey = 0;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // 代码块开始/结束
+      if (line.startsWith('```')) {
+        if (inCodeBlock) {
+          // 代码块结束，渲染代码块
+          result.push(
+            <div key={`code-${codeBlockKey++}`} style={{ 
+              background: 'rgba(0,0,0,0.4)', 
+              border: '1px solid rgba(255,107,53,0.3)', 
+              borderRadius: '8px', 
+              padding: '16px', 
+              margin: '12px 0',
+              fontFamily: 'monospace',
+              fontSize: '13px',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-wrap',
+              color: '#E2E8F0'
+            }}>
+              {codeContent.map((codeLine, j) => (
+                <div key={j} style={{ 
+                  color: codeLine.startsWith('✅') ? '#10B981' : 
+                         codeLine.startsWith('❌') ? '#F87171' : 
+                         codeLine.startsWith('⏰') ? '#FBBF24' :
+                         codeLine.startsWith('【') ? '#FF6B35' : '#E2E8F0'
+                }}>{codeLine}</div>
+              ))}
+            </div>
+          );
+          codeContent = [];
+          inCodeBlock = false;
+        } else {
+          inCodeBlock = true;
+        }
+        continue;
+      }
+      
+      // 在代码块内，收集内容
+      if (inCodeBlock) {
+        codeContent.push(line);
+        continue;
+      }
+      
       // 标题
       if (line.startsWith('## ')) {
-        return <h3 key={i} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 12px 0', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: '8px' }}>{line.replace('## ', '')}</h3>;
+        result.push(<h3 key={i} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 12px 0', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: '8px' }}>{line.replace('## ', '')}</h3>);
+        continue;
       }
       if (line.startsWith('### ')) {
-        return <h4 key={i} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '16px 0 8px 0' }}>{line.replace('### ', '')}</h4>;
-      }
-      // 代码块
-      if (line.startsWith('```')) {
-        return null;
+        result.push(<h4 key={i} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '16px 0 8px 0' }}>{line.replace('### ', '')}</h4>);
+        continue;
       }
       // 引用块
       if (line.startsWith('> ')) {
-        return <div key={i} style={{ borderLeft: '3px solid #3B82F6', paddingLeft: '12px', margin: '8px 0', color: '#94A3B8', fontStyle: 'italic' }}>{line.replace('> ', '')}</div>;
+        result.push(<div key={i} style={{ borderLeft: '3px solid #3B82F6', paddingLeft: '12px', margin: '8px 0', color: '#94A3B8', fontStyle: 'italic' }}>{line.replace('> ', '')}</div>);
+        continue;
       }
       // 列表项
       if (line.startsWith('- ')) {
         const content = line.replace('- ', '');
         const isError = content.startsWith('❌') || content.includes('不要') || content.includes('严禁');
         const isSuccess = content.startsWith('✅') || content.startsWith('✓');
-        return (
+        result.push(
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: isError ? '#F87171' : isSuccess ? '#10B981' : '#CBD5E1' }}>
             <span style={{ color: isError ? '#EF4444' : isSuccess ? '#10B981' : '#64748B' }}>•</span>
             <span>{content}</span>
           </div>
         );
+        continue;
       }
       // 数字列表
       if (/^\d+\.\s/.test(line)) {
-        return <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: '#10B981' }}>{line}</div>;
+        result.push(<div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: '#10B981' }}>{line}</div>);
+        continue;
       }
       // 加粗文本
       if (line.includes('**')) {
         const parts = line.split(/\*\*(.*?)\*\*/g);
-        return (
+        result.push(
           <p key={i} style={{ margin: '8px 0', color: '#E2E8F0', lineHeight: '1.8' }}>
             {parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ color: '#fff' }}>{part}</strong> : part)}
           </p>
         );
+        continue;
       }
       // 分隔线
       if (line === '---') {
-        return <hr key={i} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />;
+        result.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />);
+        continue;
       }
       // 普通段落
       if (line.trim()) {
-        return <p key={i} style={{ margin: '8px 0', color: '#CBD5E1', lineHeight: '1.8' }}>{line}</p>;
+        result.push(<p key={i} style={{ margin: '8px 0', color: '#CBD5E1', lineHeight: '1.8' }}>{line}</p>);
       }
-      return null;
-    });
+    }
+    
+    return result;
   };
 
   // Tab 按钮
