@@ -36,10 +36,20 @@ const App = () => {
   const [uploadMessage, setUploadMessage] = useState('');
   
   const [executionStatus, setExecutionStatus] = useState(null);
+  
+  // 新增：选中的 Day（用于查看历史决策）
+  const [selectedDay, setSelectedDay] = useState(null);
 
   const countdown = useCountdown();
   const { products, loading, loadProducts } = useProducts(currentUser, filterOwner, filterStatus);
   const { selectedProduct, setSelectedProduct, selectedDayNumber, setSelectedDayNumber, loadProductDetail } = useProductDetail();
+
+  // 当选中产品变化时，重置 selectedDay 为当前天
+  useEffect(() => {
+    if (selectedProduct) {
+      setSelectedDay(selectedProduct.current_day || 1);
+    }
+  }, [selectedProduct]);
 
   // 检查登录状态
   useEffect(() => {
@@ -184,11 +194,12 @@ const App = () => {
     }
   };
 
-  const handleExecute = async (action, reason, confidence) => {
-    await executeDecision(selectedProduct.id, selectedProduct.current_day, {
+  const handleExecute = async (action, reason, confidence, fullAnalysis) => {
+    await executeDecision(selectedProduct.id, selectedDay, {
       ai_action: action, 
       ai_reason: reason, 
-      ai_confidence: confidence, 
+      ai_confidence: confidence,
+      ai_full_analysis: fullAnalysis,
       executor_id: currentUser.id
     });
     setExecutionStatus('executed');
@@ -196,7 +207,7 @@ const App = () => {
   };
 
   const handleAbnormal = async () => {
-    await reportAbnormal(selectedProduct.id, selectedProduct.current_day, {
+    await reportAbnormal(selectedProduct.id, selectedDay, {
       abnormal_reason: abnormalReason, 
       executor_id: currentUser.id
     });
@@ -210,6 +221,12 @@ const App = () => {
     loadProductDetail(product.id);
     setCurrentView('detail');
     setExecutionStatus(null);
+    setSelectedDay(null); // 重置，让 useEffect 设置为 current_day
+  };
+
+  // 处理 Day 选择
+  const handleDaySelect = (dayNumber) => {
+    setSelectedDay(dayNumber);
   };
 
   // 检查登录状态中
@@ -244,7 +261,9 @@ const App = () => {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  const currentDayData = selectedProduct?.daily_data?.find(d => d.day_number === (selectedProduct?.current_day || 1));
+  // 获取选中天的数据
+  const currentDayNumber = selectedDay || selectedProduct?.current_day || 1;
+  const currentDayData = selectedProduct?.daily_data?.find(d => d.day_number === currentDayNumber);
   const dayStatus = getDayStatus(currentDayData);
 
   return (
@@ -271,6 +290,8 @@ const App = () => {
         ) : (
           <Detail 
             selectedProduct={selectedProduct} 
+            selectedDay={currentDayNumber}
+            onDaySelect={handleDaySelect}
             dayStatus={dayStatus}
             currentDayData={currentDayData} 
             currentUser={currentUser}
@@ -401,19 +422,20 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
   );
 };
 
-const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpload, onExecute, onAbnormal }) => {
+const Detail = ({ selectedProduct, selectedDay, onDaySelect, dayStatus, currentDayData, currentUser, onUpload, onExecute, onAbnormal }) => {
   if (!selectedProduct) return <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>加载中...</div>;
   
-  const currentDay = selectedProduct.current_day || 1;
+  const isCurrentDay = selectedDay === selectedProduct.current_day;
   
   return (
     <div>
-      {dayStatus.label === '未提交' && (
+      {/* 只在当前天且未提交时显示警告 */}
+      {isCurrentDay && dayStatus.label === '未提交' && (
         <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '14px', padding: '16px 20px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ width: '40px', height: '40px', background: 'rgba(239,68,68,0.15)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>⚠</div>
             <div>
-              <div style={{ fontSize: '14px', fontWeight: '700', color: '#EF4444' }}>Day {currentDay} 数据未提交</div>
+              <div style={{ fontSize: '14px', fontWeight: '700', color: '#EF4444' }}>Day {selectedDay} 数据未提交</div>
               <div style={{ fontSize: '12px', color: '#F87171' }}>无数据 = 无判断 = 自动停投保护</div>
             </div>
           </div>
@@ -430,13 +452,17 @@ const Detail = ({ selectedProduct, dayStatus, currentDayData, currentUser, onUpl
       </div>
 
       <div style={{ marginBottom: '16px' }}>
-        <DayTable selectedProduct={selectedProduct} />
+        <DayTable 
+          selectedProduct={selectedProduct} 
+          selectedDay={selectedDay}
+          onDaySelect={onDaySelect}
+        />
       </div>
 
       <AIDecisionPanel 
         selectedProduct={selectedProduct}
         currentDayData={currentDayData}
-        currentDay={currentDay}
+        currentDay={selectedDay}
         onExecute={onExecute}
         onAbnormal={onAbnormal}
         currentUser={currentUser}
