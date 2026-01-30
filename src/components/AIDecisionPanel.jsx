@@ -306,48 +306,203 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     </button>
   );
 
+  // 从 full_report 中提取盯盘时间
+  const extractObservationTimes = (report) => {
+    if (!report) return [];
+    const times = [];
+    const lines = report.split('\n');
+    let inSection = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // 检测盯盘时间章节
+      if (trimmed.includes('盯盘时间') || trimmed.includes('观察重点') || trimmed.includes('24–48') || trimmed.includes('24-48')) {
+        inSection = true;
+        continue;
+      }
+      // 检测下一个章节开始
+      if (inSection && (trimmed.startsWith('##') || trimmed.startsWith('🇮🇩') || trimmed.startsWith('✅ 最后') || trimmed.includes('印尼专属'))) {
+        inSection = false;
+      }
+      // 收集时间点
+      if (inSection && trimmed.startsWith('⏰')) {
+        times.push(trimmed);
+      }
+      // 也收集带"时间点"的行
+      if (inSection && trimmed.includes('时间点') && trimmed.includes('：')) {
+        times.push(trimmed);
+      }
+    }
+    return times;
+  };
+
+  // 从 full_report 中提取今日必做
+  const extractExecutionChecklist = (report) => {
+    if (!report) return [];
+    const items = [];
+    const lines = report.split('\n');
+    let inSection = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // 检测章节开始
+      if (trimmed.includes('必须动作') || trimmed.includes('今日必做') || trimmed.includes('执行建议') || 
+          trimmed.includes('【今日唯一动作】') || trimmed.includes('必须流程')) {
+        inSection = true;
+        continue;
+      }
+      // 检测章节结束
+      if (inSection && (trimmed.startsWith('##') || trimmed.includes('【今日严禁】') || 
+          trimmed.includes('严禁动作') || trimmed.includes('不建议') || trimmed.includes('禁止操作'))) {
+        inSection = false;
+      }
+      // 收集内容
+      if (inSection) {
+        if (trimmed.startsWith('✅') || trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.match(/^\d+\.\s/)) {
+          const content = trimmed.replace(/^[✅•\-]\s*/, '').replace(/^\d+\.\s*/, '');
+          if (content.length > 3 && !content.startsWith('**')) {
+            items.push(content);
+          }
+        }
+      }
+    }
+    return items.length > 0 ? items : [];
+  };
+
+  // 从 full_report 中提取禁止操作
+  const extractNotToDo = (report) => {
+    if (!report) return [];
+    const items = [];
+    const lines = report.split('\n');
+    let inSection = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // 检测章节开始
+      if (trimmed.includes('不建议') || trimmed.includes('严禁') || trimmed.includes('禁止操作') || 
+          trimmed.includes('【今日严禁】') || trimmed.includes('严禁动作')) {
+        inSection = true;
+        continue;
+      }
+      // 检测章节结束
+      if (inSection && (trimmed.startsWith('##') || trimmed.includes('【盯盘') || 
+          trimmed.includes('观察重点') || trimmed.includes('24–48') || trimmed.includes('24-48'))) {
+        inSection = false;
+      }
+      // 收集内容
+      if (inSection) {
+        if (trimmed.startsWith('❌') || trimmed.startsWith('•') || trimmed.startsWith('-')) {
+          const content = trimmed.replace(/^[❌•\-]\s*/, '');
+          if (content.length > 3) {
+            items.push(content);
+          }
+        }
+      }
+    }
+    return items.length > 0 ? items : [];
+  };
+
+  // 从 full_report 中提取核心卡点
+  const extractKeyBottlenecks = (report) => {
+    if (!report) return [];
+    const items = [];
+    const lines = report.split('\n');
+    let inSection = false;
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // 检测章节开始
+      if (trimmed.includes('核心卡点') || trimmed.includes('卡点分析') || trimmed.includes('系统放量判断')) {
+        inSection = true;
+        continue;
+      }
+      // 检测章节结束
+      if (inSection && (trimmed.includes('补单策略') || trimmed.includes('信号强化') || 
+          trimmed.includes('不建议') || trimmed.startsWith('【补单'))) {
+        inSection = false;
+      }
+      // 收集核心卡点
+      if (inSection) {
+        if (trimmed.startsWith('🔍') || trimmed.startsWith('❌') || trimmed.startsWith('✅')) {
+          const content = trimmed.replace(/^[🔍❌✅]\s*/, '');
+          if (content.length > 5) {
+            items.push(content);
+          }
+        }
+        // 也收集带•的重要内容
+        if (trimmed.startsWith('•') && (trimmed.includes('不足') || trimmed.includes('缺乏') || 
+            trimmed.includes('问题') || trimmed.includes('风险') || trimmed.includes('系统'))) {
+          const content = trimmed.replace(/^•\s*/, '');
+          if (content.length > 5) {
+            items.push(content);
+          }
+        }
+      }
+    }
+    return items.slice(0, 6); // 最多6条
+  };
+
   // 渲染执行面板的 Tab 内容
   const renderTabContent = () => {
     if (!analysis) return null;
+    
+    // 从 full_report 提取数据
+    const keyBottlenecks = analysis.key_bottlenecks?.length > 0 && analysis.key_bottlenecks[0] !== '详见完整分析报告' 
+      ? analysis.key_bottlenecks 
+      : extractKeyBottlenecks(analysis.full_report);
+    const executionChecklist = analysis.execution_checklist?.length > 0 
+      ? analysis.execution_checklist 
+      : extractExecutionChecklist(analysis.full_report);
+    const notToDo = analysis.not_to_do?.length > 0 
+      ? analysis.not_to_do 
+      : extractNotToDo(analysis.full_report);
+    const observationTimes = analysis.observation_times?.length > 0 
+      ? analysis.observation_times 
+      : extractObservationTimes(analysis.full_report);
     
     switch (activeTab) {
       case 'judgment':
         return (
           <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '12px', padding: '16px' }}>
             <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>🔍 核心卡点</h5>
-            {analysis.key_bottlenecks?.map((item, i) => (
+            {keyBottlenecks.length > 0 ? keyBottlenecks.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#CBD5E1', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span style={{ color: '#F59E0B' }}>•</span> {item}
               </div>
-            )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无</div>}
+            )) : <div style={{ color: '#64748B', fontSize: '12px' }}>详见完整分析报告</div>}
           </div>
         );
       case 'strategy':
         return (
           <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '16px' }}>
             <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>✅ 今日必做</h5>
-            {analysis.execution_checklist?.map((item, i) => (
+            {executionChecklist.length > 0 ? executionChecklist.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#10B981', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span>✓</span> {item}
               </div>
-            )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无</div>}
+            )) : <div style={{ color: '#64748B', fontSize: '12px' }}>详见完整分析报告</div>}
           </div>
         );
       case 'risk':
         return (
           <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px' }}>
             <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>❌ 禁止操作</h5>
-            {analysis.not_to_do?.map((item, i) => (
+            {notToDo.length > 0 ? notToDo.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#F87171', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span>❌</span> {item}
               </div>
-            )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无</div>}
-            <h5 style={{ margin: '16px 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>👀 观察重点</h5>
-            {analysis.observation_focus?.map((item, i) => (
-              <div key={i} style={{ fontSize: '12px', color: '#FBBF24', marginBottom: '8px', display: 'flex', gap: '8px' }}>
-                <span>⏰</span> {item}
+            )) : <div style={{ color: '#64748B', fontSize: '12px' }}>详见完整分析报告</div>}
+          </div>
+        );
+      case 'time':
+        return (
+          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 12px 0', color: '#94A3B8', fontSize: '12px' }}>⏰ 盯盘时间</h5>
+            {observationTimes.length > 0 ? observationTimes.map((item, i) => (
+              <div key={i} style={{ fontSize: '12px', color: '#FBBF24', marginBottom: '10px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <span>⏰</span> <span style={{ color: '#E2E8F0' }}>{item.replace(/^⏰\s*/, '')}</span>
               </div>
-            )) || <div style={{ color: '#64748B', fontSize: '12px' }}>暂无</div>}
+            )) : <div style={{ color: '#64748B', fontSize: '12px' }}>详见完整分析报告</div>}
           </div>
         );
       case 'idn':
@@ -368,7 +523,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
                   <p style={{ margin: 0, fontSize: '12px', color: '#E2E8F0', lineHeight: '1.6' }}>{analysis.idn_enhancement.localization_tip}</p>
                 </div>
               </>
-            ) : <div style={{ color: '#64748B', fontSize: '12px' }}>暂无印尼专项分析</div>}
+            ) : <div style={{ color: '#64748B', fontSize: '12px' }}>详见完整分析报告中的印尼专属增强模块</div>}
           </div>
         );
       default:
@@ -529,6 +684,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
                 <TabButton id="judgment" icon="📋" label="核心卡点" color="#3B82F6" />
                 <TabButton id="strategy" icon="🎯" label="今日必做" color="#10B981" />
                 <TabButton id="risk" icon="⚠️" label="风险提示" color="#EF4444" />
+                <TabButton id="time" icon="⏰" label="盯盘时间" color="#FBBF24" />
                 <TabButton id="idn" icon="🇮🇩" label="印尼专项" color="#EF4444" />
               </div>
 
