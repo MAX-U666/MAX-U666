@@ -488,7 +488,7 @@ ${historyText}
       method: 'POST',
       headers: { 'Authorization': `Bearer ${QWEN_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'qwen-turbo',
+        model: 'qwen-plus',
         input: { messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: userMessage }] },
         parameters: { temperature: 0.7, top_p: 0.9, max_tokens: 8192, result_format: 'message' }
       })
