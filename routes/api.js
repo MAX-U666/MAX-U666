@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -188,11 +189,16 @@ module.exports = function(pool) {
       if (!username || !password) {
         return res.json({ success: false, error: '请输入用户名和密码' });
       }
-      const [users] = await pool.query('SELECT * FROM users WHERE name = ? AND password = ?', [username, password]);
+      const [users] = await pool.query('SELECT * FROM users WHERE name = ?', [username]);
       if (users.length === 0) {
         return res.json({ success: false, error: '用户名或密码错误' });
       }
       const user = users[0];
+      // 使用 bcrypt 比较密码
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) {
+        return res.json({ success: false, error: '用户名或密码错误' });
+      }
       const token = generateToken();
       tokens.set(token, { id: user.id, name: user.name, role: user.role, avatar: user.avatar, color: user.color });
       res.json({ success: true, token, user: { id: user.id, name: user.name, role: user.role, avatar: user.avatar, color: user.color } });
