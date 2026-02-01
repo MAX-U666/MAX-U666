@@ -352,8 +352,8 @@ app.use('/evidence', express.static(path.join(__dirname, 'evidence')));
 // 前端静态文件
 app.use(express.static(path.join(__dirname, 'build')));
 
-// 所有其他请求返回前端
-app.get('/*', (req, res) => {
+// 所有其他请求返回前端（Express 5 兼容写法）
+app.use((req, res) => {
   res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
