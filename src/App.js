@@ -229,6 +229,29 @@ const App = () => {
     setSelectedDay(null); // 重置，让 useEffect 设置为 current_day
   };
 
+  // 删除产品
+  const handleDeleteProduct = async (product) => {
+    if (!window.confirm(`确定要删除产品「${product.name}」吗？\n此操作将同时删除所有相关的每日数据和 AI 分析记录，不可恢复！`)) {
+      return;
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/products/${product.id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert('产品删除成功');
+        loadProducts(); // 刷新产品列表
+      } else {
+        alert('删除失败: ' + (data.error || '未知错误'));
+      }
+    } catch (err) {
+      alert('删除失败: ' + err.message);
+    }
+  };
+
   // 处理 Day 选择
   const handleDaySelect = (dayNumber) => {
     setSelectedDay(dayNumber);
@@ -356,6 +379,7 @@ const App = () => {
             filterStatus={filterStatus} setFilterStatus={setFilterStatus}
             onNewProduct={() => setShowNewProductModal(true)}
             onOpenDetail={openDetail}
+            onDeleteProduct={handleDeleteProduct}
           />
         ) : (
           <Detail 
@@ -412,7 +436,7 @@ const App = () => {
   );
 };
 
-const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner, filterStatus, setFilterStatus, onNewProduct, onOpenDetail }) => {
+const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner, filterStatus, setFilterStatus, onNewProduct, onOpenDetail, onDeleteProduct }) => {
   const stats = {
     total: products.length,
     pending: products.filter(p => p.status === '进行中').length,
@@ -465,24 +489,34 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
           {products.map(product => {
             const statusConfig = getStatusConfig(product.status);
             return (
-              <div key={product.id} onClick={() => onOpenDetail(product)} style={{ ...styles.card, cursor: 'pointer', padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '15px', fontWeight: '700', color: '#E2E8F0' }}>{product.name}</div>
-                    <div style={{ fontSize: '12px', color: '#64748B' }}>SKU: {product.sku}</div>
+              <div key={product.id} style={{ ...styles.card, padding: '20px', position: 'relative' }}>
+                <div onClick={() => onOpenDetail(product)} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: '700', color: '#E2E8F0' }}>{product.name}</div>
+                      <div style={{ fontSize: '12px', color: '#64748B' }}>SKU: {product.sku}</div>
+                    </div>
+                    <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', background: statusConfig.bg, color: statusConfig.color }}>{statusConfig.label}</span>
                   </div>
-                  <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', background: statusConfig.bg, color: statusConfig.color }}>{statusConfig.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
+                    {[1,2,3,4,5,6,7].map(d => (
+                      <div key={d} style={{ width: '24px', height: '6px', borderRadius: '3px', background: d < product.current_day ? '#10B981' : d === product.current_day ? '#FF6B35' : 'rgba(255,255,255,0.1)' }} />
+                    ))}
+                    <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '10px' }}>Day {product.current_day}/7</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748B' }}>
+                    <span>{product.owner_avatar} {product.owner_name}</span>
+                    <span>开始: {new Date(product.start_date).toLocaleDateString('zh-CN')}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
-                  {[1,2,3,4,5,6,7].map(d => (
-                    <div key={d} style={{ width: '24px', height: '6px', borderRadius: '3px', background: d < product.current_day ? '#10B981' : d === product.current_day ? '#FF6B35' : 'rgba(255,255,255,0.1)' }} />
-                  ))}
-                  <span style={{ fontSize: '12px', color: '#94A3B8', marginLeft: '10px' }}>Day {product.current_day}/7</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748B' }}>
-                  <span>{product.owner_avatar} {product.owner_name}</span>
-                  <span>开始: {new Date(product.start_date).toLocaleDateString('zh-CN')}</span>
-                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onDeleteProduct(product); }}
+                  style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '4px 8px', color: '#EF4444', fontSize: '11px', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s' }}
+                  onMouseEnter={(e) => e.target.style.opacity = 1}
+                  onMouseLeave={(e) => e.target.style.opacity = 0.6}
+                >
+                  🗑️
+                </button>
               </div>
             );
           })}
@@ -542,3 +576,4 @@ const Detail = ({ selectedProduct, selectedDay, onDaySelect, dayStatus, currentD
 };
 
 export default App;
+
