@@ -440,17 +440,21 @@ module.exports = function(pool) {
         const hCvr = d.ad_clicks > 0 ? ((d.ad_orders || 0) / d.ad_clicks * 100).toFixed(2) : 0;
         const naturalOrders = Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0));
         
-        let dayHistory = `### Day ${d.day_number} 回溯
-**数据指标：**
-- 广告曝光：${d.ad_impressions || 0} | 点击：${d.ad_clicks || 0} | CTR：${hCtr}%
-- 广告单：${d.ad_orders || 0} | 自然单：${naturalOrders} | CVR：${hCvr}%
-- 花费：${d.ad_spend || 0} IDR | 收入：${d.ad_revenue || 0} IDR | ROI：${hRoi}
-- 加购：${d.add_to_cart || 0} | 收藏：${d.likes || 0}
-
+        // 解析补单建议
+        let supplementStrategy = '无';
+        if (d.ai_full_analysis) {
+          try {
+            const analysis = typeof d.ai_full_analysis === 'string' ? JSON.parse(d.ai_full_analysis) : d.ai_full_analysis;
+            supplementStrategy = analysis.supplement_strategy || '无';
+          } catch (e) { supplementStrategy = '无'; }
+        }
+        
+        let dayHistory = `### Day ${d.day_number}
+**数据：** 曝光${d.ad_impressions || 0} | 点击${d.ad_clicks || 0} | CTR ${hCtr}% | 广告单${d.ad_orders || 0} | 自然单${naturalOrders} | ROI ${hRoi}
 **AI决策：** ${d.ai_action || '未分析'}
-**决策原因：** ${d.ai_reason || '无记录'}
-**执行状态：** ${d.status || '未知'}
-**置信度：** ${d.ai_confidence || 0}%`;
+**核心卡点：** ${d.ai_reason || '无记录'}
+**补单建议：** ${supplementStrategy}
+**置信度：** ${d.ai_confidence || 0}% | **执行状态：** ${d.status || '未知'}`;
         
         return dayHistory;
       }).join('\n\n')}
