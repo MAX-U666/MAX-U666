@@ -353,6 +353,23 @@ module.exports = function(pool) {
     }
   });
 
+  // 删除产品
+  router.delete('/products/:id', verifyToken, async (req, res) => {
+    try {
+      const { id } = req.params;
+      // 先删除关联的 daily_data
+      await pool.query('DELETE FROM daily_data WHERE product_id = ?', [id]);
+      // 再删除产品
+      const [result] = await pool.query('DELETE FROM products WHERE id = ?', [id]);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ success: false, error: '产品不存在' });
+      }
+      res.json({ success: true, message: '产品删除成功' });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // =============================================
   // 日数据相关 API
   // =============================================
@@ -841,4 +858,5 @@ ${supplementStrategy === '注入1-2单' ? `✅ **需要人工成交信号介入�
 
   return router;
 };
+
 
