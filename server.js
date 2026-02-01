@@ -185,7 +185,7 @@ app.get('/api/products/:id', auth, async (req, res) => {
     }
 
     const [dailyData] = await pool.query(
-      'SELECT * FROM product_daily_data WHERE product_id = ? ORDER BY day_number',
+      'SELECT * FROM daily_data WHERE product_id = ? ORDER BY day_number',
       [req.params.id]
     );
 
@@ -208,7 +208,7 @@ app.post('/api/products', auth, async (req, res) => {
     // 初始化 7 天数据
     for (let day = 1; day <= 7; day++) {
       await pool.query(
-        'INSERT INTO product_daily_data (product_id, day_number) VALUES (?, ?)',
+        'INSERT INTO daily_data (product_id, day_number) VALUES (?, ?)',
         [result.insertId, day]
       );
     }
@@ -256,7 +256,7 @@ app.post('/api/products/:id/shop-data', auth, async (req, res) => {
     const { day_number, sessions, page_views, units_ordered, ordered_revenue } = req.body;
     
     await pool.query(`
-      UPDATE product_daily_data 
+      UPDATE daily_data 
       SET sessions = ?, page_views = ?, units_ordered = ?, ordered_revenue = ?, updated_at = NOW()
       WHERE product_id = ? AND day_number = ?
     `, [sessions, page_views, units_ordered, ordered_revenue, req.params.id, day_number]);
@@ -277,7 +277,7 @@ app.post('/api/products/:id/ad-data', auth, async (req, res) => {
     const roi = ad_spend > 0 ? (ad_revenue / ad_spend).toFixed(2) : 0;
     
     await pool.query(`
-      UPDATE product_daily_data 
+      UPDATE daily_data 
       SET ad_impressions = ?, ad_clicks = ?, ad_spend = ?, ad_revenue = ?, ad_conversions = ?, ad_roi = ?, updated_at = NOW()
       WHERE product_id = ? AND day_number = ?
     `, [ad_impressions, ad_clicks, ad_spend, ad_revenue, ad_conversions, roi, req.params.id, day_number]);
@@ -297,7 +297,7 @@ app.post('/api/products/:id/execute', auth, async (req, res) => {
     const { day_number, ai_action, ai_reason, ai_confidence, ai_full_analysis, executor_id } = req.body;
     
     await pool.query(`
-      UPDATE product_daily_data 
+      UPDATE daily_data 
       SET ai_action = ?, ai_reason = ?, ai_confidence = ?, ai_full_analysis = ?, 
           status = '已执行', executor_id = ?, executed_at = NOW()
       WHERE product_id = ? AND day_number = ?
@@ -324,7 +324,7 @@ app.post('/api/products/:id/abnormal', auth, async (req, res) => {
     const { day_number, abnormal_reason, executor_id } = req.body;
     
     await pool.query(`
-      UPDATE product_daily_data 
+      UPDATE daily_data 
       SET status = '异常', abnormal_reason = ?, executor_id = ?, executed_at = NOW()
       WHERE product_id = ? AND day_number = ?
     `, [abnormal_reason, executor_id, req.params.id, day_number]);
