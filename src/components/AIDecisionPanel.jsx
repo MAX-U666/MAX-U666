@@ -613,11 +613,9 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
               Day {currentDay} AI决策 {isExecuted ? '- 已执行' : ''}
             </span>
           </div>
-          {!analysisResult && !analysis?.full_report && (
-            <button onClick={handleGenerateAnalysis} disabled={isAnalyzing} style={{ ...styles.buttonPrimary, opacity: isAnalyzing ? 0.7 : 1 }}>
-              {isAnalyzing ? '🔄 分析中...' : isExecuted ? '🔄 重新分析' : '🧠 生成AI决策'}
-            </button>
-          )}
+          <button onClick={handleGenerateAnalysis} disabled={isAnalyzing} style={{ ...styles.buttonPrimary, opacity: isAnalyzing ? 0.7 : 1 }}>
+            {isAnalyzing ? '🔄 分析中...' : (analysisResult || analysis?.full_report) ? '🔄 重新分析' : '🧠 生成AI决策'}
+          </button>
         </div>
 
         <div style={{ padding: '20px' }}>
@@ -698,3 +696,4 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
 };
 
 export default AIDecisionPanel;
+
