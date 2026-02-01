@@ -56,7 +56,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    const [users] = await pool.query('SELECT * FROM users WHERE username = ?', [username]);
+    const [users] = await pool.query('SELECT * FROM users WHERE name = ?', [username]);
     
     if (users.length === 0) {
       return res.status(401).json({ error: '用户名或密码错误' });
@@ -70,17 +70,15 @@ app.post('/api/login', async (req, res) => {
     }
 
     const token = require('crypto').randomBytes(32).toString('hex');
-    tokens.set(token, { id: user.id, username: user.username, role: user.role, avatar: user.avatar });
+    tokens.set(token, { id: user.id, username: user.name, role: user.role, avatar: user.avatar });
 
     res.json({ 
       token, 
-      user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar }
+      user: { id: user.id, username: user.name, role: user.role, avatar: user.avatar }
     });
-  } catch (error) {
-    console.error('登录错误:', error);
-    res.status(500).json({ error: '服务器错误' });
-  }
-});
+
+
+    
 
 // 登出
 app.post('/api/logout', auth, (req, res) => {
