@@ -434,10 +434,33 @@ module.exports = function(pool) {
     
     let historyText = '';
     if (historicalData && historicalData.length > 0) {
-      historyText = `\n## 历史数据（供趋势判断）\n${historicalData.map(d => {
+      historyText = `\n## 历史数据与决策回溯（重要：请基于历史决策效果进行连续性判断）\n${historicalData.map(d => {
         const hRoi = d.ad_spend > 0 ? (d.ad_revenue / d.ad_spend).toFixed(2) : 0;
-        return `Day ${d.day_number}: 曝光${d.ad_impressions || 0}, 点击${d.ad_clicks || 0}, 广告单${d.ad_orders || 0}, 自然单${Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0))}, 花费${d.ad_spend || 0}, ROI=${hRoi}`;
-      }).join('\n')}`;
+        const hCtr = d.ad_impressions > 0 ? ((d.ad_clicks || 0) / d.ad_impressions * 100).toFixed(2) : 0;
+        const hCvr = d.ad_clicks > 0 ? ((d.ad_orders || 0) / d.ad_clicks * 100).toFixed(2) : 0;
+        const naturalOrders = Math.max(0, (d.orders_created || 0) - (d.ad_orders || 0));
+        
+        let dayHistory = `### Day ${d.day_number} 回溯
+**数据指标：**
+- 广告曝光：${d.ad_impressions || 0} | 点击：${d.ad_clicks || 0} | CTR：${hCtr}%
+- 广告单：${d.ad_orders || 0} | 自然单：${naturalOrders} | CVR：${hCvr}%
+- 花费：${d.ad_spend || 0} IDR | 收入：${d.ad_revenue || 0} IDR | ROI：${hRoi}
+- 加购：${d.add_to_cart || 0} | 收藏：${d.likes || 0}
+
+**AI决策：** ${d.ai_action || '未分析'}
+**决策原因：** ${d.ai_reason || '无记录'}
+**执行状态：** ${d.status || '未知'}
+**置信度：** ${d.ai_confidence || 0}%`;
+        
+        return dayHistory;
+      }).join('\n\n')}
+      
+## 趋势分析要点
+请特别关注：
+1. 从 Day 1 到 Day ${dayData.day_number - 1} 的 ROI 变化趋势
+2. 之前的 AI 决策执行后效果如何（曝光/转化是否改善）
+3. 如果之前建议过补单，补单后系统放量是否有响应
+4. 避免重复之前无效的建议，根据历史效果调整策略`;
     }
 
     return `请严格按照 Prompt 要求的格式，分析以下 Shopee GMV MAX 广告数据，输出完整的专家级分析报告。
@@ -814,3 +837,4 @@ ${supplementStrategy === '注入1-2单' ? `✅ **需要人工成交信号介入�
 
   return router;
 };
+
