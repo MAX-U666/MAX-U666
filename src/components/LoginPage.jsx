@@ -20,7 +20,7 @@ const LoginPage = ({ onLogin }) => {
 
       const data = await response.json();
 
-      if (data.success) {
+      if (data.token) {
         localStorage.setItem('token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         onLogin(data.user);
