@@ -76,9 +76,11 @@ app.post('/api/login', async (req, res) => {
       token, 
       user: { id: user.id, username: user.name, role: user.role, avatar: user.avatar }
     });
-
-
-    
+  } catch (error) {
+    console.error('登录错误:', error);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
 
 // 登出
 app.post('/api/logout', auth, (req, res) => {
@@ -95,7 +97,7 @@ app.get('/api/verify-token', auth, (req, res) => {
 // 获取用户列表
 app.get('/api/users', auth, async (req, res) => {
   try {
-    const [users] = await pool.query('SELECT id, username, role, avatar FROM users ORDER BY id');
+    const [users] = await pool.query('SELECT id, name as username, role, avatar FROM users ORDER BY id');
     res.json(users);
   } catch (error) {
     console.error('获取用户列表错误:', error);
@@ -109,8 +111,8 @@ app.post('/api/users', adminAuth, async (req, res) => {
     const { username, password, role, avatar } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO users (username, password, role, avatar) VALUES (?, ?, ?, ?)',
-      [username, hashedPassword, role || 'user', avatar || '👤']
+      'INSERT INTO users (name, password, role, avatar) VALUES (?, ?, ?, ?)',
+      [username, hashedPassword, role || 'operator', avatar || '👤']
     );
     res.json({ id: result.insertId, message: '用户添加成功' });
   } catch (error) {
@@ -143,7 +145,7 @@ app.get('/api/products', auth, async (req, res) => {
   try {
     const { owner, status } = req.query;
     let sql = `
-      SELECT p.*, u.username as owner_name, u.avatar as owner_avatar
+      SELECT p.*, u.name as owner_name, u.avatar as owner_avatar
       FROM products p
       LEFT JOIN users u ON p.owner_id = u.id
       WHERE 1=1
@@ -172,7 +174,7 @@ app.get('/api/products', auth, async (req, res) => {
 app.get('/api/products/:id', auth, async (req, res) => {
   try {
     const [products] = await pool.query(`
-      SELECT p.*, u.username as owner_name, u.avatar as owner_avatar
+      SELECT p.*, u.name as owner_name, u.avatar as owner_avatar
       FROM products p
       LEFT JOIN users u ON p.owner_id = u.id
       WHERE p.id = ?
