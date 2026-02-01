@@ -7,7 +7,7 @@ import { styles, getDayStatus } from '../styles/theme';
 // =============================================
 export const NewProductModal = ({ newProduct, setNewProduct, onClose, onCreate, currentUser }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '24px', width: '500px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+    <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 100%)', borderRadius: '24px', width: '500px', overflow: 'hidden', border: '1px solid #E5E5EA' }}>
       <div style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', padding: '24px 28px', display: 'flex', alignItems: 'center', gap: '16px' }}>
         <div style={{ width: '44px', height: '44px', background: 'rgba(255,255,255,0.2)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -31,7 +31,7 @@ export const NewProductModal = ({ newProduct, setNewProduct, onClose, onCreate, 
         </div>
       </div>
       
-      <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+      <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
         <button onClick={onClose} style={styles.buttonSecondary}>取消</button>
         <button onClick={onCreate} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}>创建产品</button>
       </div>
@@ -58,7 +58,7 @@ export const UploadModal = ({
 
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-      <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '24px', width: '800px', maxHeight: '90vh', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 100%)', borderRadius: '24px', width: '800px', maxHeight: '90vh', overflow: 'hidden', border: '1px solid #E5E5EA' }}>
         <div style={{ background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', padding: '24px 28px', display: 'flex', alignItems: 'center', gap: '16px' }}>
           <MiniLogo size={28} color="#fff" />
           <div>
@@ -70,7 +70,7 @@ export const UploadModal = ({
         <div style={{ padding: '28px', maxHeight: '60vh', overflowY: 'auto' }}>
           {/* Day选择 */}
           <div style={{ marginBottom: '24px' }}>
-            <label style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', display: 'block', marginBottom: '12px' }}>选择录入的 Day</label>
+            <label style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F', display: 'block', marginBottom: '12px' }}>选择录入的 Day</label>
             <div style={{ display: 'flex', gap: '10px' }}>
               {[1,2,3,4,5,6,7].map(d => {
                 const dayData = selectedProduct?.daily_data?.find(dd => dd.day_number === d);
@@ -78,7 +78,7 @@ export const UploadModal = ({
                 return (
                   <button key={d} onClick={() => setSelectedDayNumber(d)} style={{
                     width: '56px', height: '56px', borderRadius: '12px',
-                    border: selectedDayNumber === d ? '2px solid #FF6B35' : '1px solid rgba(255,255,255,0.1)',
+                    border: selectedDayNumber === d ? '2px solid #FF6B35' : '1px solid #E5E5EA',
                     background: selectedDayNumber === d ? 'rgba(255,107,53,0.15)' : 'rgba(100,116,139,0.1)',
                     color: selectedDayNumber === d ? '#FF6B35' : dayStatus.color,
                     fontSize: '12px', fontWeight: '600', cursor: 'pointer',
@@ -121,8 +121,8 @@ export const UploadModal = ({
           {hasAnyData && <DataPreviewFull sku={sku} matchedShop={matchedShop} matchedAd={matchedAd} />}
         </div>
         
-        <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '12px', color: '#64748B' }}>数据将导入到 Day {selectedDayNumber}</span>
+        <div style={{ padding: '20px 28px', borderTop: '1px solid rgba(0,0,0,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#86868B' }}>数据将导入到 Day {selectedDayNumber}</span>
           <div style={{ display: 'flex', gap: '12px' }}>
             <button onClick={onClose} style={styles.buttonSecondary}>取消</button>
             <button onClick={onImport} disabled={!hasAnyData || uploadLoading} style={{ ...styles.buttonPrimary, opacity: hasAnyData ? 1 : 0.5, cursor: hasAnyData ? 'pointer' : 'not-allowed' }}>
@@ -140,9 +140,9 @@ export const UploadModal = ({
 // =============================================
 export const AbnormalModal = ({ abnormalReason, setAbnormalReason, onClose, onSubmit }) => (
   <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-    <div style={{ background: 'linear-gradient(180deg, #1E293B 0%, #0F172A 100%)', borderRadius: '20px', padding: '28px', width: '420px', border: '1px solid rgba(255,255,255,0.1)' }}>
-      <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#E2E8F0', fontWeight: '700' }}>上报异常</h3>
-      <textarea value={abnormalReason} onChange={(e) => setAbnormalReason(e.target.value)} placeholder="请说明异常原因..." style={{ width: '100%', height: '120px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '14px', fontSize: '14px', color: '#E2E8F0', resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
+    <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F7 100%)', borderRadius: '20px', padding: '28px', width: '420px', border: '1px solid #E5E5EA' }}>
+      <h3 style={{ margin: '0 0 20px 0', fontSize: '18px', color: '#1D1D1F', fontWeight: '700' }}>上报异常</h3>
+      <textarea value={abnormalReason} onChange={(e) => setAbnormalReason(e.target.value)} placeholder="请说明异常原因..." style={{ width: '100%', height: '120px', background: 'rgba(0,0,0,0.02)', border: '1px solid #E5E5EA', borderRadius: '12px', padding: '14px', fontSize: '14px', color: '#1D1D1F', resize: 'none', outline: 'none', boxSizing: 'border-box' }} />
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
         <button onClick={onClose} style={styles.buttonSecondary}>取消</button>
         <button onClick={onSubmit} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}>提交</button>
@@ -156,8 +156,8 @@ export const AbnormalModal = ({ abnormalReason, setAbnormalReason, onClose, onSu
 // =============================================
 const InputField = ({ label, type = 'text', value, onChange, placeholder, step }) => (
   <div style={{ marginBottom: '20px' }}>
-    <label style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', display: 'block', marginBottom: '8px' }}>{label}</label>
-    <input type={type} step={step} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: '14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', fontSize: '14px', color: '#E2E8F0', outline: 'none', boxSizing: 'border-box' }} />
+    <label style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F', display: 'block', marginBottom: '8px' }}>{label}</label>
+    <input type={type} step={step} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={{ width: '100%', padding: '14px', background: 'rgba(0,0,0,0.04)', border: '1px solid #E5E5EA', borderRadius: '10px', fontSize: '14px', color: '#1D1D1F', outline: 'none', boxSizing: 'border-box' }} />
   </div>
 );
 
@@ -176,7 +176,7 @@ const UploadBox = ({ title, color, icon, fileRef, accept, data, matched, matchTe
       ) : (
         <div>
           <div style={{ fontSize: '28px', marginBottom: '8px', opacity: 0.5 }}>{icon}</div>
-          <div style={{ fontSize: '12px', color: '#64748B' }}>点击上传</div>
+          <div style={{ fontSize: '12px', color: '#86868B' }}>点击上传</div>
         </div>
       )}
     </div>
@@ -241,23 +241,23 @@ const DataPreviewFull = ({ sku, matchedShop, matchedAd }) => {
   ];
   
   return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '14px', padding: '18px', border: '1px solid rgba(255,255,255,0.06)' }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', marginBottom: '16px' }}>
+    <div style={{ background: 'rgba(0,0,0,0.02)', borderRadius: '14px', padding: '18px', border: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1D1D1F', marginBottom: '16px' }}>
         📋 数据预览 (SKU: {sku})
       </div>
       
       {/* 店铺数据 */}
       {matchedShop && (
         <div style={{ marginBottom: '16px' }}>
-          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', fontWeight: '600' }}>店铺数据 (26列)</div>
+          <div style={{ fontSize: '11px', color: '#86868B', marginBottom: '10px', fontWeight: '600' }}>店铺数据 (26列)</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
             {shopGroups.map((group, gi) => (
               <div key={gi} style={{ background: `${group.color}10`, borderRadius: '10px', padding: '12px', border: `1px solid ${group.color}30` }}>
                 <div style={{ fontSize: '10px', color: group.color, fontWeight: '600', marginBottom: '8px' }}>{group.title}</div>
                 {group.items.map((item, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '10px', color: '#94A3B8' }}>{item.label}</span>
-                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#E2E8F0' }}>{item.value}</span>
+                    <span style={{ fontSize: '10px', color: '#6E6E73' }}>{item.label}</span>
+                    <span style={{ fontSize: '11px', fontWeight: '600', color: '#1D1D1F' }}>{item.value}</span>
                   </div>
                 ))}
               </div>
@@ -269,11 +269,11 @@ const DataPreviewFull = ({ sku, matchedShop, matchedAd }) => {
       {/* 广告数据 */}
       {matchedAd && (
         <div>
-          <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '10px', fontWeight: '600' }}>📢 广告数据</div>
+          <div style={{ fontSize: '11px', color: '#86868B', marginBottom: '10px', fontWeight: '600' }}>📢 广告数据</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px' }}>
             {adItems.map((item, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '9px', color: '#64748B', marginBottom: '4px' }}>{item.label}</div>
+              <div key={i} style={{ background: 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                <div style={{ fontSize: '9px', color: '#86868B', marginBottom: '4px' }}>{item.label}</div>
                 <div style={{ fontSize: '13px', fontWeight: '700', color: item.color }}>{item.value}</div>
               </div>
             ))}
@@ -283,3 +283,4 @@ const DataPreviewFull = ({ sku, matchedShop, matchedAd }) => {
     </div>
   );
 };
+
