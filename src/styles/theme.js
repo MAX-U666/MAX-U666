@@ -1,14 +1,14 @@
-// 全局样式 - 苹果风格浅色主题（清晰版）
+// 全局样式 - 深色主题
 export const styles = {
   container: {
     minHeight: '100vh',
-    background: '#F2F2F7',
+    background: 'linear-gradient(180deg, #0F172A 0%, #1E293B 100%)',
     fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   },
   header: {
-    background: 'rgba(255, 255, 255, 0.9)',
+    background: 'rgba(15, 23, 42, 0.95)',
     backdropFilter: 'blur(20px)',
-    borderBottom: '1px solid #D1D1D6',
+    borderBottom: '1px solid rgba(255,255,255,0.06)',
     padding: '12px 32px',
     display: 'flex',
     justifyContent: 'space-between',
@@ -23,30 +23,31 @@ export const styles = {
     margin: '0 auto',
   },
   card: {
-    background: '#FFFFFF',
-    border: '1px solid #E5E5EA',
+    background: 'rgba(255,255,255,0.03)',
+    backdropFilter: 'blur(10px)',
+    border: '1px solid rgba(255,255,255,0.06)',
     borderRadius: '16px',
     overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
   },
   buttonPrimary: {
-    background: '#007AFF',
+    background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
     border: 'none',
     borderRadius: '10px',
     padding: '10px 20px',
-    color: '#FFFFFF',
-    fontSize: '14px',
+    color: '#fff',
+    fontSize: '13px',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
+    boxShadow: '0 4px 15px rgba(255,107,53,0.3)',
   },
   buttonSecondary: {
-    background: '#FFFFFF',
-    border: '1px solid #D1D1D6',
+    background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)',
     borderRadius: '10px',
     padding: '10px 20px',
-    color: '#1C1C1E',
-    fontSize: '14px',
+    color: '#94A3B8',
+    fontSize: '13px',
     fontWeight: '500',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
@@ -56,30 +57,30 @@ export const styles = {
 // 状态配置
 export const getStatusConfig = (status) => {
   const configs = {
-    '进行中': { label: '进行中', color: '#FFFFFF', bg: '#007AFF', icon: '◐' },
-    '已完成': { label: '已完成', color: '#FFFFFF', bg: '#34C759', icon: '✓' },
-    '已暂停': { label: '已暂停', color: '#FFFFFF', bg: '#FF9500', icon: '⏸' },
-    '已归档': { label: '已归档', color: '#FFFFFF', bg: '#8E8E93', icon: '📁' },
+    '进行中': { label: '进行中', color: '#3B82F6', bg: 'linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%)', icon: '◐' },
+    '已完成': { label: '已完成', color: '#10B981', bg: 'linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%)', icon: '✓' },
+    '已暂停': { label: '已暂停', color: '#F59E0B', bg: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)', icon: '⏸' },
+    '已归档': { label: '已归档', color: '#6B7280', bg: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)', icon: '📁' },
   };
   return configs[status] || configs['进行中'];
 };
 
 export const getDayStatus = (dayData) => {
-  if (!dayData) return { label: '未提交', color: '#8E8E93', bg: '#F2F2F7' };
+  if (!dayData) return { label: '未提交', color: '#6B7280', bg: '#374151' };
   const configs = {
-    '未提交': { label: '未提交', color: '#8E8E93', bg: '#F2F2F7' },
-    '待决策': { label: '待决策', color: '#FF9500', bg: '#FFF4E6' },
-    '已执行': { label: '已执行', color: '#34C759', bg: '#E8F8ED' },
-    '异常': { label: '异常', color: '#FF3B30', bg: '#FFEBEA' }
+    '未提交': { label: '未提交', color: '#6B7280', bg: '#374151' },
+    '待决策': { label: '待决策', color: '#F59E0B', bg: '#78350F' },
+    '已执行': { label: '已执行', color: '#10B981', bg: '#064E3B' },
+    '异常': { label: '异常', color: '#EF4444', bg: '#7F1D1D' }
   };
   return configs[dayData.status] || configs['未提交'];
 };
 
 export const getPhaseConfig = (phase) => {
   const configs = {
-    A: { label: '样本不足期', color: '#FF9500', bg: '#FFF4E6' },
-    B: { label: '放量观察期', color: '#007AFF', bg: '#E5F1FF' },
-    C: { label: '放量确认期', color: '#34C759', bg: '#E8F8ED' }
+    A: { label: '样本不足期', color: '#F59E0B', bg: '#FEF3C7' },
+    B: { label: '放量观察期', color: '#3B82F6', bg: '#DBEAFE' },
+    C: { label: '放量确认期', color: '#10B981', bg: '#D1FAE5' }
   };
-  return configs[phase] || { label: '-', color: '#8E8E93', bg: '#F2F2F7' };
+  return configs[phase] || { label: '-', color: '#6B7280', bg: '#F3F4F6' };
 };
