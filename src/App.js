@@ -3,6 +3,7 @@ import { Header, DayTable, NewProductModal, UploadModal, AbnormalModal } from '.
 import AIDecisionPanel from './components/AIDecisionPanel';
 import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
+import ExecuteCenter from './pages/ExecuteCenter';  // 新增：执行中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
@@ -16,6 +17,9 @@ const App = () => {
   
   // 用户管理弹窗
   const [showUserManagement, setShowUserManagement] = useState(false);
+
+  // 新增：模块切换 ('decision' | 'execute')
+  const [currentModule, setCurrentModule] = useState('decision');
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -114,6 +118,7 @@ const App = () => {
     localStorage.removeItem('user');
     setIsLoggedIn(false);
     setCurrentUser(null);
+    setCurrentModule('decision'); // 退出时重置模块
   };
 
   const handleCreateProduct = async () => {
@@ -229,6 +234,14 @@ const App = () => {
     setSelectedDay(dayNumber);
   };
 
+  // 切换模块
+  const switchModule = (module) => {
+    setCurrentModule(module);
+    if (module === 'decision') {
+      setCurrentView('dashboard');
+    }
+  };
+
   // 检查登录状态中
   if (checkingAuth) {
     return (
@@ -277,9 +290,66 @@ const App = () => {
         onLogout={handleLogout}
         onUserManagement={() => setShowUserManagement(true)}
       />
+
+      {/* 新增：模块切换栏 - 仅管理员可见 */}
+      {currentUser?.role === 'admin' && (
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          padding: '12px 20px',
+          background: 'rgba(0,0,0,0.3)',
+          borderBottom: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <button 
+            onClick={() => switchModule('decision')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'decision' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : 'rgba(255,255,255,0.05)',
+              color: currentModule === 'decision' ? '#fff' : '#94A3B8',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            📊 决策工作台
+          </button>
+          <button 
+            onClick={() => switchModule('execute')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'execute' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : 'rgba(255,255,255,0.05)',
+              color: currentModule === 'execute' ? '#fff' : '#94A3B8',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            🤖 执行中心
+          </button>
+        </div>
+      )}
       
       <div style={styles.content}>
-        {currentView === 'dashboard' ? (
+        {/* 根据模块切换显示不同内容 */}
+        {currentModule === 'execute' ? (
+          <ExecuteCenter />
+        ) : currentView === 'dashboard' ? (
           <Dashboard 
             products={products} loading={loading} currentUser={currentUser}
             filterOwner={filterOwner} setFilterOwner={setFilterOwner}
