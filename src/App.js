@@ -489,10 +489,10 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
           {products.map(product => {
             const statusConfig = getStatusConfig(product.status);
             return (
-              <div key={product.id} style={{ ...styles.card, padding: '20px', position: 'relative' }}>
-                <div onClick={() => onOpenDetail(product)} style={{ cursor: 'pointer' }}>
+              <div key={product.id} style={{ ...styles.card, padding: '20px' }} onClick={() => onOpenDetail(product)}>
+                <div style={{ cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                    <div style={{ flex: 1, marginRight: '80px' }}>
+                    <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '16px', fontWeight: '600', color: '#E2E8F0', marginBottom: '4px' }}>{product.name}</div>
                       <div style={{ fontSize: '13px', color: '#64748B' }}>SKU: {product.sku}</div>
                     </div>
@@ -504,19 +504,21 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
                     ))}
                     <span style={{ fontSize: '13px', color: '#94A3B8', marginLeft: '12px', fontWeight: '500' }}>Day {product.current_day}/7</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#64748B' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748B' }}>
                     <span>{product.owner_avatar} {product.owner_name}</span>
-                    <span>开始: {new Date(product.start_date).toLocaleDateString('zh-CN')}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span>开始: {new Date(product.start_date).toLocaleDateString('zh-CN')}</span>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onDeleteProduct(product); }}
+                        style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '4px 10px', color: '#EF4444', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}
+                        onMouseEnter={(e) => { e.target.style.background = '#EF4444'; e.target.style.color = '#fff'; }}
+                        onMouseLeave={(e) => { e.target.style.background = 'rgba(239,68,68,0.15)'; e.target.style.color = '#EF4444'; }}
+                      >
+                        删除
+                      </button>
+                    </div>
                   </div>
                 </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); onDeleteProduct(product); }}
-                  style={{ position: 'absolute', bottom: '16px', right: '16px', background: '#EF4444', border: 'none', borderRadius: '8px', padding: '6px 14px', color: '#fff', fontSize: '13px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.2s' }}
-                  onMouseEnter={(e) => { e.target.style.background = '#D70015'; }}
-                  onMouseLeave={(e) => { e.target.style.background = '#EF4444'; }}
-                >
-                  删除
-                </button>
               </div>
             );
           })}
