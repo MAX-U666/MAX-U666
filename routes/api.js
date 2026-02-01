@@ -147,11 +147,12 @@ const SYSTEM_PROMPT = `# 🧠 Shopee GMV MAX · 电商运营专家 Prompt（完�
 
 在输出的最后，加上一段鼓励性结语，体现专业与信心。`;
 
-module.exports = function(pool) {
+// 修改：接收外部传入的 tokens
+module.exports = function(pool, tokens) {
   const router = express.Router();
   
-  // Token 管理
-  const tokens = new Map();
+  // 使用传入的 tokens，如果没有则创建新的（向后兼容）
+  const tokenStore = tokens || new Map();
   
   function generateToken() {
     return crypto.randomBytes(32).toString('hex');
@@ -163,7 +164,7 @@ module.exports = function(pool) {
       return res.status(401).json({ error: '未登录' });
     }
     const token = authHeader.split(' ')[1];
-    const user = tokens.get(token);
+    const user = tokenStore.get(token);
     if (!user) {
       return res.status(401).json({ error: 'Token 无效' });
     }
@@ -194,7 +195,7 @@ module.exports = function(pool) {
       }
       const user = users[0];
       const token = generateToken();
-      tokens.set(token, { id: user.id, name: user.name, role: user.role, avatar: user.avatar, color: user.color });
+      tokenStore.set(token, { id: user.id, name: user.name, role: user.role, avatar: user.avatar, color: user.color });
       res.json({ success: true, token, user: { id: user.id, name: user.name, role: user.role, avatar: user.avatar, color: user.color } });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -204,7 +205,7 @@ module.exports = function(pool) {
   router.post('/logout', (req, res) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      tokens.delete(authHeader.split(' ')[1]);
+      tokenStore.delete(authHeader.split(' ')[1]);
     }
     res.json({ success: true });
   });
@@ -215,7 +216,7 @@ module.exports = function(pool) {
       return res.json({ valid: false });
     }
     const token = authHeader.split(' ')[1];
-    const user = tokens.get(token);
+    const user = tokenStore.get(token);
     if (!user) {
       return res.json({ valid: false });
     }
@@ -403,7 +404,7 @@ module.exports = function(pool) {
       await pool.query(`UPDATE daily_data SET manual_orders = ?, updated_at = NOW() WHERE product_id = ? AND day_number = ?`, [manual_orders || 0, productId, dayNumber]);
       res.json({ success: true, message: '补单数据更新成功' });
     } catch (err) {
-      res.status(500).json({ error: err.message });
+      res.status(500).json({ success: false, error: err.message });
     }
   });
 
