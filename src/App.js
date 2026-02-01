@@ -511,11 +511,11 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); onDeleteProduct(product); }}
-                  style={{ position: 'absolute', top: '12px', right: '12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', padding: '4px 8px', color: '#EF4444', fontSize: '11px', cursor: 'pointer', opacity: 0.6, transition: 'opacity 0.2s' }}
-                  onMouseEnter={(e) => e.target.style.opacity = 1}
-                  onMouseLeave={(e) => e.target.style.opacity = 0.6}
+                  style={{ position: 'absolute', top: '12px', right: '12px', background: '#EF4444', border: 'none', borderRadius: '8px', padding: '6px 12px', color: '#fff', fontSize: '12px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 2px 8px rgba(239,68,68,0.3)', transition: 'all 0.2s' }}
+                  onMouseEnter={(e) => { e.target.style.background = '#DC2626'; e.target.style.transform = 'scale(1.05)'; }}
+                  onMouseLeave={(e) => { e.target.style.background = '#EF4444'; e.target.style.transform = 'scale(1)'; }}
                 >
-                  🗑️
+                  删除
                 </button>
               </div>
             );
@@ -576,4 +576,5 @@ const Detail = ({ selectedProduct, selectedDay, onDaySelect, dayStatus, currentD
 };
 
 export default App;
+
 
