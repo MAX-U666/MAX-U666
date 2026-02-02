@@ -535,7 +535,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
   if (!currentDayData || currentDayData.status === '未提交') {
     return (
       <div style={styles.card}>
-        <div style={{ background: 'linear-gradient(135deg, #F5F5F7 0%, #FFFFFF 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(247,147,30,0.1) 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <MiniLogo size={20} color="#fff" />
           </div>
@@ -600,7 +600,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
 
       {/* AI决策执行面板 - 放在后面 */}
       <div style={styles.card}>
-        <div style={{ background: 'linear-gradient(135deg, #F5F5F7 0%, #FFFFFF 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(247,147,30,0.1) 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ 
               width: '36px', height: '36px', 
@@ -696,7 +696,3 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
 };
 
 export default AIDecisionPanel;
-
-
-
-
