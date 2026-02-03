@@ -20,6 +20,10 @@ const pool = mysql.createPool({
 const apiRoutes = require('./routes/api')(pool);
 app.use('/api', apiRoutes);
 
+// EasyBoss 数据采集路由
+const easybossRoutes = require('./routes/easyboss')(pool);
+app.use('/api/easyboss', easybossRoutes);
+
 // 静态文件：前端 build
 app.use(express.static(path.join(__dirname, 'build')));
 
@@ -30,6 +34,7 @@ app.use((req, res) => {
 
 // 启动服务器
 app.listen(3001, () => {
-  console.log('GMV MAX API v3.1 running on http://localhost:3001');
+  console.log('GMV MAX API v3.2 running on http://localhost:3001');
   console.log('集成千问 qwen-turbo AI 决策引擎');
+  console.log('EasyBoss 数据采集模块已加载');
 });
