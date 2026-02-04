@@ -15,6 +15,7 @@
 const mysql = require('mysql2/promise');
 const https = require('https');
 const http = require('http');
+const CryptoJS = require('crypto-js');
 
 // ========== 配置 ==========
 const DB_CONFIG = {
@@ -129,24 +130,75 @@ function callLocalApi(path, method = 'POST', body = {}) {
   });
 }
 
-// ========== Cookie检查 ==========
-async function checkCookie(pool) {
+// ========== 自动登录刷新Cookie ==========
+const EB_AES_KEY = '@3438jj;siduf832';
+const EB_ACCOUNT = 'xuziyi';
+const EB_PASSWORD = 'Xuziyi123.';
+
+function aesEncrypt(data) {
+  const k = CryptoJS.enc.Utf8.parse(EB_AES_KEY);
+  const iv = CryptoJS.enc.Utf8.parse('');
+  return CryptoJS.AES.encrypt(CryptoJS.enc.Utf8.parse(data), k, {
+    iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7
+  }).toString();
+}
+
+function httpsPost(url, formData) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const body = Object.entries(formData).map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');
+    const req = https.request({
+      hostname: u.hostname, port: 443, path: u.pathname, method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Length': Buffer.byteLength(body),
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+      },
+      timeout: 15000,
+    }, res => {
+      let d = '';
+      const setCookies = res.headers['set-cookie'] || [];
+      res.on('data', c => d += c);
+      res.on('end', () => {
+        try { resolve({ data: JSON.parse(d), setCookies, status: res.statusCode }); }
+        catch { resolve({ data: d, setCookies, status: res.statusCode }); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('登录请求超时')); });
+    req.write(body);
+    req.end();
+  });
+}
+
+async function autoRefreshCookie(pool) {
+  console.log('[Cookie] 自动登录刷新...');
   try {
-    const [rows] = await pool.query(
-      "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie'"
-    );
-    if (rows.length === 0) return { valid: false, reason: 'Cookie未设置' };
+    const mobile = aesEncrypt(EB_ACCOUNT);
+    const password = aesEncrypt(EB_PASSWORD);
     
-    const cookie = rows[0].config_value;
-    const updatedAt = new Date(rows[0].updated_at);
-    const hours = Math.round((Date.now() - updatedAt.getTime()) / 3600000);
-    
-    if (!cookie || cookie.length < 20) return { valid: false, reason: 'Cookie为空' };
-    if (hours > 72) return { valid: false, reason: `Cookie已${hours}小时未更新` };
-    
-    return { valid: true, hours };
+    const r = await httpsPost('https://www.easyboss.com/api/auth/account/login', {
+      mobile, password, loginValidateCode: '', isForwarderLogin: '1', isVerifyRemoteLogin: '1', from: 'erp',
+    });
+
+    if (r.data && r.data.result === 'success' && r.setCookies.length > 0) {
+      const cookieStr = r.setCookies.map(c => c.split(';')[0]).join('; ');
+      await pool.query(
+        "INSERT INTO eb_config(config_key, config_value) VALUES('easyboss_cookie', ?) ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)",
+        [cookieStr]
+      );
+      console.log('[Cookie] ✅ 自动刷新成功');
+      return { success: true };
+    } else if (r.data && r.data.needSmsVerify) {
+      console.log('[Cookie] ⚠️ 需要短信验证码');
+      return { success: false, reason: '需要短信验证码(异地登录)' };
+    } else {
+      console.log('[Cookie] ❌ 登录失败:', JSON.stringify(r.data).substring(0, 200));
+      return { success: false, reason: `登录失败: ${r.data?.result || r.data?.msg || '未知'}` };
+    }
   } catch (e) {
-    return { valid: false, reason: e.message };
+    console.log('[Cookie] ❌ 登录异常:', e.message);
+    return { success: false, reason: e.message };
   }
 }
 
@@ -163,18 +215,16 @@ async function main() {
   const results = { orders: null, ads: null, products: null, errors: [] };
 
   try {
-    // Step 0: Cookie检查
-    const ck = await checkCookie(pool);
-    if (!ck.valid) {
+    // Step 0: 自动刷新Cookie
+    const loginResult = await autoRefreshCookie(pool);
+    if (!loginResult.success) {
       await notify(
-        `## ⚠️ GMV MAX Cookie告警\n\n` +
+        `## ⚠️ GMV MAX Cookie刷新失败\n\n` +
         `> ${timestamp}\n` +
-        `> <font color="warning">${ck.reason}</font>\n\n` +
-        `请更新Cookie: POST /api/easyboss/orders/set-cookie`
+        `> <font color="warning">${loginResult.reason}</font>\n\n` +
+        `请手动更新Cookie`
       );
-      console.log('[警告] Cookie可能失效，继续尝试...');
-    } else {
-      console.log(`[Cookie] 有效 (${ck.hours}h前更新)`);
+      console.log('[警告] Cookie刷新失败，用旧Cookie继续...');
     }
 
     // Step 1: 订单（周日拉7天，其他拉1天）
