@@ -251,7 +251,8 @@ module.exports = function(pool) {
       if (existing.length > 0) {
         return res.json({ success: false, error: '用户名已存在' });
       }
-      await pool.query('INSERT INTO users (name, password, role, avatar, color) VALUES (?, ?, ?, ?, ?)', [name, password, role || 'operator', avatar || '👨‍💼', color || '#3b82f6']);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await pool.query('INSERT INTO users (name, password, role, avatar, color) VALUES (?, ?, ?, ?, ?)', [name, hashedPassword, role || 'operator', avatar || '👨‍💼', color || '#3b82f6']);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -274,7 +275,8 @@ module.exports = function(pool) {
   router.post('/users/:id/reset-password', verifyToken, verifyAdmin, async (req, res) => {
     try {
       const { id } = req.params;
-      await pool.query('UPDATE users SET password = ? WHERE id = ?', ['123456', id]);
+      const hashedPassword = await bcrypt.hash('123456', 10);
+      await pool.query('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, id]);
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
