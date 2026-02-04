@@ -132,15 +132,19 @@ module.exports = function(pool) {
    * GET /api/easyboss/shops
    * 获取已有的店铺列表
    */
+  /**
+   * GET /api/easyboss/shops
+   * 获取店铺映射表
+   */
   router.get('/shops', async (req, res) => {
     try {
       const [rows] = await pool.query(
-        `SELECT DISTINCT shop_id, shop_name, COUNT(*) as records, MAX(date) as last_date
-         FROM eb_ad_metrics 
-         GROUP BY shop_id, shop_name 
-         ORDER BY records DESC`
+        `SELECT shop_id, shop_name FROM eb_shops ORDER BY shop_name`
       );
-      res.json({ success: true, data: rows });
+      // 构建 map 供前端使用
+      const shopMap = {};
+      rows.forEach(r => { shopMap[r.shop_id] = r.shop_name; });
+      res.json({ success: true, data: rows, shopMap });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
@@ -460,7 +464,9 @@ module.exports = function(pool) {
       const total = countResult[0].total;
 
       const [campaigns] = await pool.query(
-        `SELECT * FROM eb_ad_campaigns WHERE ${where} ORDER BY expense DESC LIMIT ? OFFSET ?`,
+        `SELECT a.*, s.shop_name FROM eb_ad_campaigns a 
+         LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
+         WHERE ${where.replace(/shop_id/g, 'a.shop_id')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
         [...params, pageSize, offset]
       );
 
@@ -502,11 +508,14 @@ module.exports = function(pool) {
 
       // 按店铺统计
       const [byShop] = await pool.query(`
-        SELECT shop_id, COUNT(*) as campaigns,
-          SUM(expense) as expense, SUM(broad_gmv) as gmv,
-          SUM(broad_order) as orders
-        FROM eb_ad_campaigns WHERE ${where}
-        GROUP BY shop_id ORDER BY expense DESC
+        SELECT a.shop_id, s.shop_name, COUNT(*) as campaign_count,
+          SUM(a.expense) as total_expense, SUM(a.broad_gmv) as total_gmv,
+          SUM(a.broad_order) as total_orders,
+          CASE WHEN SUM(a.expense) > 0 THEN ROUND(SUM(a.broad_gmv)/SUM(a.expense), 2) ELSE 0 END as avg_roi
+        FROM eb_ad_campaigns a
+        LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
+        WHERE ${where.replace(/campaign_status/g, 'a.campaign_status')}
+        GROUP BY a.shop_id, s.shop_name ORDER BY total_expense DESC
       `, params);
 
       res.json({
@@ -516,7 +525,7 @@ module.exports = function(pool) {
         totalGmv: s.total_gmv,
         totalOrders: s.total_orders,
         overallRoi,
-        matchedCount: s.matched_count,
+        matchedCampaigns: s.matched_count,
         shopCount: s.shop_count,
         byShop,
       });
@@ -620,7 +629,10 @@ module.exports = function(pool) {
       );
 
       const [products] = await pool.query(
-        `SELECT * FROM eb_products WHERE ${where} ORDER BY ${sortField} DESC LIMIT ? OFFSET ?`,
+        `SELECT p.*, s.shop_name FROM eb_products p
+         LEFT JOIN eb_shops s ON s.shop_id = p.shop_id
+         WHERE ${where.replace(/shop_id/g, 'p.shop_id').replace(/status/g, 'p.status').replace(/title/g, 'p.title')} 
+         ORDER BY p.${sortField} DESC LIMIT ? OFFSET ?`,
         [...params, pageSize, offset]
       );
 
@@ -655,9 +667,11 @@ module.exports = function(pool) {
       `);
 
       const [byShop] = await pool.query(`
-        SELECT shop_id, COUNT(*) as products, SUM(sell_cnt) as sold, SUM(stock) as stock
-        FROM eb_products WHERE status = 'onsale'
-        GROUP BY shop_id ORDER BY sold DESC
+        SELECT p.shop_id, s.shop_name, COUNT(*) as products, SUM(p.sell_cnt) as sold, SUM(p.stock) as stock
+        FROM eb_products p
+        LEFT JOIN eb_shops s ON s.shop_id = p.shop_id
+        WHERE p.status = 'onsale'
+        GROUP BY p.shop_id, s.shop_name ORDER BY sold DESC
       `);
 
       // 广告匹配统计
@@ -692,7 +706,9 @@ module.exports = function(pool) {
       const { itemId } = req.params;
 
       const [products] = await pool.query(
-        'SELECT * FROM eb_products WHERE platform_item_id = ?', [itemId]
+        `SELECT p.*, s.shop_name FROM eb_products p
+         LEFT JOIN eb_shops s ON s.shop_id = p.shop_id
+         WHERE p.platform_item_id = ?`, [itemId]
       );
       if (products.length === 0) {
         return res.status(404).json({ success: false, error: '商品不存在' });
@@ -700,21 +716,37 @@ module.exports = function(pool) {
 
       // 关联广告
       const [ads] = await pool.query(
-        'SELECT * FROM eb_ad_campaigns WHERE platform_item_id = ?', [itemId]
+        `SELECT a.*, s.shop_name FROM eb_ad_campaigns a
+         LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
+         WHERE a.platform_item_id = ?`, [itemId]
       );
 
-      // 关联订单
-      const [orders] = await pool.query(
-        `SELECT COUNT(*) as order_count, SUM(total_pay) as total_gmv
-         FROM eb_orders o JOIN eb_order_items i ON o.order_id = i.order_id
+      // 关联订单统计
+      const [orderStats] = await pool.query(
+        `SELECT COUNT(DISTINCT i.op_order_id) as order_count, 
+                SUM(i.discounted_price * i.quantity) as total_gmv,
+                SUM(i.quantity) as total_qty
+         FROM eb_order_items i
          WHERE i.platform_item_id = ?`, [itemId]
+      );
+
+      // 最近订单明细
+      const [recentOrders] = await pool.query(
+        `SELECT o.platform_order_sn, o.shop_name, o.gmt_order_start, 
+                o.pay_amount, o.app_package_tab as status,
+                i.quantity, i.discounted_price
+         FROM eb_order_items i
+         JOIN eb_orders o ON o.op_order_package_id = i.op_order_package_id
+         WHERE i.platform_item_id = ?
+         ORDER BY o.gmt_order_start DESC LIMIT 20`, [itemId]
       );
 
       res.json({
         success: true,
         product: products[0],
         ads,
-        orderStats: orders[0],
+        orderStats: orderStats[0],
+        recentOrders,
       });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
