@@ -152,7 +152,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           // 代码块结束，渲染代码块
           result.push(
             <div key={`code-${codeBlockKey++}`} style={{ 
-              background: 'rgba(0,0,0,0.4)', 
+              background: '#F0F0F3', 
               border: '1px solid rgba(255,107,53,0.3)', 
               borderRadius: '8px', 
               padding: '16px', 
@@ -217,8 +217,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         const isError = content.startsWith('❌') || content.includes('不要') || content.includes('严禁') || content.includes('不可');
         const isSuccess = content.startsWith('✅') || content.startsWith('✓');
         result.push(
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: isError ? '#F87171' : isSuccess ? '#10B981' : '#CBD5E1' }}>
-            <span style={{ color: isError ? '#EF4444' : isSuccess ? '#10B981' : '#64748B' }}>•</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: isError ? '#F87171' : isSuccess ? '#10B981' : '#555' }}>
+            <span style={{ color: isError ? '#EF4444' : isSuccess ? '#10B981' : '#999' }}>•</span>
             <span>{content}</span>
           </div>
         );
@@ -229,14 +229,14 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         const parts = line.split(/\*\*(.*?)\*\*/g);
         result.push(
           <p key={i} style={{ margin: '8px 0', color: '#333', lineHeight: '1.8' }}>
-            {parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ color: '#fff' }}>{part}</strong> : part)}
+            {parts.map((part, j) => j % 2 === 1 ? <strong key={j} style={{ color: '#FF6B35' }}>{part}</strong> : part)}
           </p>
         );
         continue;
       }
       // 分隔线
       if (trimmedLine === '---') {
-        result.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '16px 0' }} />);
+        result.push(<hr key={i} style={{ border: 'none', borderTop: '1px solid #E8E8ED', margin: '16px 0' }} />);
         continue;
       }
       // 普通段落
@@ -295,9 +295,9 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
       onClick={() => setActiveTab(id)}
       style={{
         flex: 1, padding: '10px 8px', borderRadius: '8px',
-        border: activeTab === id ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.1)',
+        border: activeTab === id ? `1px solid ${color}` : '1px solid #E8E8ED',
         background: activeTab === id ? `${color}10` : '#F5F5F7',
-        color: activeTab === id ? color : '#94A3B8',
+        color: activeTab === id ? color : '#999',
         fontSize: '12px', fontWeight: '600', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
       }}
@@ -537,7 +537,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
       <div style={styles.card}>
         <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(247,147,30,0.1) 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E8E8ED' }}>
           <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <MiniLogo size={20} color="#fff" />
+            <MiniLogo size={20} color="#FF6B35" />
           </div>
           <span style={{ fontSize: '14px', fontWeight: '700', color: '#333' }}>Day {currentDay} AI决策</span>
         </div>
@@ -561,7 +561,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           <div 
             onClick={() => setReportExpanded(!reportExpanded)}
             style={{ 
-              background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', 
+              background: '#FAFBFC', 
               padding: '16px 20px', 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -571,10 +571,10 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '18px' }}>📄</span>
               </div>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#333' }}>AI 完整分析报告</span>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a' }}>AI 完整分析报告</span>
               {analysisSource && (
                 <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(139,92,246,0.2)', color: '#A78BFA' }}>
                   {analysisSource === 'qwen-turbo' ? '🤖 千问AI' : '📋 规则引擎'}
