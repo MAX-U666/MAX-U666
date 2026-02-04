@@ -1,9 +1,15 @@
 /**
- * EasyBoss 每日自动同步脚本
- * 凌晨5点执行：拉取订单 → 拉取广告 → 拉取商品 → 匹配 → 通知
+ * GMV MAX 每日定时数据拉取
  * 
- * 用法: node daily-sync.js
- * Cron: 0 5 * * * cd /www/gmv-max && node services/easyboss/daily-sync.js >> logs/daily-sync.log 2>&1
+ * 功能：
+ * 1. 拉取订单数据（近7天）
+ * 2. 拉取广告数据
+ * 3. 拉取商品数据 + 广告匹配
+ * 4. 企业微信通知（成功/失败/Cookie失效）
+ * 
+ * 用法：
+ *   node daily-sync.js          # 手动执行
+ *   crontab: 0 21 * * * ...     # UTC 21:00 = 北京 05:00
  */
 
 const mysql = require('mysql2/promise');
@@ -15,150 +21,130 @@ const DB_CONFIG = {
   host: 'localhost',
   user: 'root',
   database: 'gmvmax',
-  waitForConnections: true,
-  connectionLimit: 5,
+  charset: 'utf8mb4',
 };
 
-// 企业微信机器人 Webhook（需要你填入实际地址）
-const WECOM_WEBHOOK = process.env.WECOM_WEBHOOK || '';
-
-// 拉取配置
-const ORDER_DAYS = 3;        // 拉取最近3天订单
-const AD_STATUS = 'ongoing'; // 拉取进行中的广告
+const WECHAT_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f74c9925-3967-4f21-b1d7-fae4865565cf';
 
 // ========== 企业微信通知 ==========
-async function sendWecom(content, msgType = 'markdown') {
-  if (!WECOM_WEBHOOK) {
-    console.log('[通知] 未配置企业微信Webhook，跳过通知');
+async function notify(content) {
+  console.log('[通知]', content.replace(/<[^>]+>/g, ''));
+  
+  // 方式1: 直连企业微信
+  try {
+    await sendWechat(content);
+    console.log('[通知] 企业微信发送成功');
     return;
+  } catch (e) {
+    console.log('[通知] 直连失败:', e.message);
   }
 
-  const payload = JSON.stringify({
-    msgtype: msgType,
-    [msgType]: { content },
-  });
+  // 方式2: 通过本机API中转
+  try {
+    await sendViaLocalApi(content);
+    console.log('[通知] 本机中转发送成功');
+    return;
+  } catch (e) {
+    console.log('[通知] 中转失败:', e.message);
+  }
 
-  return new Promise((resolve) => {
-    try {
-      const url = new URL(WECOM_WEBHOOK);
-      const client = url.protocol === 'https:' ? https : http;
-      
-      const req = client.request(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          console.log('[通知] 企业微信响应:', data);
-          resolve(true);
-        });
-      });
-      
-      req.on('error', (e) => {
-        console.error('[通知] 发送失败:', e.message);
-        resolve(false);
-      });
-      
-      req.write(payload);
-      req.end();
-    } catch (e) {
-      console.error('[通知] 异常:', e.message);
-      resolve(false);
-    }
-  });
+  console.log('[通知] 所有通知方式均失败，仅日志记录');
 }
 
-// ========== 通过HTTP调用本地API ==========
-function callAPI(path, method = 'GET', body = null) {
+function sendWechat(content) {
   return new Promise((resolve, reject) => {
-    const options = {
-      hostname: '127.0.0.1',
-      port: 3001,
-      path,
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 300000, // 5分钟超时
-    };
-
-    const req = http.request(options, (res) => {
-      let data = '';
-      res.on('data', chunk => data += chunk);
+    const url = new URL(WECHAT_WEBHOOK);
+    const data = JSON.stringify({ msgtype: 'markdown', markdown: { content } });
+    
+    const req = https.request({
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      timeout: 10000,
+    }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
       res.on('end', () => {
         try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          reject(new Error(`JSON解析失败: ${data.substring(0, 200)}`));
-        }
+          const r = JSON.parse(body);
+          r.errcode === 0 ? resolve(r) : reject(new Error(r.errmsg));
+        } catch { resolve(body); }
       });
     });
-
     req.on('error', reject);
-    req.on('timeout', () => { req.destroy(); reject(new Error('请求超时')); });
-
-    if (body) req.write(JSON.stringify(body));
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(data);
     req.end();
   });
 }
 
-// ========== Cookie有效性检测 ==========
+function sendViaLocalApi(content) {
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({ content });
+    const req = http.request({
+      hostname: 'localhost', port: 3001,
+      path: '/api/easyboss/notify',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+      timeout: 5000,
+    }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => resolve(body));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(data);
+    req.end();
+  });
+}
+
+// ========== 调用本机API ==========
+function callLocalApi(path, method = 'POST', body = {}) {
+  return new Promise((resolve, reject) => {
+    const data = method === 'POST' ? JSON.stringify(body) : '';
+    const req = http.request({
+      hostname: 'localhost', port: 3001, path, method,
+      headers: { 
+        'Content-Type': 'application/json',
+        ...(method === 'POST' ? { 'Content-Length': Buffer.byteLength(data) } : {})
+      },
+      timeout: 300000,
+    }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch { reject(new Error(`解析失败: ${body.substring(0, 200)}`)); }
+      });
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('请求超时(5min)')); });
+    if (method === 'POST') req.write(data);
+    req.end();
+  });
+}
+
+// ========== Cookie检查 ==========
 async function checkCookie(pool) {
   try {
     const [rows] = await pool.query(
       "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie'"
     );
+    if (rows.length === 0) return { valid: false, reason: 'Cookie未设置' };
     
-    if (!rows || rows.length === 0 || !rows[0].config_value) {
-      return { valid: false, reason: 'Cookie未设置', updatedAt: null };
-    }
-
     const cookie = rows[0].config_value;
-    const updatedAt = rows[0].updated_at;
+    const updatedAt = new Date(rows[0].updated_at);
+    const hours = Math.round((Date.now() - updatedAt.getTime()) / 3600000);
     
-    // 用Cookie请求EasyBoss看能否成功
-    const testResult = await new Promise((resolve) => {
-      const postData = JSON.stringify({
-        pageNo: 1, pageSize: 1,
-        data: { platformOrderStatus: '', appPackageTab: 'all' }
-      });
-
-      const req = https.request({
-        hostname: 'openapi.easyboss.com',
-        path: '/api/order/order/searchOrderPackageList',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cookie': cookie,
-          'User-Agent': 'Mozilla/5.0',
-        },
-        timeout: 15000,
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => {
-          try {
-            const json = JSON.parse(data);
-            // EasyBoss返回code=0表示成功
-            if (json.code === 0 || json.code === '0') {
-              resolve({ valid: true });
-            } else {
-              resolve({ valid: false, reason: `API返回: code=${json.code}, msg=${json.msg || ''}` });
-            }
-          } catch (e) {
-            resolve({ valid: false, reason: `响应解析失败: ${data.substring(0, 100)}` });
-          }
-        });
-      });
-
-      req.on('error', (e) => resolve({ valid: false, reason: `请求失败: ${e.message}` }));
-      req.on('timeout', () => { req.destroy(); resolve({ valid: false, reason: '请求超时' }); });
-      req.write(postData);
-      req.end();
-    });
-
-    return { ...testResult, updatedAt };
+    if (!cookie || cookie.length < 20) return { valid: false, reason: 'Cookie为空' };
+    if (hours > 72) return { valid: false, reason: `Cookie已${hours}小时未更新` };
+    
+    return { valid: true, hours };
   } catch (e) {
-    return { valid: false, reason: `检测异常: ${e.message}`, updatedAt: null };
+    return { valid: false, reason: e.message };
   }
 }
 
@@ -166,139 +152,132 @@ async function checkCookie(pool) {
 async function main() {
   const startTime = Date.now();
   const timestamp = new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`[Daily Sync] 开始执行 - ${timestamp}`);
-  console.log('='.repeat(60));
+  
+  console.log(`\n${'='.repeat(50)}`);
+  console.log(`[每日同步] ${timestamp}`);
+  console.log('='.repeat(50));
 
-  let pool;
-  const results = {
-    cookie: null,
-    orders: null,
-    ads: null,
-    products: null,
-    errors: [],
-  };
+  const pool = mysql.createPool(DB_CONFIG);
+  const results = { orders: null, ads: null, products: null, errors: [] };
 
   try {
-    pool = mysql.createPool(DB_CONFIG);
-
-    // ========== Step 1: 检查Cookie ==========
-    console.log('\n[Step 1] 检查Cookie有效性...');
-    const cookieCheck = await checkCookie(pool);
-    results.cookie = cookieCheck;
-
-    if (!cookieCheck.valid) {
-      console.error(`[Step 1] ❌ Cookie无效: ${cookieCheck.reason}`);
-      results.errors.push(`Cookie无效: ${cookieCheck.reason}`);
-
-      // 立即发送告警
-      await sendWecom(
-        `## ⚠️ GMV MAX Cookie失效告警\n` +
-        `> 时间: ${timestamp}\n` +
-        `> 原因: <font color="warning">${cookieCheck.reason}</font>\n` +
-        `> Cookie更新时间: ${cookieCheck.updatedAt || '未知'}\n\n` +
-        `**请尽快登录EasyBoss更新Cookie：**\n` +
-        `POST /api/easyboss/orders/set-cookie`
+    // Step 0: Cookie检查
+    const ck = await checkCookie(pool);
+    if (!ck.valid) {
+      await notify(
+        `## ⚠️ GMV MAX Cookie告警\n\n` +
+        `> ${timestamp}\n` +
+        `> <font color="warning">${ck.reason}</font>\n\n` +
+        `请更新Cookie: POST /api/easyboss/orders/set-cookie`
       );
-
-      // Cookie失效就不继续拉取了
-      return results;
+      console.log('[警告] Cookie可能失效，继续尝试...');
+    } else {
+      console.log(`[Cookie] 有效 (${ck.hours}h前更新)`);
     }
-    console.log('[Step 1] ✅ Cookie有效');
 
-    // ========== Step 2: 拉取订单 ==========
-    console.log(`\n[Step 2] 拉取最近${ORDER_DAYS}天订单...`);
+    // Step 1: 订单
+    console.log('\n[1/3] 拉取订单...');
     try {
-      const orderResult = await callAPI('/api/easyboss/orders/fetch', 'POST', { days: ORDER_DAYS });
-      results.orders = orderResult;
-      if (orderResult.success) {
-        console.log(`[Step 2] ✅ 订单: ${orderResult.newOrders || 0}条新增, ${orderResult.updatedOrders || 0}条更新`);
-      } else {
-        console.error(`[Step 2] ❌ 订单拉取失败: ${orderResult.error}`);
-        results.errors.push(`订单: ${orderResult.error}`);
-      }
+      results.orders = await callLocalApi('/api/easyboss/orders/fetch', 'POST', { days: 7 });
+      if (results.orders.success === false) throw new Error(results.orders.error || '未知错误');
+      console.log(`  ✅ ${results.orders.ordersInserted || 0}新增 / ${results.orders.ordersUpdated || 0}更新`);
     } catch (e) {
-      console.error(`[Step 2] ❌ 订单异常: ${e.message}`);
-      results.errors.push(`订单异常: ${e.message}`);
+      results.errors.push(`订单: ${e.message}`);
+      console.error('  ❌', e.message);
     }
 
-    // ========== Step 3: 拉取广告 ==========
-    console.log('\n[Step 3] 拉取广告数据...');
+    // Step 2: 广告
+    console.log('\n[2/3] 拉取广告...');
     try {
-      const adResult = await callAPI('/api/easyboss/ads/fetch', 'POST', { status: AD_STATUS });
-      results.ads = adResult;
-      if (adResult.success) {
-        console.log(`[Step 3] ✅ 广告: ${adResult.campaignsFetched || adResult.total || 0}条`);
-      } else {
-        console.error(`[Step 3] ❌ 广告拉取失败: ${adResult.error}`);
-        results.errors.push(`广告: ${adResult.error}`);
-      }
+      results.ads = await callLocalApi('/api/easyboss/ads/fetch', 'POST', { status: 'ongoing' });
+      if (results.ads.success === false) throw new Error(results.ads.error || '未知错误');
+      console.log(`  ✅ ${results.ads.campaignsFetched || 0}条`);
     } catch (e) {
-      console.error(`[Step 3] ❌ 广告异常: ${e.message}`);
-      results.errors.push(`广告异常: ${e.message}`);
+      results.errors.push(`广告: ${e.message}`);
+      console.error('  ❌', e.message);
     }
 
-    // ========== Step 4: 拉取商品 + 匹配 ==========
-    console.log('\n[Step 4] 拉取商品 + 广告匹配...');
+    // Step 3: 商品+匹配
+    console.log('\n[3/3] 拉取商品...');
     try {
-      const prodResult = await callAPI('/api/easyboss/products/fetch', 'POST', { status: 'onsale', matchAds: true });
-      results.products = prodResult;
-      if (prodResult.success) {
-        console.log(`[Step 4] ✅ 商品: ${prodResult.productsFetched}个, 广告匹配: ${prodResult.adsMatched}个`);
-      } else {
-        console.error(`[Step 4] ❌ 商品拉取失败: ${prodResult.error}`);
-        results.errors.push(`商品: ${prodResult.error}`);
-      }
+      results.products = await callLocalApi('/api/easyboss/products/fetch', 'POST', { status: '', matchAds: true });
+      if (results.products.success === false) throw new Error(results.products.error || '未知错误');
+      console.log(`  ✅ ${results.products.productsFetched || 0}条 / 匹配${results.products.adsMatched || 0}`);
     } catch (e) {
-      console.error(`[Step 4] ❌ 商品异常: ${e.message}`);
-      results.errors.push(`商品异常: ${e.message}`);
+      results.errors.push(`商品: ${e.message}`);
+      console.error('  ❌', e.message);
     }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+    const errCount = results.errors.length;
+
+    // 构建通知
+    let msg;
+    if (errCount === 3) {
+      msg = `## ❌ GMV MAX 同步失败\n\n` +
+        `> ${timestamp} | ${duration}s\n\n` +
+        results.errors.map(e => `- <font color="warning">${e}</font>`).join('\n') +
+        `\n\n**Cookie可能已失效，请更新**`;
+    } else if (errCount > 0) {
+      msg = `## ⚠️ GMV MAX 同步部分失败\n\n` +
+        `> ${timestamp} | ${duration}s\n\n`;
+      if (results.orders?.success) msg += `- ✅ 订单: ${results.orders.ordersInserted || 0}新 / ${results.orders.ordersUpdated || 0}更新\n`;
+      if (results.ads?.success) msg += `- ✅ 广告: ${results.ads.campaignsFetched || 0}条\n`;
+      if (results.products?.success) msg += `- ✅ 商品: ${results.products.productsFetched || 0}条\n`;
+      msg += `\n**失败:**\n` + results.errors.map(e => `- <font color="warning">${e}</font>`).join('\n');
+    } else {
+      msg = `## ✅ GMV MAX 每日同步完成\n\n` +
+        `> ${timestamp} | ${duration}s\n\n` +
+        `- 📦 订单: ${results.orders?.ordersInserted || 0}新 / ${results.orders?.ordersUpdated || 0}更新\n` +
+        `- 📢 广告: ${results.ads?.campaignsFetched || 0}条\n` +
+        `- 🏪 商品: ${results.products?.productsFetched || 0}条 / 匹配${results.products?.adsMatched || 0}`;
+    }
+
+    await notify(msg);
+
+    // 写入同步日志
+    try {
+      await pool.query(
+        `INSERT INTO eb_sync_logs (sync_type, status, orders_result, ads_result, products_result, errors, duration)
+         VALUES ('daily', ?, ?, ?, ?, ?, ?)`,
+        [
+          errCount === 0 ? 'success' : errCount === 3 ? 'failed' : 'partial',
+          JSON.stringify(results.orders || {}),
+          JSON.stringify(results.ads || {}),
+          JSON.stringify(results.products || {}),
+          results.errors.length > 0 ? results.errors.join('; ') : null,
+          duration,
+        ]
+      );
+    } catch (e) {
+      // 表不存在就创建
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS eb_sync_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          sync_type VARCHAR(20) DEFAULT 'daily',
+          status VARCHAR(20),
+          orders_result JSON,
+          ads_result JSON,
+          products_result JSON,
+          errors TEXT,
+          duration VARCHAR(20),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(
+        `INSERT INTO eb_sync_logs (sync_type, status, errors, duration) VALUES ('daily', ?, ?, ?)`,
+        [errCount === 0 ? 'success' : 'failed', results.errors.join('; '), duration]
+      );
+    }
+
+    console.log(`\n[完成] ${duration}s, 错误: ${errCount}`);
 
   } catch (e) {
-    console.error(`[Fatal] 致命错误: ${e.message}`);
-    results.errors.push(`致命错误: ${e.message}`);
+    console.error('[致命错误]', e);
+    await notify(`## ❌ GMV MAX 致命错误\n\n> ${timestamp}\n\n<font color="warning">${e.message}</font>`);
   } finally {
-    if (pool) await pool.end();
+    await pool.end();
   }
-
-  // ========== 发送汇报通知 ==========
-  const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-  const hasError = results.errors.length > 0;
-
-  const orderInfo = results.orders?.success
-    ? `新增${results.orders.newOrders || 0}条, 更新${results.orders.updatedOrders || 0}条`
-    : `失败`;
-  const adInfo = results.ads?.success
-    ? `${results.ads.campaignsFetched || results.ads.total || 0}条广告`
-    : `失败`;
-  const prodInfo = results.products?.success
-    ? `${results.products.productsFetched}个商品, ${results.products.adsMatched}个匹配`
-    : `失败`;
-
-  const emoji = hasError ? '⚠️' : '✅';
-  const status = hasError ? '<font color="warning">部分失败</font>' : '<font color="info">全部成功</font>';
-
-  const report = 
-    `## ${emoji} GMV MAX 每日同步报告\n` +
-    `> 时间: ${timestamp} | 耗时: ${duration}s\n` +
-    `> 状态: ${status}\n\n` +
-    `**同步结果：**\n` +
-    `- 🛒 订单: ${orderInfo}\n` +
-    `- 📢 广告: ${adInfo}\n` +
-    `- 🏪 商品: ${prodInfo}\n` +
-    (hasError ? `\n**⚠️ 错误：**\n${results.errors.map(e => `- ${e}`).join('\n')}\n` : '');
-
-  console.log(`\n[报告]\n${report}`);
-  await sendWecom(report);
-
-  console.log(`\n[Daily Sync] 完成 - 耗时 ${duration}s`);
-  console.log('='.repeat(60));
-
-  // 非0退出码供cron检测
-  if (hasError) process.exit(1);
 }
 
-main().catch(e => {
-  console.error('[Fatal]', e);
-  sendWecom(`## 🔴 GMV MAX 同步崩溃\n> ${e.message}`).then(() => process.exit(2));
-});
+main().catch(console.error);
