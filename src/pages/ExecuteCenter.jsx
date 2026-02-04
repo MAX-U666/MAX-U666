@@ -100,8 +100,8 @@ const DecisionCard = ({ ad }) => {
 
   return (
     <div style={{
-      background: bgMap[ad.action] || 'rgba(255,255,255,0.03)',
-      border: `1px solid ${borderMap[ad.action] || 'rgba(255,255,255,0.06)'}`,
+      background: bgMap[ad.action] || '#FFFFFF',
+      border: `1px solid ${borderMap[ad.action] || '#E8E8ED'}`,
       borderRadius: '12px', padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
@@ -145,7 +145,7 @@ const ProductRank = ({ products }) => {
         }}>
           <div style={{
             width: '22px', height: '22px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: i < 3 ? ['#FF6B35', '#F59E0B', '#8B5CF6'][i] : 'rgba(255,255,255,0.05)',
+            background: i < 3 ? ['#FF6B35', '#F59E0B', '#8B5CF6'][i] : '#F0F0F3',
             color: i < 3 ? '#fff' : '#64748B', fontWeight: '700', fontSize: '10px',
           }}>{i + 1}</div>
           <div>
@@ -216,7 +216,7 @@ const ExecuteCenter = () => {
         <button onClick={loadAll} disabled={loading}
           style={{
             padding: '8px 16px', borderRadius: '8px', border: 'none',
-            background: loading ? '#475569' : 'rgba(255,255,255,0.06)',
+            background: loading ? '#ccc' : '#F5F5F7',
             color: '#555', fontSize: '12px', cursor: loading ? 'not-allowed' : 'pointer',
           }}>
           {loading ? '加载中...' : '🔄 刷新'}
@@ -263,7 +263,7 @@ const ExecuteCenter = () => {
                 <button key={d} onClick={() => setTrendDays(d)}
                   style={{
                     padding: '4px 10px', borderRadius: '6px', border: 'none', fontSize: '11px',
-                    background: trendDays === d ? '#FF6B35' : 'rgba(255,255,255,0.05)',
+                    background: trendDays === d ? '#FF6B35' : '#F5F5F7',
                     color: trendDays === d ? '#fff' : '#64748B', cursor: 'pointer',
                   }}>{d}天</button>
               ))}
