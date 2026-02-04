@@ -419,27 +419,12 @@ const OrderCenter = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <select
-            value={fetchDays}
-            onChange={(e) => setFetchDays(parseInt(e.target.value))}
-            style={{
-              padding: '8px 12px', borderRadius: '8px', fontSize: '12px',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              color: '#CBD5E1', outline: 'none', cursor: 'pointer',
-            }}
-          >
-            <option value={1}>最近1天</option>
-            <option value={3}>最近3天</option>
-            <option value={7}>最近7天</option>
-            <option value={14}>最近14天</option>
-            <option value={30}>最近30天</option>
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             onClick={handleFetch}
             disabled={fetching}
             style={{
-              padding: '8px 20px', borderRadius: '8px', border: 'none',
+              padding: '8px 16px', borderRadius: '8px', border: 'none',
               background: fetching ? '#475569' : 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)',
               color: '#fff', fontSize: '12px', fontWeight: '600',
               cursor: fetching ? 'not-allowed' : 'pointer',
@@ -452,7 +437,24 @@ const OrderCenter = () => {
                 <span style={{ display: 'inline-block', width: '12px', height: '12px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 拉取中...
               </>
-            ) : '🔄 拉取订单'}
+            ) : (
+              <>🔄 拉取<select
+                value={fetchDays}
+                onChange={(e) => { e.stopPropagation(); setFetchDays(parseInt(e.target.value)); }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff',
+                  fontSize: '12px', fontWeight: '600', outline: 'none', cursor: 'pointer',
+                  padding: '0 2px', borderRadius: '4px',
+                }}
+              >
+                <option value={1}>1天</option>
+                <option value={3}>3天</option>
+                <option value={7}>7天</option>
+                <option value={14}>14天</option>
+                <option value={30}>30天</option>
+              </select>订单</>
+            )}
           </button>
         </div>
       </div>
