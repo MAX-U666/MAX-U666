@@ -99,7 +99,7 @@ const ShopBar = ({ shops }) => {
         {shops.slice(0, 12).map((shop) => (
           <div key={shop.shop_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '60px', fontSize: '11px', color: '#94A3B8', textAlign: 'right', flexShrink: 0 }}>
-              {shop.shop_id}
+              {shop.shop_name || shop.shop_id}
             </div>
             <div style={{ flex: 1, height: '22px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{
@@ -126,7 +126,7 @@ const ShopBar = ({ shops }) => {
 };
 
 // ========== 商品详情弹窗 ==========
-const ProductDetail = ({ product, ads, orderStats, onClose }) => {
+const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
   if (!product) return null;
   const si = getStatusInfo(product.status);
   return (
@@ -153,7 +153,7 @@ const ProductDetail = ({ product, ads, orderStats, onClose }) => {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', background: si.bg, color: si.color }}>{si.label}</span>
               <span style={{ fontSize: '12px', color: '#94A3B8' }}>ID: {product.platform_item_id}</span>
-              <span style={{ fontSize: '12px', color: '#94A3B8' }}>店铺: {product.shop_id}</span>
+              <span style={{ fontSize: '12px', color: '#94A3B8' }}>店铺: {product.shop_name || product.shop_id}</span>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '24px', cursor: 'pointer', padding: '0 4px' }}>×</button>
@@ -205,7 +205,7 @@ const ProductDetail = ({ product, ads, orderStats, onClose }) => {
 
         {/* 订单统计 */}
         {orderStats && (
-          <div style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '20px' }}>
             <div style={{ flex: 1, background: 'rgba(59,130,246,0.1)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#3B82F6', marginBottom: '4px' }}>订单数</div>
               <div style={{ fontSize: '18px', fontWeight: '700', color: '#3B82F6' }}>{orderStats.order_count || 0}</div>
@@ -213,6 +213,36 @@ const ProductDetail = ({ product, ads, orderStats, onClose }) => {
             <div style={{ flex: 1, background: 'rgba(16,185,129,0.1)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
               <div style={{ fontSize: '10px', color: '#10B981', marginBottom: '4px' }}>订单GMV</div>
               <div style={{ fontSize: '18px', fontWeight: '700', color: '#10B981' }}>{formatIDR(orderStats.total_gmv)}</div>
+            </div>
+            <div style={{ flex: 1, background: 'rgba(245,158,11,0.1)', borderRadius: '10px', padding: '14px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#F59E0B', marginBottom: '4px' }}>售出件数</div>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#F59E0B' }}>{orderStats.total_qty || 0}</div>
+            </div>
+          </div>
+        )}
+
+        {/* 最近订单 */}
+        {recentOrders && recentOrders.length > 0 && (
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '12px' }}>🛒 最近订单 ({recentOrders.length})</div>
+            <div style={{ maxHeight: '200px', overflow: 'auto' }}>
+              {recentOrders.map((o, i) => (
+                <div key={i} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  fontSize: '12px',
+                }}>
+                  <div>
+                    <span style={{ color: '#E2E8F0' }}>{o.platform_order_sn}</span>
+                    <span style={{ color: '#64748B', marginLeft: '8px' }}>{o.shop_name}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <span style={{ color: '#94A3B8' }}>×{o.quantity}</span>
+                    <span style={{ color: '#10B981', fontWeight: '500' }}>{formatIDR(o.discounted_price)}</span>
+                    <span style={{ color: '#64748B', fontSize: '11px' }}>{o.gmt_order_start?.substring(5, 16)}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -390,7 +420,7 @@ const ProductCenter = () => {
           >
             <option value="">全部店铺</option>
             {stats.byShop.map(s => (
-              <option key={s.shop_id} value={s.shop_id}>{s.shop_id} ({s.products})</option>
+              <option key={s.shop_id} value={s.shop_id}>{s.shop_name || s.shop_id} ({s.products})</option>
             ))}
           </select>
         )}
@@ -453,7 +483,7 @@ const ProductCenter = () => {
                       {p.title}
                     </div>
                     <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
-                      {p.shop_id} · {p.brand_name || '-'} · SKU {p.sku_count}
+                      {p.shop_name || p.shop_id} · {p.brand_name || '-'} · SKU {p.sku_count}
                     </div>
                   </div>
                 </div>
@@ -520,6 +550,7 @@ const ProductCenter = () => {
           product={detail.product}
           ads={detail.ads}
           orderStats={detail.orderStats}
+          recentOrders={detail.recentOrders}
           onClose={() => setDetail(null)}
         />
       )}
