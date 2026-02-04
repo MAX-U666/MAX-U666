@@ -59,8 +59,8 @@ const getStatusInfo = (status) => STATUS_MAP[status] || { label: status, color: 
 // ========== 统计卡片 ==========
 const StatCard = ({ icon, label, value, sub, color }) => (
   <div style={{
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
+    background: '#FFFFFF',
+    border: '1px solid #E8E8ED',
     borderRadius: '14px',
     padding: '20px',
     flex: 1,
@@ -74,14 +74,14 @@ const StatCard = ({ icon, label, value, sub, color }) => (
       background: `${color}10`, filter: 'blur(15px)',
     }} />
     <div style={{ fontSize: '20px', marginBottom: '10px' }}>{icon}</div>
-    <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+    <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
       {label}
     </div>
-    <div style={{ fontSize: '24px', fontWeight: '700', color: '#F8FAFC', letterSpacing: '-0.5px' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.5px' }}>
       {value}
     </div>
     {sub && (
-      <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{sub}</div>
+      <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>{sub}</div>
     )}
   </div>
 );
@@ -93,25 +93,25 @@ const ShopBar = ({ shops }) => {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF',
+      border: '1px solid #E8E8ED',
       borderRadius: '14px',
       padding: '20px',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '16px' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px' }}>
         📊 店铺订单分布
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {shops.slice(0, 10).map((shop) => (
           <div key={shop.shop_name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '80px', fontSize: '11px', color: '#94A3B8',
+              width: '80px', fontSize: '11px', color: '#666',
               textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap',
               textAlign: 'right', flexShrink: 0,
             }}>
               {shop.shop_name}
             </div>
-            <div style={{ flex: 1, height: '22px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ flex: 1, height: '22px', background: '#FFFFFF', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{
                 width: `${(shop.count / maxCount) * 100}%`,
                 height: '100%',
@@ -127,7 +127,7 @@ const ShopBar = ({ shops }) => {
                 </span>
               </div>
             </div>
-            <div style={{ width: '70px', fontSize: '10px', color: '#64748B', textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ width: '70px', fontSize: '10px', color: '#999', textAlign: 'right', flexShrink: 0 }}>
               {formatIDR(shop.total_pay)}
             </div>
           </div>
@@ -144,12 +144,12 @@ const StatusBreakdown = ({ statusData }) => {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF',
+      border: '1px solid #E8E8ED',
       borderRadius: '14px',
       padding: '20px',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '16px' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px' }}>
         📋 订单状态
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -168,10 +168,10 @@ const StatusBreakdown = ({ statusData }) => {
               <div style={{ fontSize: '11px', color: info.color, marginBottom: '4px' }}>
                 {info.icon} {info.label}
               </div>
-              <div style={{ fontSize: '20px', fontWeight: '700', color: '#F8FAFC' }}>
+              <div style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a' }}>
                 {item.count}
               </div>
-              <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>{pct}%</div>
+              <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>{pct}%</div>
             </div>
           );
         })}
@@ -184,19 +184,19 @@ const StatusBreakdown = ({ statusData }) => {
 const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF',
+      border: '1px solid #E8E8ED',
       borderRadius: '14px',
       overflow: 'hidden',
     }}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <tr style={{ borderBottom: '1px solid #E8E8ED' }}>
               {['包裹ID', '平台单号', '店铺', '状态', '商品数', '付款金额', '利润', '买家', '下单时间'].map((h) => (
                 <th key={h} style={{
                   padding: '12px 14px', textAlign: 'left',
-                  color: '#64748B', fontWeight: '500', fontSize: '11px',
+                  color: '#999', fontWeight: '500', fontSize: '11px',
                   letterSpacing: '0.3px', whiteSpace: 'nowrap',
                   background: 'rgba(0,0,0,0.15)',
                 }}>
@@ -208,14 +208,14 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
                   <div style={{ display: 'inline-block', width: '20px', height: '20px', border: '2px solid rgba(255,107,53,0.2)', borderTopColor: '#FF6B35', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   <div style={{ marginTop: '8px' }}>加载中...</div>
                 </td>
               </tr>
             ) : !orders || orders.length === 0 ? (
               <tr>
-                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+                <td colSpan={9} style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
                   暂无订单数据
                 </td>
               </tr>
@@ -224,20 +224,20 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
                 const info = getStatusInfo(order.app_package_tab);
                 return (
                   <tr key={order.op_order_package_id || idx} style={{
-                    borderBottom: '1px solid rgba(255,255,255,0.03)',
+                    borderBottom: '1px solid #F0F0F3',
                     transition: 'background 0.15s',
                     cursor: 'default',
                   }}
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
-                    <td style={{ padding: '10px 14px', color: '#CBD5E1', fontFamily: 'monospace', fontSize: '11px' }}>
+                    <td style={{ padding: '10px 14px', color: '#555', fontFamily: 'monospace', fontSize: '11px' }}>
                       {order.op_order_package_id}
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#94A3B8', fontSize: '11px' }}>
+                    <td style={{ padding: '10px 14px', color: '#666', fontSize: '11px' }}>
                       {order.platform_order_sn || '-'}
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#E2E8F0', fontWeight: '500' }}>
+                    <td style={{ padding: '10px 14px', color: '#333', fontWeight: '500' }}>
                       {order.shop_name || '-'}
                     </td>
                     <td style={{ padding: '10px 14px' }}>
@@ -254,10 +254,10 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
                         {info.icon} {info.label}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#94A3B8', textAlign: 'center' }}>
+                    <td style={{ padding: '10px 14px', color: '#666', textAlign: 'center' }}>
                       {order.item_quantity || 0}
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#F8FAFC', fontWeight: '600', fontFamily: 'monospace' }}>
+                    <td style={{ padding: '10px 14px', color: '#1a1a1a', fontWeight: '600', fontFamily: 'monospace' }}>
                       {formatIDR(order.pay_amount)}
                     </td>
                     <td style={{
@@ -266,10 +266,10 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
                     }}>
                       {parseFloat(order.order_profit) > 0 ? '+' : ''}{formatIDR(order.order_profit)}
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#94A3B8', fontSize: '11px' }}>
+                    <td style={{ padding: '10px 14px', color: '#666', fontSize: '11px' }}>
                       {order.buyer_username || '-'}
                     </td>
-                    <td style={{ padding: '10px 14px', color: '#64748B', fontSize: '11px', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '10px 14px', color: '#999', fontSize: '11px', whiteSpace: 'nowrap' }}>
                       {formatDate(order.gmt_order_start)}
                     </td>
                   </tr>
@@ -298,7 +298,7 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
           >
             ← 上一页
           </button>
-          <span style={{ fontSize: '12px', color: '#64748B', padding: '0 8px' }}>
+          <span style={{ fontSize: '12px', color: '#999', padding: '0 8px' }}>
             {page} / {totalPages}
           </span>
           <button
@@ -411,10 +411,10 @@ const OrderCenter = () => {
         marginBottom: '24px', flexWrap: 'wrap', gap: '12px',
       }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#F8FAFC', letterSpacing: '-0.3px' }}>
+          <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.3px' }}>
             📦 订单中心
           </h2>
-          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             共 {totalOrders.toLocaleString()} 条订单
           </div>
         </div>
@@ -486,7 +486,7 @@ const OrderCenter = () => {
       {/* 统计卡片 */}
       <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {statsLoading ? (
-          <div style={{ width: '100%', textAlign: 'center', padding: '30px', color: '#64748B', fontSize: '12px' }}>
+          <div style={{ width: '100%', textAlign: 'center', padding: '30px', color: '#999', fontSize: '12px' }}>
             加载统计中...
           </div>
         ) : (
@@ -510,7 +510,7 @@ const OrderCenter = () => {
         display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center',
         flexWrap: 'wrap',
       }}>
-        <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC' }}>📋 订单列表</div>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a' }}>📋 订单列表</div>
         <div style={{ flex: 1 }} />
         <input
           type="text"
@@ -520,8 +520,8 @@ const OrderCenter = () => {
           onKeyDown={(e) => e.key === 'Enter' && loadOrders(1)}
           style={{
             padding: '7px 12px', borderRadius: '8px', fontSize: '11px', width: '150px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none',
           }}
         />
         <input
@@ -530,19 +530,19 @@ const OrderCenter = () => {
           onChange={(e) => setFilterDateFrom(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#475569', fontSize: '13px' }}>~</span>
+        <span style={{ color: '#999', fontSize: '13px' }}>~</span>
         <input
           type="date"
           value={filterDateTo}
           onChange={(e) => setFilterDateTo(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
         <select
@@ -550,8 +550,8 @@ const OrderCenter = () => {
           onChange={(e) => setFilterShop(e.target.value)}
           style={{
             padding: '7px 12px', borderRadius: '8px', fontSize: '11px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer', minWidth: '120px',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer', minWidth: '120px',
           }}
         >
           <option value="">全部店铺</option>
@@ -564,8 +564,8 @@ const OrderCenter = () => {
           onChange={(e) => setFilterStatus(e.target.value)}
           style={{
             padding: '7px 12px', borderRadius: '8px', fontSize: '11px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer', minWidth: '120px',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer', minWidth: '120px',
           }}
         >
           <option value="">全部状态</option>
@@ -587,7 +587,7 @@ const OrderCenter = () => {
       {/* CSS动画 */}
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        select option { background: #1E293B; color: #CBD5E1; }
+        select option { background: #FFFFFF; color: #333; }
       `}</style>
     </div>
   );
