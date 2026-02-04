@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiGet } from '../utils/apiFetch';
 
 // ========== API ==========
-const api = (path) => fetch(`/api/easyboss/analytics/${path}`).then(r => r.json());
+const api = (path) => apiGet(`/api/easyboss/analytics/${path}`);
 
 // ========== 格式化 ==========
 const fmtIDR = (v) => {
