@@ -37,7 +37,7 @@ const LoginPage = ({ onLogin }) => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)',
+      background: '#F7F8FA',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -46,9 +46,9 @@ const LoginPage = ({ onLogin }) => {
       <div style={{
         width: '100%',
         maxWidth: '420px',
-        background: 'rgba(255,255,255,0.03)',
+        background: '#FFFFFF',
         borderRadius: '24px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid #E8E8ED',
         padding: '48px 40px',
         boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)'
       }}>
@@ -74,7 +74,7 @@ const LoginPage = ({ onLogin }) => {
           <h1 style={{
             fontSize: '28px',
             fontWeight: '800',
-            color: '#E2E8F0',
+            color: '#333',
             margin: '0 0 8px 0',
             letterSpacing: '-0.5px'
           }}>
@@ -82,7 +82,7 @@ const LoginPage = ({ onLogin }) => {
           </h1>
           <p style={{
             fontSize: '14px',
-            color: '#64748B',
+            color: '#999',
             margin: 0
           }}>
             智能广告决策中枢
@@ -111,7 +111,7 @@ const LoginPage = ({ onLogin }) => {
               display: 'block',
               fontSize: '13px',
               fontWeight: '600',
-              color: '#94A3B8',
+              color: '#666',
               marginBottom: '8px'
             }}>
               用户名
@@ -125,10 +125,10 @@ const LoginPage = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '14px 16px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: '#F5F5F7',
+                border: '1px solid #E0E0E5',
                 borderRadius: '12px',
-                color: '#E2E8F0',
+                color: '#333',
                 fontSize: '15px',
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -140,7 +140,7 @@ const LoginPage = ({ onLogin }) => {
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.target.style.background = 'rgba(255,255,255,0.05)';
+                e.target.style.background = '#F5F5F7';
               }}
             />
           </div>
@@ -150,7 +150,7 @@ const LoginPage = ({ onLogin }) => {
               display: 'block',
               fontSize: '13px',
               fontWeight: '600',
-              color: '#94A3B8',
+              color: '#666',
               marginBottom: '8px'
             }}>
               密码
@@ -164,10 +164,10 @@ const LoginPage = ({ onLogin }) => {
               style={{
                 width: '100%',
                 padding: '14px 16px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
+                background: '#F5F5F7',
+                border: '1px solid #E0E0E5',
                 borderRadius: '12px',
-                color: '#E2E8F0',
+                color: '#333',
                 fontSize: '15px',
                 outline: 'none',
                 transition: 'all 0.2s',
@@ -179,7 +179,7 @@ const LoginPage = ({ onLogin }) => {
               }}
               onBlur={(e) => {
                 e.target.style.borderColor = 'rgba(255,255,255,0.1)';
-                e.target.style.background = 'rgba(255,255,255,0.05)';
+                e.target.style.background = '#F5F5F7';
               }}
             />
           </div>
@@ -212,7 +212,7 @@ const LoginPage = ({ onLogin }) => {
           marginTop: '32px',
           textAlign: 'center',
           fontSize: '12px',
-          color: '#475569'
+          color: '#999'
         }}>
           <p style={{ margin: '0 0 8px 0' }}>
             Powered by <span style={{ color: '#FF6B35' }}>千问 qwen-max</span>
