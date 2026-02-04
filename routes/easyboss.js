@@ -154,6 +154,74 @@ module.exports = function(pool) {
   const orderFetcher = new EasyBossOrderFetcher(pool);
 
   /**
+   * POST /api/easyboss/orders/set-cookie
+   * 设置EasyBoss浏览器Cookie
+   * Body: { cookie: "dmerp_sid=xxx; loginTokenS=xxx; ..." }
+   */
+  router.post('/orders/set-cookie', async (req, res) => {
+    try {
+      const { cookie } = req.body || {};
+      if (!cookie || cookie.length < 10) {
+        return res.status(400).json({ success: false, error: '请提供有效的cookie字符串' });
+      }
+
+      // 确保 eb_config 表存在
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS eb_config (
+          config_key VARCHAR(100) PRIMARY KEY,
+          config_value TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+
+      // 保存cookie
+      await pool.query(
+        `INSERT INTO eb_config (config_key, config_value) VALUES ('easyboss_cookie', ?)
+         ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)`,
+        [cookie]
+      );
+
+      // 清除缓存，下次拉取时读取新cookie
+      orderFetcher.clearCookies();
+
+      res.json({ success: true, message: 'Cookie已保存', length: cookie.length });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/orders/cookie-status
+   * 查看当前Cookie状态
+   */
+  router.get('/orders/cookie-status', async (req, res) => {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS eb_config (
+          config_key VARCHAR(100) PRIMARY KEY,
+          config_value TEXT,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        )
+      `);
+      const [rows] = await pool.query(
+        "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie'"
+      );
+      if (rows.length && rows[0].config_value) {
+        res.json({
+          success: true,
+          configured: true,
+          cookieLength: rows[0].config_value.length,
+          updatedAt: rows[0].updated_at
+        });
+      } else {
+        res.json({ success: true, configured: false });
+      }
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
    * POST /api/easyboss/orders/fetch
    * 触发订单数据拉取
    * Body: { days: 7, dateFrom: '', dateTo: '', status: 'all' }
