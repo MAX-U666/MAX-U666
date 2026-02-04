@@ -282,6 +282,94 @@ module.exports = function(pool) {
   });
 
   // =============================================
+  // 店铺授权 API
+  // =============================================
+
+  // 建表（幂等）
+  const initUserShops = async () => {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_shops (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        user_id INT NOT NULL,
+        shop_id VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_user_shop (user_id, shop_id)
+      )
+    `);
+  };
+  initUserShops().catch(e => console.error('[user_shops] init error:', e.message));
+
+  /**
+   * GET /api/user-shops
+   * 查看当前用户的授权店铺（admin看全部）
+   */
+  router.get('/user-shops', verifyToken, async (req, res) => {
+    try {
+      if (req.user.role === 'admin') {
+        // 管理员：返回所有用户的店铺映射
+        const [rows] = await pool.query(`
+          SELECT us.user_id, us.shop_id, u.name as user_name, s.shop_name
+          FROM user_shops us
+          LEFT JOIN users u ON u.id = us.user_id
+          LEFT JOIN eb_shops s ON s.shop_id = us.shop_id
+          ORDER BY us.user_id, us.shop_id
+        `);
+        const [allShops] = await pool.query('SELECT shop_id, shop_name FROM eb_shops ORDER BY shop_name');
+        const [allUsers] = await pool.query('SELECT id, name, avatar, role FROM users ORDER BY id');
+        res.json({ success: true, assignments: rows, shops: allShops, users: allUsers });
+      } else {
+        // 普通用户：仅返回自己的店铺
+        const [rows] = await pool.query(`
+          SELECT us.shop_id, COALESCE(s.shop_name, us.shop_id) as shop_name
+          FROM user_shops us
+          LEFT JOIN eb_shops s ON s.shop_id = us.shop_id
+          WHERE us.user_id = ?
+        `, [req.user.id]);
+        res.json({ success: true, shops: rows });
+      }
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/user-shops/assign
+   * 管理员：给用户分配店铺
+   * Body: { userId, shopIds: ['15001', 'A107', ...] }
+   */
+  router.post('/user-shops/assign', verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const { userId, shopIds } = req.body;
+      if (!userId || !Array.isArray(shopIds)) {
+        return res.json({ success: false, error: '参数错误' });
+      }
+      // 先清除该用户的全部授权，再批量插入
+      await pool.query('DELETE FROM user_shops WHERE user_id = ?', [userId]);
+      if (shopIds.length > 0) {
+        const values = shopIds.map(sid => [userId, sid]);
+        await pool.query('INSERT INTO user_shops (user_id, shop_id) VALUES ?', [values]);
+      }
+      res.json({ success: true, count: shopIds.length });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * 辅助：获取用户可访问的shop_id列表
+   * admin返回null表示不限制
+   */
+  async function getUserShopIds(user) {
+    if (user.role === 'admin') return null; // 不限制
+    const [rows] = await pool.query('SELECT shop_id FROM user_shops WHERE user_id = ?', [user.id]);
+    return rows.map(r => r.shop_id);
+  }
+
+  // 导出给easyboss路由使用
+  router._getUserShopIds = getUserShopIds;
+  router._verifyToken = verifyToken;
+
+  // =============================================
   // 产品相关 API
   // =============================================
   
