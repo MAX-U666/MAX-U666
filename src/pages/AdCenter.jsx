@@ -388,20 +388,20 @@ const AdCenter = () => {
           value={dateFrom}
           onChange={e => { setDateFrom(e.target.value); setPage(1); }}
           style={{
-            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none',
+            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#475569', fontSize: '11px' }}>~</span>
+        <span style={{ color: '#475569', fontSize: '13px' }}>~</span>
         <input
           type="date"
           value={dateTo}
           onChange={e => { setDateTo(e.target.value); setPage(1); }}
           style={{
-            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none',
+            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
           }}
         />
         <div style={{ flex: 1 }} />
