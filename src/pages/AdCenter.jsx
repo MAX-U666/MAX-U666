@@ -62,8 +62,8 @@ const roiColor = (roi) => {
 // ========== 统计卡片 ==========
 const StatCard = ({ icon, label, value, sub, color }) => (
   <div style={{
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
+    background: '#FFFFFF',
+    border: '1px solid #E8E8ED',
     borderRadius: '14px', padding: '20px', flex: 1, minWidth: '160px',
     position: 'relative', overflow: 'hidden',
   }}>
@@ -73,13 +73,13 @@ const StatCard = ({ icon, label, value, sub, color }) => (
       background: `${color}10`, filter: 'blur(15px)',
     }} />
     <div style={{ fontSize: '20px', marginBottom: '10px' }}>{icon}</div>
-    <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+    <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
       {label}
     </div>
-    <div style={{ fontSize: '24px', fontWeight: '700', color: '#F8FAFC', letterSpacing: '-0.5px' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.5px' }}>
       {value}
     </div>
-    {sub && <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{sub}</div>}
+    {sub && <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>{sub}</div>}
   </div>
 );
 
@@ -90,19 +90,19 @@ const ShopAdBar = ({ shops }) => {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF', border: '1px solid #E8E8ED',
       borderRadius: '14px', padding: '20px',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '16px' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px' }}>
         📊 店铺广告花费 & ROI
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {shops.slice(0, 12).map((shop) => (
           <div key={shop.shop_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '60px', fontSize: '11px', color: '#94A3B8', textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ width: '60px', fontSize: '11px', color: '#666', textAlign: 'right', flexShrink: 0 }}>
               {shop.shop_name || shop.shop_id}
             </div>
-            <div style={{ flex: 1, height: '22px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ flex: 1, height: '22px', background: '#FFFFFF', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{
                 width: `${((parseFloat(shop.total_expense) || 0) / maxExpense) * 100}%`,
                 height: '100%',
@@ -138,22 +138,22 @@ const AdDetail = ({ ad, daily, onClose }) => {
       display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
     }} onClick={onClose}>
       <div style={{
-        background: '#1E293B', borderRadius: '16px', width: '100%', maxWidth: '750px',
+        background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '750px',
         maxHeight: '80vh', overflow: 'auto', padding: '28px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid #E8E8ED',
       }} onClick={e => e.stopPropagation()}>
         {/* 标题 */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div>
-            <div style={{ fontSize: '15px', fontWeight: '600', color: '#F8FAFC', marginBottom: '6px', lineHeight: 1.4 }}>
+            <div style={{ fontSize: '15px', fontWeight: '600', color: '#1a1a1a', marginBottom: '6px', lineHeight: 1.4 }}>
               {ad.ad_name}
             </div>
-            <div style={{ fontSize: '11px', color: '#64748B' }}>
+            <div style={{ fontSize: '11px', color: '#999' }}>
               广告ID: {ad.platform_campaign_id} · 店铺: {ad.shop_name || ad.shop_id} · {ad.ad_type} · {ad.bidding_method}
               {ad.platform_item_id && <> · 商品: {ad.platform_item_id}</>}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '24px', cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#999', fontSize: '24px', cursor: 'pointer' }}>×</button>
         </div>
 
         {/* KPI 网格 */}
@@ -172,8 +172,8 @@ const AdDetail = ({ ad, daily, onClose }) => {
             { label: '直接ROI', value: parseFloat(ad.direct_roi || 0).toFixed(2), color: roiColor(ad.direct_roi) },
             { label: '状态', value: ad.campaign_status, color: ad.campaign_status === 'ongoing' ? '#10B981' : '#6B7280' },
           ].map(({ label, value, color }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>{label}</div>
+            <div key={label} style={{ background: '#FFFFFF', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#999', marginBottom: '4px' }}>{label}</div>
               <div style={{ fontSize: '15px', fontWeight: '700', color }}>{value}</div>
             </div>
           ))}
@@ -182,13 +182,13 @@ const AdDetail = ({ ad, daily, onClose }) => {
         {/* 每日趋势 */}
         {daily && daily.length > 0 && (
           <div>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '12px' }}>📈 每日数据 (近{daily.length}天)</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '12px' }}>📈 每日数据 (近{daily.length}天)</div>
             <div style={{ maxHeight: '250px', overflow: 'auto' }}>
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: '90px repeat(6, 1fr)',
-                fontSize: '11px', color: '#64748B', fontWeight: '600',
-                padding: '8px 12px', background: 'rgba(255,255,255,0.02)',
+                fontSize: '11px', color: '#999', fontWeight: '600',
+                padding: '8px 12px', background: '#FAFBFC',
                 borderRadius: '8px 8px 0 0', position: 'sticky', top: 0,
               }}>
                 <div>日期</div>
@@ -203,8 +203,8 @@ const AdDetail = ({ ad, daily, onClose }) => {
                 <div key={d.date} style={{
                   display: 'grid',
                   gridTemplateColumns: '90px repeat(6, 1fr)',
-                  fontSize: '11px', color: '#E2E8F0', padding: '6px 12px',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  fontSize: '11px', color: '#333', padding: '6px 12px',
+                  borderBottom: '1px solid #F0F0F3',
                 }}>
                   <div>{(d.date || '').substring(0, 10)}</div>
                   <div style={{ textAlign: 'right' }}>{formatIDR(d.expense)}</div>
@@ -302,10 +302,10 @@ const AdCenter = () => {
       {/* 标题栏 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#F8FAFC', margin: 0, letterSpacing: '-0.5px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a', margin: 0, letterSpacing: '-0.5px' }}>
             📢 广告中心
           </h2>
-          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             Shopee 广告活动数据 · ROI 分析 · AI 决策支撑
           </div>
         </div>
@@ -345,8 +345,8 @@ const AdCenter = () => {
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           style={{
             padding: '8px 12px', borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '12px', outline: 'none',
+            border: '1px solid #E8E8ED', background: '#FFFFFF',
+            color: '#1a1a1a', fontSize: '12px', outline: 'none',
           }}
         >
           <option value="">全部状态</option>
@@ -359,8 +359,8 @@ const AdCenter = () => {
           onChange={e => { setMatchedFilter(e.target.value); setPage(1); }}
           style={{
             padding: '8px 12px', borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '12px', outline: 'none',
+            border: '1px solid #E8E8ED', background: '#FFFFFF',
+            color: '#1a1a1a', fontSize: '12px', outline: 'none',
           }}
         >
           <option value="">全部匹配</option>
@@ -373,8 +373,8 @@ const AdCenter = () => {
             onChange={e => { setShopFilter(e.target.value); setPage(1); }}
             style={{
               padding: '8px 12px', borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-              color: '#F8FAFC', fontSize: '12px', outline: 'none', maxWidth: '180px',
+              border: '1px solid #E8E8ED', background: '#FFFFFF',
+              color: '#1a1a1a', fontSize: '12px', outline: 'none', maxWidth: '180px',
             }}
           >
             <option value="">全部店铺</option>
@@ -389,31 +389,31 @@ const AdCenter = () => {
           onChange={e => { setDateFrom(e.target.value); setPage(1); }}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#475569', fontSize: '13px' }}>~</span>
+        <span style={{ color: '#999', fontSize: '13px' }}>~</span>
         <input
           type="date"
           value={dateTo}
           onChange={e => { setDateTo(e.target.value); setPage(1); }}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
+            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: '12px', color: '#64748B' }}>
+        <span style={{ fontSize: '12px', color: '#999' }}>
           共 {total} 条广告
         </span>
       </div>
 
       {/* 广告列表 */}
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF',
+        border: '1px solid #E8E8ED',
         borderRadius: '14px', overflow: 'hidden',
       }}>
         {/* 表头 */}
@@ -421,9 +421,9 @@ const AdCenter = () => {
           display: 'grid',
           gridTemplateColumns: '2fr 100px 80px 80px 80px 80px 70px 60px',
           padding: '12px 16px',
-          background: 'rgba(255,255,255,0.02)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase',
+          background: '#FAFBFC',
+          borderBottom: '1px solid #E8E8ED',
+          fontSize: '11px', fontWeight: '600', color: '#999', textTransform: 'uppercase',
         }}>
           <div>广告</div>
           <div style={{ textAlign: 'right' }}>花费</div>
@@ -436,9 +436,9 @@ const AdCenter = () => {
         </div>
 
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#64748B' }}>加载中...</div>
+          <div style={{ padding: '60px 0', textAlign: 'center', color: '#999' }}>加载中...</div>
         ) : campaigns.length === 0 ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#64748B' }}>暂无数据</div>
+          <div style={{ padding: '60px 0', textAlign: 'center', color: '#999' }}>暂无数据</div>
         ) : (
           campaigns.map((ad) => (
             <div key={ad.platform_campaign_id}
@@ -446,7 +446,7 @@ const AdCenter = () => {
                 display: 'grid',
                 gridTemplateColumns: '2fr 100px 80px 80px 80px 80px 70px 60px',
                 padding: '12px 16px',
-                borderBottom: '1px solid rgba(255,255,255,0.03)',
+                borderBottom: '1px solid #F0F0F3',
                 alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s',
               }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
@@ -454,10 +454,10 @@ const AdCenter = () => {
               onClick={() => handleDetail(ad)}
             >
               <div style={{ overflow: 'hidden' }}>
-                <div style={{ fontSize: '12px', color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <div style={{ fontSize: '12px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {ad.ad_name}
                 </div>
-                <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div style={{ fontSize: '10px', color: '#999', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                   <span>{ad.shop_name || ad.shop_id}</span>
                   <span>·</span>
                   <span>{ad.ad_type}</span>
@@ -472,16 +472,16 @@ const AdCenter = () => {
               <div style={{ textAlign: 'right', fontSize: '12px', color: '#FF6B35', fontWeight: '600' }}>
                 {formatIDR(ad.expense)}
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', color: '#94A3B8' }}>
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
                 {formatNum(ad.impression)}
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', color: '#94A3B8' }}>
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
                 {formatNum(ad.clicks)}
               </div>
               <div style={{ textAlign: 'right', fontSize: '12px', color: '#10B981', fontWeight: '500' }}>
                 {formatIDR(ad.broad_gmv)}
               </div>
-              <div style={{ textAlign: 'right', fontSize: '12px', color: '#F8FAFC' }}>
+              <div style={{ textAlign: 'right', fontSize: '12px', color: '#1a1a1a' }}>
                 {ad.broad_order || 0}
               </div>
               <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: '700', color: roiColor(ad.broad_roi) }}>
@@ -506,17 +506,17 @@ const AdCenter = () => {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page <= 1}
-            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#E2E8F0', fontSize: '12px', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.3 : 1 }}
+            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #E8E8ED', background: '#FFFFFF', color: '#333', fontSize: '12px', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.3 : 1 }}
           >
             ‹ 上一页
           </button>
-          <span style={{ fontSize: '12px', color: '#94A3B8' }}>
+          <span style={{ fontSize: '12px', color: '#666' }}>
             {page} / {totalPages}  (共{total}条)
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#E2E8F0', fontSize: '12px', cursor: page >= totalPages ? 'default' : 'pointer', opacity: page >= totalPages ? 0.3 : 1 }}
+            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #E8E8ED', background: '#FFFFFF', color: '#333', fontSize: '12px', cursor: page >= totalPages ? 'default' : 'pointer', opacity: page >= totalPages ? 0.3 : 1 }}
           >
             下一页 ›
           </button>
