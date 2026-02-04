@@ -449,7 +449,7 @@ const AdCenter = () => {
                 borderBottom: '1px solid #F0F0F3',
                 alignItems: 'center', cursor: 'pointer', transition: 'background 0.15s',
               }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+              onMouseEnter={e => e.currentTarget.style.background = '#F5F5F7'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               onClick={() => handleDetail(ad)}
             >
