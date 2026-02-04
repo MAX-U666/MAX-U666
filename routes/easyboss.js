@@ -11,6 +11,71 @@ module.exports = function(pool) {
   const scheduler = new EasyBossScheduler(pool);
 
   // =============================================
+  // 用户店铺权限辅助
+  // =============================================
+  
+  /**
+   * 从请求中解析用户（轻量，不强制）
+   * 读取 Bearer token，查 api.js 共享的 tokens Map
+   * 如果没有 token 或无效则 req.shopUser = null
+   */
+  function parseUser(req) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+      const token = authHeader.split(' ')[1];
+      // 通过 pool 查 users 表中对应 token (这里直接查 user_shops)
+      return token;
+    } catch { return null; }
+  }
+
+  /**
+   * 获取当前用户可访问的 shop_id 列表
+   * 返回 null 表示不限制（admin），返回数组表示限定范围
+   */
+  async function getAllowedShopIds(req) {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) return null; // 无token不过滤（兼容旧行为）
+      
+      // 调用 verify-token 逻辑：查内存中的 token map
+      // 由于 api.js 的 tokens 是内存 Map，easyboss 路由无法直接访问
+      // 因此走数据库查询：通过请求头 X-User-Id 和 X-User-Role（由前端传递）
+      const userId = req.headers['x-user-id'];
+      const userRole = req.headers['x-user-role'];
+      
+      if (!userId) return null; // 无用户信息不过滤
+      if (userRole === 'admin') return null; // 管理员不限
+      
+      const [rows] = await pool.query('SELECT shop_id FROM user_shops WHERE user_id = ?', [parseInt(userId)]);
+      if (rows.length === 0) return []; // 无授权返回空数组（啥也看不到）
+      return rows.map(r => r.shop_id);
+    } catch (e) {
+      console.error('[getAllowedShopIds] error:', e.message);
+      return null;
+    }
+  }
+
+  /**
+   * 给 SQL WHERE 子句添加店铺过滤条件
+   * @param {string} where - 现有 WHERE 条件
+   * @param {Array} params - 现有参数
+   * @param {Array|null} shopIds - 允许的店铺ID列表，null 表示不限
+   * @param {string} field - 店铺字段名（默认 shop_id）
+   */
+  function addShopFilter(where, params, shopIds, field = 'shop_id') {
+    if (!shopIds) return { where, params }; // 不限制
+    if (shopIds.length === 0) {
+      return { where: where + ` AND 1=0`, params }; // 无权限
+    }
+    const placeholders = shopIds.map(() => '?').join(',');
+    return {
+      where: where + ` AND ${field} IN (${placeholders})`,
+      params: [...params, ...shopIds]
+    };
+  }
+
+  // =============================================
   // 数据拉取控制
   // =============================================
 
@@ -279,14 +344,20 @@ module.exports = function(pool) {
         params.push(kw, kw, kw);
       }
 
+      // 店铺权限过滤
+      const allowedShops = await getAllowedShopIds(req);
+      const filtered = addShopFilter(where, params, allowedShops);
+      where = filtered.where;
+      const finalParams = filtered.params;
+
       const [countResult] = await pool.query(
-        `SELECT COUNT(*) as total FROM eb_orders WHERE ${where}`, params
+        `SELECT COUNT(*) as total FROM eb_orders WHERE ${where}`, finalParams
       );
       const total = countResult[0].total;
 
       const [orders] = await pool.query(
         `SELECT * FROM eb_orders WHERE ${where} ORDER BY gmt_order_start DESC LIMIT ? OFFSET ?`,
-        [...params, pageSize, offset]
+        [...finalParams, pageSize, offset]
       );
 
       res.json({
@@ -324,6 +395,12 @@ module.exports = function(pool) {
         params.push(req.query.dateTo);
       }
 
+      // 店铺权限过滤
+      const allowedShops = await getAllowedShopIds(req);
+      const f = addShopFilter(where, params, allowedShops);
+      where = f.where;
+      const finalParams = f.params;
+
       const [result] = await pool.query(`
         SELECT
           COUNT(*) as total_orders,
@@ -331,14 +408,14 @@ module.exports = function(pool) {
           SUM(order_profit) as total_profit,
           COUNT(DISTINCT shop_name) as shop_count
         FROM eb_orders WHERE ${where}
-      `, params);
+      `, finalParams);
 
       const summary = result[0];
       const profitMargin = summary.total_gmv > 0
         ? ((summary.total_profit / summary.total_gmv) * 100).toFixed(1) + '%'
         : '0%';
 
-      // 按店铺统计（映射真正店铺名）
+      // 按店铺统计
       const [shopStats] = await pool.query(`
         SELECT
           o.shop_id,
@@ -350,7 +427,7 @@ module.exports = function(pool) {
         WHERE ${where.replace(/shop_id/g, 'o.shop_id').replace(/gmt_order_start/g, 'o.gmt_order_start')}
         GROUP BY o.shop_id
         ORDER BY count DESC
-      `, params);
+      `, finalParams);
 
       // 按状态统计
       const [statusStats] = await pool.query(`
@@ -360,7 +437,7 @@ module.exports = function(pool) {
         FROM eb_orders WHERE ${where}
         GROUP BY app_package_tab
         ORDER BY count DESC
-      `, params);
+      `, finalParams);
 
       res.json({
         success: true,
@@ -467,6 +544,12 @@ module.exports = function(pool) {
         where += ' AND ad_name LIKE ?';
         params.push(`%${req.query.keyword}%`);
       }
+
+      // 店铺权限过滤
+      const allowedShops = await getAllowedShopIds(req);
+      const sf = addShopFilter(where, params, allowedShops);
+      where = sf.where;
+      params.length = 0; params.push(...sf.params);
 
       // 日期筛选 - 关联eb_ad_daily
       let dailyWhere = '';
@@ -706,6 +789,12 @@ module.exports = function(pool) {
         where += ' AND title LIKE ?';
         params.push(`%${req.query.keyword}%`);
       }
+
+      // 店铺权限过滤
+      const allowedShops = await getAllowedShopIds(req);
+      const sf = addShopFilter(where, params, allowedShops);
+      where = sf.where;
+      params.length = 0; params.push(...sf.params);
 
       const sortField = req.query.sortBy === 'sell' ? 'sell_cnt' :
                         req.query.sortBy === 'stock' ? 'stock' :
