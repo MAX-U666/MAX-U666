@@ -313,13 +313,13 @@ module.exports = function(pool) {
     }
   });
 
-  // 优雅关闭
+  // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
-    await scheduler.shutdown();
+    try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
   });
 
   process.on('SIGINT', async () => {
-    await scheduler.shutdown();
+    try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGINT error:', e.message); }
   });
 
   return router;
