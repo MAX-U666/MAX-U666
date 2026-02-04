@@ -24,17 +24,17 @@ const fmtPct = (cur, prev) => {
 // ========== KPI 卡片 ==========
 const KpiCard = ({ icon, label, value, sub, change }) => (
   <div style={{
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)',
+    background: '#FFFFFF',
     borderRadius: '14px', padding: '18px 20px',
-    border: '1px solid rgba(255,255,255,0.06)',
+    border: '1px solid #E8E8ED',
     position: 'relative', overflow: 'hidden',
   }}>
-    <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
       <span>{icon}</span> {label}
     </div>
-    <div style={{ fontSize: '22px', fontWeight: '700', color: '#F8FAFC', letterSpacing: '-0.5px' }}>{value}</div>
+    <div style={{ fontSize: '22px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.5px' }}>{value}</div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-      {sub && <span style={{ fontSize: '11px', color: '#64748B' }}>{sub}</span>}
+      {sub && <span style={{ fontSize: '11px', color: '#999' }}>{sub}</span>}
       {change && (
         <span style={{ fontSize: '11px', fontWeight: '600', color: change.up ? '#10B981' : '#EF4444' }}>
           {change.up ? '↑' : '↓'} {change.value}
@@ -52,17 +52,17 @@ const TrendChart = ({ data, metric, label, color = '#3B82F6' }) => {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)', borderRadius: '14px', padding: '20px',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FAFBFC', borderRadius: '14px', padding: '20px',
+      border: '1px solid #E8E8ED',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '16px' }}>📈 {label}</div>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px' }}>📈 {label}</div>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '120px' }}>
         {data.map((d, i) => {
           const v = parseFloat(d[metric]) || 0;
           const h = Math.max((v / max) * 100, 2);
           return (
             <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-              <div style={{ fontSize: '9px', color: '#94A3B8', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: '9px', color: '#666', whiteSpace: 'nowrap' }}>
                 {metric === 'roi' ? v.toFixed(1) : v >= 1e6 ? `${(v/1e6).toFixed(0)}M` : v >= 1e3 ? `${(v/1e3).toFixed(0)}K` : v}
               </div>
               <div style={{
@@ -70,7 +70,7 @@ const TrendChart = ({ data, metric, label, color = '#3B82F6' }) => {
                 background: `linear-gradient(180deg, ${color} 0%, ${color}88 100%)`,
                 minHeight: '3px', transition: 'height 0.5s ease',
               }} />
-              <div style={{ fontSize: '8px', color: '#475569', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: '8px', color: '#999', transform: 'rotate(-45deg)', whiteSpace: 'nowrap' }}>
                 {(d.date || '').substring(5)}
               </div>
             </div>
@@ -105,13 +105,13 @@ const DecisionCard = ({ ad }) => {
       borderRadius: '12px', padding: '14px 16px',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-        <div style={{ fontSize: '12px', fontWeight: '600', color: '#F8FAFC', flex: 1, lineHeight: 1.4 }}>
+        <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a', flex: 1, lineHeight: 1.4 }}>
           {(ad.ad_name || '').substring(0, 60)}{ad.ad_name?.length > 60 ? '...' : ''}
         </div>
         <div style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', marginLeft: '10px' }}>{ad.action}</div>
       </div>
-      <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '8px' }}>{ad.reason}</div>
-      <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#64748B' }}>
+      <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>{ad.reason}</div>
+      <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#999' }}>
         <span>花费: {fmtIDR(ad.cost_period)}</span>
         <span>GMV: {fmtIDR(ad.gmv_period)}</span>
         <span style={{ color: parseFloat(ad.roi) >= 3 ? '#10B981' : parseFloat(ad.roi) >= 1.5 ? '#F59E0B' : '#EF4444', fontWeight: '600' }}>
@@ -129,19 +129,19 @@ const ProductRank = ({ products }) => {
   if (!products || products.length === 0) return null;
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)', borderRadius: '14px', padding: '20px',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FAFBFC', borderRadius: '14px', padding: '20px',
+      border: '1px solid #E8E8ED',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '14px' }}>🏆 商品利润排行 (近30天)</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 80px 80px 80px 70px 60px', fontSize: '11px', color: '#64748B', fontWeight: '600', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '14px' }}>🏆 商品利润排行 (近30天)</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '30px 1fr 80px 80px 80px 70px 60px', fontSize: '11px', color: '#999', fontWeight: '600', padding: '8px 0', borderBottom: '1px solid #E8E8ED' }}>
         <div>#</div><div>商品</div><div style={{textAlign:'right'}}>订单</div><div style={{textAlign:'right'}}>GMV</div>
         <div style={{textAlign:'right'}}>利润</div><div style={{textAlign:'right'}}>广告费</div><div style={{textAlign:'right'}}>ROI</div>
       </div>
       {products.map((p, i) => (
         <div key={`${p.platform_item_id}-${p.shop_id}`} style={{
           display: 'grid', gridTemplateColumns: '30px 1fr 80px 80px 80px 70px 60px',
-          fontSize: '11px', color: '#E2E8F0', padding: '10px 0',
-          borderBottom: '1px solid rgba(255,255,255,0.03)',
+          fontSize: '11px', color: '#333', padding: '10px 0',
+          borderBottom: '1px solid #F0F0F3',
         }}>
           <div style={{
             width: '22px', height: '22px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -149,10 +149,10 @@ const ProductRank = ({ products }) => {
             color: i < 3 ? '#fff' : '#64748B', fontWeight: '700', fontSize: '10px',
           }}>{i + 1}</div>
           <div>
-            <div style={{ color: '#F8FAFC', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>
+            <div style={{ color: '#1a1a1a', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '250px' }}>
               {p.item_name}
             </div>
-            <div style={{ fontSize: '10px', color: '#475569' }}>{p.shop_name}</div>
+            <div style={{ fontSize: '10px', color: '#999' }}>{p.shop_name}</div>
           </div>
           <div style={{textAlign:'right', fontWeight:'600'}}>{fmtNum(p.order_count)}</div>
           <div style={{textAlign:'right'}}>{fmtIDR(p.total_gmv)}</div>
@@ -206,10 +206,10 @@ const ExecuteCenter = () => {
       {/* 标题 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#F8FAFC', margin: 0 }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a', margin: 0 }}>
             🎯 数据分析中心
           </h2>
-          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             实时概览 · 趋势分析 · AI决策建议
           </div>
         </div>
@@ -217,21 +217,21 @@ const ExecuteCenter = () => {
           style={{
             padding: '8px 16px', borderRadius: '8px', border: 'none',
             background: loading ? '#475569' : 'rgba(255,255,255,0.06)',
-            color: '#CBD5E1', fontSize: '12px', cursor: loading ? 'not-allowed' : 'pointer',
+            color: '#555', fontSize: '12px', cursor: loading ? 'not-allowed' : 'pointer',
           }}>
           {loading ? '加载中...' : '🔄 刷新'}
         </button>
       </div>
 
       {loading && !overview ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>
           <div style={{ width: '32px', height: '32px', border: '3px solid rgba(255,255,255,0.1)', borderTopColor: '#FF6B35', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 16px' }} />
           加载数据中...
         </div>
       ) : (
         <>
           {/* 今日KPI */}
-          <div style={{ fontSize: '13px', fontWeight: '600', color: '#94A3B8', marginBottom: '12px' }}>📊 今日实时</div>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#666', marginBottom: '12px' }}>📊 今日实时</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '24px' }}>
             <KpiCard icon="📦" label="今日订单" value={fmtNum(t.orders)} sub="笔" change={fmtPct(t.orders, y.orders)} />
             <KpiCard icon="💰" label="今日GMV" value={fmtIDR(t.gmv)} change={fmtPct(t.gmv, y.gmv)} />
@@ -243,7 +243,7 @@ const ExecuteCenter = () => {
           </div>
 
           {/* 本周汇总 */}
-          <div style={{ fontSize: '13px', fontWeight: '600', color: '#94A3B8', marginBottom: '12px' }}>📅 近7天汇总</div>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#666', marginBottom: '12px' }}>📅 近7天汇总</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '28px' }}>
             <KpiCard icon="📦" label="总订单" value={fmtNum(w.orders)} />
             <KpiCard icon="💰" label="总GMV" value={fmtIDR(w.gmv)} />
@@ -257,7 +257,7 @@ const ExecuteCenter = () => {
 
           {/* 趋势图 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#94A3B8' }}>📈 趋势分析</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#666' }}>📈 趋势分析</div>
             <div style={{ display: 'flex', gap: '4px' }}>
               {[7, 14, 30].map(d => (
                 <button key={d} onClick={() => setTrendDays(d)}
@@ -285,7 +285,7 @@ const ExecuteCenter = () => {
           {decisions && (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#94A3B8' }}>🤖 AI广告决策 (近{decisions.period})</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#666' }}>🤖 AI广告决策 (近{decisions.period})</div>
                 <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
                   {decisions.summary.increase > 0 && <span style={{ color: '#10B981' }}>🟢加预算 {decisions.summary.increase}</span>}
                   {decisions.summary.maintain > 0 && <span style={{ color: '#F59E0B' }}>🟡维持 {decisions.summary.maintain}</span>}
