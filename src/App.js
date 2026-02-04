@@ -4,6 +4,7 @@ import AIDecisionPanel from './components/AIDecisionPanel';
 import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
 import ExecuteCenter from './pages/ExecuteCenter';  // 新增：执行中心
+import OrderCenter from './pages/OrderCenter';  // 新增：订单中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
@@ -365,6 +366,27 @@ const App = () => {
           >
             🤖 执行中心
           </button>
+          <button 
+            onClick={() => switchModule('orders')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'orders' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : 'rgba(0,0,0,0.04)',
+              color: currentModule === 'orders' ? '#fff' : '#6E6E73',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            📦 订单中心
+          </button>
         </div>
       )}
       
@@ -372,6 +394,8 @@ const App = () => {
         {/* 根据模块切换显示不同内容 */}
         {currentModule === 'execute' ? (
           <ExecuteCenter />
+        ) : currentModule === 'orders' ? (
+          <OrderCenter />
         ) : currentView === 'dashboard' ? (
           <Dashboard 
             products={products} loading={loading} currentUser={currentUser}
