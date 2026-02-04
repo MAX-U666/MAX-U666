@@ -206,7 +206,7 @@ const AdDetail = ({ ad, daily, onClose }) => {
                   fontSize: '11px', color: '#E2E8F0', padding: '6px 12px',
                   borderBottom: '1px solid rgba(255,255,255,0.03)',
                 }}>
-                  <div>{d.date}</div>
+                  <div>{(d.date || '').substring(0, 10)}</div>
                   <div style={{ textAlign: 'right' }}>{formatIDR(d.expense)}</div>
                   <div style={{ textAlign: 'right' }}>{formatNum(d.impression)}</div>
                   <div style={{ textAlign: 'right' }}>{formatNum(d.clicks)}</div>
