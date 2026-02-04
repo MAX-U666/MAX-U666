@@ -243,18 +243,22 @@ module.exports = function(pool) {
   router.get('/orders/list', async (req, res) => {
     try {
       const page = parseInt(req.query.page) || 1;
-      const pageSize = Math.min(parseInt(req.query.pageSize) || 20, 100);
+      const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 100);
       const offset = (page - 1) * pageSize;
 
       let where = '1=1';
       const params = [];
 
+      if (req.query.shop) {
+        where += ' AND shop_name = ?';
+        params.push(req.query.shop);
+      }
       if (req.query.shopId) {
         where += ' AND shop_id = ?';
         params.push(req.query.shopId);
       }
       if (req.query.status) {
-        where += ' AND platform_order_status = ?';
+        where += ' AND app_package_tab = ?';
         params.push(req.query.status);
       }
       if (req.query.dateFrom) {
@@ -283,8 +287,11 @@ module.exports = function(pool) {
 
       res.json({
         success: true,
-        data: orders,
-        pagination: { page, pageSize, total, totalPages: Math.ceil(total / pageSize) },
+        orders,
+        total,
+        page,
+        pageSize,
+        totalPages: Math.ceil(total / pageSize),
       });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -316,28 +323,47 @@ module.exports = function(pool) {
       const [result] = await pool.query(`
         SELECT
           COUNT(*) as total_orders,
-          SUM(CASE WHEN platform_order_status = 'COMPLETED' THEN 1 ELSE 0 END) as completed,
-          SUM(CASE WHEN platform_order_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled,
-          SUM(CASE WHEN platform_order_status NOT IN ('COMPLETED','CANCELLED') THEN 1 ELSE 0 END) as processing,
-          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN order_amount ELSE 0 END) as total_gmv,
-          SUM(CASE WHEN platform_order_status = 'COMPLETED' THEN order_amount ELSE 0 END) as completed_gmv,
-          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN item_quantity ELSE 0 END) as total_items,
-          COUNT(DISTINCT shop_id) as shop_count
+          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN pay_amount ELSE 0 END) as total_gmv,
+          SUM(order_profit) as total_profit,
+          COUNT(DISTINCT shop_name) as shop_count
         FROM eb_orders WHERE ${where}
       `, params);
 
+      const summary = result[0];
+      const profitMargin = summary.total_gmv > 0
+        ? ((summary.total_profit / summary.total_gmv) * 100).toFixed(1) + '%'
+        : '0%';
+
+      // 按店铺统计
       const [shopStats] = await pool.query(`
         SELECT
-          shop_id, shop_name, platform_shop_name,
-          COUNT(*) as orders,
-          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN order_amount ELSE 0 END) as gmv,
-          SUM(CASE WHEN platform_order_status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelled
+          shop_name,
+          COUNT(*) as count,
+          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN pay_amount ELSE 0 END) as total_pay
         FROM eb_orders WHERE ${where}
-        GROUP BY shop_id, shop_name, platform_shop_name
-        ORDER BY gmv DESC
+        GROUP BY shop_name
+        ORDER BY count DESC
       `, params);
 
-      res.json({ success: true, summary: result[0], byShop: shopStats });
+      // 按状态统计
+      const [statusStats] = await pool.query(`
+        SELECT
+          app_package_tab as status,
+          COUNT(*) as count
+        FROM eb_orders WHERE ${where}
+        GROUP BY app_package_tab
+        ORDER BY count DESC
+      `, params);
+
+      res.json({
+        success: true,
+        totalOrders: summary.total_orders,
+        totalGMV: summary.total_gmv,
+        totalProfit: summary.total_profit,
+        avgProfitMargin: profitMargin,
+        shops: shopStats,
+        statusBreakdown: statusStats,
+      });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
