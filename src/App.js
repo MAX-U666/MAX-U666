@@ -5,6 +5,8 @@ import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
 import ExecuteCenter from './pages/ExecuteCenter';  // 新增：执行中心
 import OrderCenter from './pages/OrderCenter';  // 新增：订单中心
+import ProductCenter from './pages/ProductCenter';  // 新增：商品中心
+import AdCenter from './pages/AdCenter';  // 新增：广告中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
@@ -387,6 +389,48 @@ const App = () => {
           >
             📦 订单中心
           </button>
+          <button 
+            onClick={() => switchModule('products')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'products' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : 'rgba(0,0,0,0.04)',
+              color: currentModule === 'products' ? '#fff' : '#6E6E73',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            🏪 商品中心
+          </button>
+          <button 
+            onClick={() => switchModule('ads')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'ads' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : 'rgba(0,0,0,0.04)',
+              color: currentModule === 'ads' ? '#fff' : '#6E6E73',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            📢 广告中心
+          </button>
         </div>
       )}
       
@@ -396,6 +440,10 @@ const App = () => {
           <ExecuteCenter />
         ) : currentModule === 'orders' ? (
           <OrderCenter />
+        ) : currentModule === 'products' ? (
+          <ProductCenter />
+        ) : currentModule === 'ads' ? (
+          <AdCenter />
         ) : currentView === 'dashboard' ? (
           <Dashboard 
             products={products} loading={loading} currentUser={currentUser}
