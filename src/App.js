@@ -273,7 +273,7 @@ const App = () => {
     return (
       <div style={{
         minHeight: '100vh',
-        background: 'rgba(255,255,255,0.05)',
+        background: '#F5F5F7',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -520,13 +520,13 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
     <div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
         {[
-          { label: '管理产品', value: stats.total, color: '#E2E8F0' },
+          { label: '管理产品', value: stats.total, color: '#1a1a1a' },
           { label: '进行中', value: stats.pending, color: '#3B82F6' },
           { label: '已完成', value: stats.executed, color: '#10B981' },
           { label: '已暂停', value: stats.abnormal, color: '#F59E0B' },
         ].map((item, i) => (
           <div key={i} style={{ ...styles.card, padding: '20px' }}>
-            <span style={{ fontSize: '13px', color: '#64748B' }}>{item.label}</span>
+            <span style={{ fontSize: '13px', color: '#999' }}>{item.label}</span>
             <div style={{ fontSize: '32px', fontWeight: '700', color: item.color, marginTop: '8px' }}>{item.value}</div>
           </div>
         ))}
@@ -535,13 +535,13 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '20px' }}>
         <div style={{ display: 'flex', gap: '10px' }}>
           {[{ value: 'mine', label: '我的产品' }, { value: 'all', label: '全部产品' }].map(opt => (
-            <button key={opt.value} onClick={() => setFilterOwner(opt.value)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: filterOwner === opt.value ? '#3B82F6' : 'rgba(255,255,255,0.05)', color: filterOwner === opt.value ? '#fff' : '#E2E8F0', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>{opt.label}</button>
+            <button key={opt.value} onClick={() => setFilterOwner(opt.value)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', background: filterOwner === opt.value ? 'linear-gradient(135deg, #FF6B35, #F7931E)' : '#F5F5F7', color: filterOwner === opt.value ? '#fff' : '#666', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>{opt.label}</button>
           ))}
         </div>
-        <div style={{ width: '1px', height: '28px', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ width: '1px', height: '28px', background: '#E8E8ED' }} />
         <div style={{ display: 'flex', gap: '10px' }}>
           {['all', '进行中', '已完成', '已暂停'].map(s => (
-            <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: '8px 16px', borderRadius: '8px', border: filterStatus === s ? '2px solid #3B82F6' : '1px solid rgba(255,255,255,0.06)', background: filterStatus === s ? '#E5F1FF' : '#1E293B', color: filterStatus === s ? '#3B82F6' : '#E2E8F0', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>{s === 'all' ? '全部' : s}</button>
+            <button key={s} onClick={() => setFilterStatus(s)} style={{ padding: '8px 16px', borderRadius: '8px', border: filterStatus === s ? '2px solid #FF6B35' : '1px solid #E8E8ED', background: filterStatus === s ? 'rgba(255,107,53,0.06)' : '#fff', color: filterStatus === s ? '#FF6B35' : '#333', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>{s === 'all' ? '全部' : s}</button>
           ))}
         </div>
         <div style={{ flex: 1 }} />
@@ -549,9 +549,9 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#64748B' }}>加载中...</div>
+        <div style={{ textAlign: 'center', padding: '60px', color: '#999' }}>加载中...</div>
       ) : products.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '80px', color: '#64748B' }}>
+        <div style={{ textAlign: 'center', padding: '80px', color: '#999' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
           <p>暂无产品</p>
           <button onClick={onNewProduct} style={styles.buttonPrimary}>新建产品</button>
@@ -565,18 +565,18 @@ const Dashboard = ({ products, loading, currentUser, filterOwner, setFilterOwner
                 <div style={{ cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#E2E8F0', marginBottom: '4px' }}>{product.name}</div>
-                      <div style={{ fontSize: '13px', color: '#64748B' }}>SKU: {product.sku}</div>
+                      <div style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '4px' }}>{product.name}</div>
+                      <div style={{ fontSize: '13px', color: '#999' }}>SKU: {product.sku}</div>
                     </div>
                     <span style={{ padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', background: statusConfig.bg, color: statusConfig.color }}>{statusConfig.label}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '16px' }}>
                     {[1,2,3,4,5,6,7].map(d => (
-                      <div key={d} style={{ width: '28px', height: '6px', borderRadius: '3px', background: d < product.current_day ? '#10B981' : d === product.current_day ? '#3B82F6' : 'rgba(255,255,255,0.1)' }} />
+                      <div key={d} style={{ width: '28px', height: '6px', borderRadius: '3px', background: d < product.current_day ? '#10B981' : d === product.current_day ? '#3B82F6' : '#E8E8ED' }} />
                     ))}
-                    <span style={{ fontSize: '13px', color: '#94A3B8', marginLeft: '12px', fontWeight: '500' }}>Day {product.current_day}/7</span>
+                    <span style={{ fontSize: '13px', color: '#999', marginLeft: '12px', fontWeight: '500' }}>Day {product.current_day}/7</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#64748B' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px', color: '#999' }}>
                     <span>{product.owner_avatar} {product.owner_name}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <span>开始: {new Date(product.start_date).toLocaleDateString('zh-CN')}</span>
@@ -624,8 +624,8 @@ const Detail = ({ selectedProduct, selectedDay, onDaySelect, dayStatus, currentD
       <div style={{ ...styles.card, padding: '14px 20px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button onClick={onUpload} style={{ ...styles.buttonPrimary, background: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)' }}>📊 上传数据</button>
         <button style={styles.buttonSecondary}>结果回写</button>
-        <div style={{ flex: 1, padding: '10px 16px', background: 'rgba(0,0,0,0.02)', borderRadius: '10px', fontSize: '13px', color: '#E2E8F0' }}>
-          <span style={{ color: '#64748B' }}>SKU:</span> {selectedProduct.sku} · {selectedProduct.name}
+        <div style={{ flex: 1, padding: '10px 16px', background: '#F5F5F7', borderRadius: '10px', fontSize: '13px', color: '#333' }}>
+          <span style={{ color: '#999' }}>SKU:</span> {selectedProduct.sku} · {selectedProduct.name}
         </div>
       </div>
 
