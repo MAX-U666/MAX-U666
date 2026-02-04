@@ -56,8 +56,8 @@ const getStatusInfo = (s) => STATUS_MAP[s] || { label: s || '-', color: '#6B7280
 // ========== 统计卡片 ==========
 const StatCard = ({ icon, label, value, sub, color }) => (
   <div style={{
-    background: 'rgba(255,255,255,0.03)',
-    border: '1px solid rgba(255,255,255,0.06)',
+    background: '#FFFFFF',
+    border: '1px solid #E8E8ED',
     borderRadius: '14px',
     padding: '20px',
     flex: 1,
@@ -71,13 +71,13 @@ const StatCard = ({ icon, label, value, sub, color }) => (
       background: `${color}10`, filter: 'blur(15px)',
     }} />
     <div style={{ fontSize: '20px', marginBottom: '10px' }}>{icon}</div>
-    <div style={{ fontSize: '11px', color: '#64748B', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+    <div style={{ fontSize: '11px', color: '#999', marginBottom: '6px', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
       {label}
     </div>
-    <div style={{ fontSize: '24px', fontWeight: '700', color: '#F8FAFC', letterSpacing: '-0.5px' }}>
+    <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a1a', letterSpacing: '-0.5px' }}>
       {value}
     </div>
-    {sub && <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>{sub}</div>}
+    {sub && <div style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>{sub}</div>}
   </div>
 );
 
@@ -88,20 +88,20 @@ const ShopBar = ({ shops }) => {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: '#FFFFFF',
+      border: '1px solid #E8E8ED',
       borderRadius: '14px', padding: '20px',
     }}>
-      <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '16px' }}>
+      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px' }}>
         📊 店铺商品 & 销量
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {shops.slice(0, 12).map((shop) => (
           <div key={shop.shop_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{ width: '60px', fontSize: '11px', color: '#94A3B8', textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ width: '60px', fontSize: '11px', color: '#666', textAlign: 'right', flexShrink: 0 }}>
               {shop.shop_name || shop.shop_id}
             </div>
-            <div style={{ flex: 1, height: '22px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ flex: 1, height: '22px', background: '#FFFFFF', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{
                 width: `${((parseInt(shop.sold) || 0) / maxSold) * 100}%`,
                 height: '100%',
@@ -115,7 +115,7 @@ const ShopBar = ({ shops }) => {
                 </span>
               </div>
             </div>
-            <div style={{ width: '50px', fontSize: '10px', color: '#64748B', textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ width: '50px', fontSize: '10px', color: '#999', textAlign: 'right', flexShrink: 0 }}>
               {shop.products}品
             </div>
           </div>
@@ -137,9 +137,9 @@ const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
       padding: '20px',
     }} onClick={onClose}>
       <div style={{
-        background: '#1E293B', borderRadius: '16px', width: '100%', maxWidth: '700px',
+        background: '#FFFFFF', borderRadius: '16px', width: '100%', maxWidth: '700px',
         maxHeight: '80vh', overflow: 'auto', padding: '28px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: '1px solid #E8E8ED',
       }} onClick={e => e.stopPropagation()}>
         {/* 头部 */}
         <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
@@ -147,16 +147,16 @@ const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
             <img src={product.pic_url} alt="" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover' }} />
           )}
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '15px', fontWeight: '600', color: '#F8FAFC', lineHeight: 1.4, marginBottom: '8px' }}>
+            <div style={{ fontSize: '15px', fontWeight: '600', color: '#1a1a1a', lineHeight: 1.4, marginBottom: '8px' }}>
               {product.title}
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', background: si.bg, color: si.color }}>{si.label}</span>
-              <span style={{ fontSize: '12px', color: '#94A3B8' }}>ID: {product.platform_item_id}</span>
-              <span style={{ fontSize: '12px', color: '#94A3B8' }}>店铺: {product.shop_name || product.shop_id}</span>
+              <span style={{ fontSize: '12px', color: '#666' }}>ID: {product.platform_item_id}</span>
+              <span style={{ fontSize: '12px', color: '#666' }}>店铺: {product.shop_name || product.shop_id}</span>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '24px', cursor: 'pointer', padding: '0 4px' }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#999', fontSize: '24px', cursor: 'pointer', padding: '0 4px' }}>×</button>
         </div>
 
         {/* 数据网格 */}
@@ -171,9 +171,9 @@ const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
             { label: '浏览', value: formatNum(product.pv) },
             { label: 'SKU', value: product.sku_count },
           ].map(({ label, value }) => (
-            <div key={label} style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
-              <div style={{ fontSize: '10px', color: '#64748B', marginBottom: '4px' }}>{label}</div>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#F8FAFC' }}>{value}</div>
+            <div key={label} style={{ background: '#FFFFFF', borderRadius: '10px', padding: '12px', textAlign: 'center' }}>
+              <div style={{ fontSize: '10px', color: '#999', marginBottom: '4px' }}>{label}</div>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#1a1a1a' }}>{value}</div>
             </div>
           ))}
         </div>
@@ -181,15 +181,15 @@ const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
         {/* 关联广告 */}
         {ads && ads.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '12px' }}>📢 关联广告 ({ads.length})</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '12px' }}>📢 关联广告 ({ads.length})</div>
             {ads.map(ad => (
               <div key={ad.platform_campaign_id} style={{
-                background: 'rgba(255,255,255,0.03)', borderRadius: '10px', padding: '12px', marginBottom: '8px',
+                background: '#FFFFFF', borderRadius: '10px', padding: '12px', marginBottom: '8px',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
-                  <div style={{ fontSize: '12px', color: '#E2E8F0', marginBottom: '4px' }}>{ad.ad_name?.substring(0, 50)}...</div>
-                  <div style={{ fontSize: '11px', color: '#64748B' }}>
+                  <div style={{ fontSize: '12px', color: '#333', marginBottom: '4px' }}>{ad.ad_name?.substring(0, 50)}...</div>
+                  <div style={{ fontSize: '11px', color: '#999' }}>
                     花费: {formatIDR(ad.expense)} | ROI: {ad.broad_roi || '-'} | 订单: {ad.broad_order || 0}
                   </div>
                 </div>
@@ -224,22 +224,22 @@ const ProductDetail = ({ product, ads, orderStats, recentOrders, onClose }) => {
         {/* 最近订单 */}
         {recentOrders && recentOrders.length > 0 && (
           <div style={{ marginBottom: '20px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC', marginBottom: '12px' }}>🛒 最近订单 ({recentOrders.length})</div>
+            <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '12px' }}>🛒 最近订单 ({recentOrders.length})</div>
             <div style={{ maxHeight: '200px', overflow: 'auto' }}>
               {recentOrders.map((o, i) => (
                 <div key={i} style={{
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  padding: '8px 12px', borderBottom: '1px solid #F0F0F3',
                   fontSize: '12px',
                 }}>
                   <div>
-                    <span style={{ color: '#E2E8F0' }}>{o.platform_order_sn}</span>
-                    <span style={{ color: '#64748B', marginLeft: '8px' }}>{o.shop_name}</span>
+                    <span style={{ color: '#333' }}>{o.platform_order_sn}</span>
+                    <span style={{ color: '#999', marginLeft: '8px' }}>{o.shop_name}</span>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <span style={{ color: '#94A3B8' }}>×{o.quantity}</span>
+                    <span style={{ color: '#666' }}>×{o.quantity}</span>
                     <span style={{ color: '#10B981', fontWeight: '500' }}>{formatIDR(o.discounted_price)}</span>
-                    <span style={{ color: '#64748B', fontSize: '11px' }}>{o.gmt_order_start?.substring(5, 16)}</span>
+                    <span style={{ color: '#999', fontSize: '11px' }}>{o.gmt_order_start?.substring(5, 16)}</span>
                   </div>
                 </div>
               ))}
@@ -332,10 +332,10 @@ const ProductCenter = () => {
       {/* 标题栏 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#F8FAFC', margin: 0, letterSpacing: '-0.5px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#1a1a1a', margin: 0, letterSpacing: '-0.5px' }}>
             🏪 商品中心
           </h2>
-          <div style={{ fontSize: '12px', color: '#64748B', marginTop: '4px' }}>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             EasyBoss 全店铺商品数据 · 广告关联匹配
           </div>
         </div>
@@ -376,8 +376,8 @@ const ProductCenter = () => {
           onChange={e => { setKeyword(e.target.value); setPage(1); }}
           style={{
             flex: 1, minWidth: '200px', padding: '10px 14px', borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)',
-            color: '#F8FAFC', fontSize: '13px', outline: 'none',
+            border: '1px solid #E8E8ED', background: '#FFFFFF',
+            color: '#1a1a1a', fontSize: '13px', outline: 'none',
           }}
         />
         <select
@@ -385,8 +385,8 @@ const ProductCenter = () => {
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           style={{
             padding: '10px 14px', borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '13px', outline: 'none',
+            border: '1px solid #E8E8ED', background: '#FFFFFF',
+            color: '#1a1a1a', fontSize: '13px', outline: 'none',
           }}
         >
           <option value="">全部状态</option>
@@ -399,8 +399,8 @@ const ProductCenter = () => {
           onChange={e => { setSortBy(e.target.value); setPage(1); }}
           style={{
             padding: '10px 14px', borderRadius: '10px',
-            border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '13px', outline: 'none',
+            border: '1px solid #E8E8ED', background: '#FFFFFF',
+            color: '#1a1a1a', fontSize: '13px', outline: 'none',
           }}
         >
           <option value="sell">按销量</option>
@@ -414,8 +414,8 @@ const ProductCenter = () => {
             onChange={e => { setShopFilter(e.target.value); setPage(1); }}
             style={{
               padding: '10px 14px', borderRadius: '10px',
-              border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-              color: '#F8FAFC', fontSize: '13px', outline: 'none', maxWidth: '160px',
+              border: '1px solid #E8E8ED', background: '#FFFFFF',
+              color: '#1a1a1a', fontSize: '13px', outline: 'none', maxWidth: '160px',
             }}
           >
             <option value="">全部店铺</option>
@@ -428,8 +428,8 @@ const ProductCenter = () => {
 
       {/* 商品列表 */}
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
+        background: '#FFFFFF',
+        border: '1px solid #E8E8ED',
         borderRadius: '14px',
         overflow: 'hidden',
       }}>
@@ -438,9 +438,9 @@ const ProductCenter = () => {
           display: 'grid',
           gridTemplateColumns: '2fr 100px 80px 80px 80px 70px 70px 60px',
           padding: '12px 16px',
-          background: 'rgba(255,255,255,0.02)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          fontSize: '11px', fontWeight: '600', color: '#64748B', textTransform: 'uppercase',
+          background: '#FAFBFC',
+          borderBottom: '1px solid #E8E8ED',
+          fontSize: '11px', fontWeight: '600', color: '#999', textTransform: 'uppercase',
         }}>
           <div>商品</div>
           <div style={{ textAlign: 'right' }}>售价</div>
@@ -453,9 +453,9 @@ const ProductCenter = () => {
         </div>
 
         {loading ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#64748B' }}>加载中...</div>
+          <div style={{ padding: '60px 0', textAlign: 'center', color: '#999' }}>加载中...</div>
         ) : products.length === 0 ? (
-          <div style={{ padding: '60px 0', textAlign: 'center', color: '#64748B' }}>暂无数据</div>
+          <div style={{ padding: '60px 0', textAlign: 'center', color: '#999' }}>暂无数据</div>
         ) : (
           products.map((p) => {
             const si = getStatusInfo(p.status);
@@ -465,7 +465,7 @@ const ProductCenter = () => {
                   display: 'grid',
                   gridTemplateColumns: '2fr 100px 80px 80px 80px 70px 70px 60px',
                   padding: '12px 16px',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  borderBottom: '1px solid #F0F0F3',
                   alignItems: 'center',
                   transition: 'background 0.15s',
                   cursor: 'pointer',
@@ -479,24 +479,24 @@ const ProductCenter = () => {
                     <img src={p.pic_url} alt="" style={{ width: '36px', height: '36px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }} />
                   )}
                   <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: '12px', color: '#E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: '12px', color: '#333', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.title}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>
+                    <div style={{ fontSize: '10px', color: '#999', marginTop: '2px' }}>
                       {p.shop_name || p.shop_id} · {p.brand_name || '-'} · SKU {p.sku_count}
                     </div>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '12px', color: '#F8FAFC', fontWeight: '500' }}>
+                <div style={{ textAlign: 'right', fontSize: '12px', color: '#1a1a1a', fontWeight: '500' }}>
                   {formatIDR(p.sale_price || p.original_price)}
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '12px', color: '#F8FAFC', fontWeight: '600' }}>
+                <div style={{ textAlign: 'right', fontSize: '12px', color: '#1a1a1a', fontWeight: '600' }}>
                   {formatNum(p.sell_cnt)}
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: p.stock < 10 ? '#EF4444' : '#F8FAFC' }}>
                   {formatNum(p.stock)}
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '12px', color: '#94A3B8' }}>
+                <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
                   {formatNum(p.fav_cnt)}
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: '#F59E0B' }}>
@@ -527,17 +527,17 @@ const ProductCenter = () => {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page <= 1}
-            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#E2E8F0', fontSize: '12px', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.3 : 1 }}
+            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #E8E8ED', background: '#FFFFFF', color: '#333', fontSize: '12px', cursor: page <= 1 ? 'default' : 'pointer', opacity: page <= 1 ? 0.3 : 1 }}
           >
             ‹ 上一页
           </button>
-          <span style={{ fontSize: '12px', color: '#94A3B8', padding: '0 8px' }}>
+          <span style={{ fontSize: '12px', color: '#666', padding: '0 8px' }}>
             {page} / {totalPages}  (共{total}条)
           </span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages}
-            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#E2E8F0', fontSize: '12px', cursor: page >= totalPages ? 'default' : 'pointer', opacity: page >= totalPages ? 0.3 : 1 }}
+            style={{ padding: '6px 12px', borderRadius: '8px', border: '1px solid #E8E8ED', background: '#FFFFFF', color: '#333', fontSize: '12px', cursor: page >= totalPages ? 'default' : 'pointer', opacity: page >= totalPages ? 0.3 : 1 }}
           >
             下一页 ›
           </button>
