@@ -753,6 +753,79 @@ module.exports = function(pool) {
     }
   });
 
+  // =============================================
+  // 企业微信通知中转 + 同步日志
+  // =============================================
+
+  const https = require('https');
+
+  /**
+   * POST /api/easyboss/notify
+   * 企业微信消息中转（给daily-sync.js用）
+   */
+  router.post('/notify', async (req, res) => {
+    try {
+      const { content } = req.body || {};
+      if (!content) return res.status(400).json({ success: false, error: '缺少content' });
+
+      const webhookUrl = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f74c9925-3967-4f21-b1d7-fae4865565cf';
+      const url = new URL(webhookUrl);
+      const data = JSON.stringify({ msgtype: 'markdown', markdown: { content } });
+
+      const result = await new Promise((resolve, reject) => {
+        const req = https.request({
+          hostname: url.hostname, port: 443,
+          path: url.pathname + url.search,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+          timeout: 10000,
+        }, (res) => {
+          let body = '';
+          res.on('data', d => body += d);
+          res.on('end', () => {
+            try { resolve(JSON.parse(body)); } catch { resolve(body); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.write(data);
+        req.end();
+      });
+
+      res.json({ success: true, result });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/sync/logs
+   * 查看同步日志
+   */
+  router.get('/sync/logs', async (req, res) => {
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS eb_sync_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          sync_type VARCHAR(20) DEFAULT 'daily',
+          status VARCHAR(20),
+          orders_result JSON,
+          ads_result JSON,
+          products_result JSON,
+          errors TEXT,
+          duration VARCHAR(20),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      const [logs] = await pool.query(
+        'SELECT * FROM eb_sync_logs ORDER BY created_at DESC LIMIT 30'
+      );
+      res.json({ success: true, logs });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
     try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
