@@ -20,13 +20,13 @@ const pool = mysql.createPool({
 const apiRoutes = require('./routes/api')(pool);
 app.use('/api', apiRoutes);
 
+// EasyBoss 订单数据路由（必须在 easyboss 之前，Express 5 路由匹配）
+const ordersRoutes = require('./routes/orders')(pool);
+app.use('/api/easyboss/orders', ordersRoutes);
+
 // EasyBoss 数据采集路由
 const easybossRoutes = require('./routes/easyboss')(pool);
 app.use('/api/easyboss', easybossRoutes);
-
-// EasyBoss 订单数据路由（新增）
-const ordersRoutes = require('./routes/orders')(pool);
-app.use('/api/easyboss/orders', ordersRoutes);
 
 // 静态文件：前端 build
 app.use(express.static(path.join(__dirname, 'build')));
