@@ -201,15 +201,20 @@ async function main() {
       console.error('  ❌', e.message);
     }
 
-    // Step 3: 商品+匹配
-    console.log('\n[3/3] 拉取商品...');
-    try {
-      results.products = await callLocalApi('/api/easyboss/products/fetch', 'POST', { status: '', matchAds: true });
-      if (results.products.success === false) throw new Error(results.products.error || '未知错误');
-      console.log(`  ✅ ${results.products.productsFetched || 0}条 / 匹配${results.products.adsMatched || 0}`);
-    } catch (e) {
-      results.errors.push(`商品: ${e.message}`);
-      console.error('  ❌', e.message);
+    // Step 3: 商品+匹配（仅周日拉取）
+    if (dayOfWeek === 0) {
+      console.log('\n[3/3] 拉取商品 (周日全量)...');
+      try {
+        results.products = await callLocalApi('/api/easyboss/products/fetch', 'POST', { status: '', matchAds: true });
+        if (results.products.success === false) throw new Error(results.products.error || '未知错误');
+        console.log(`  ✅ ${results.products.productsFetched || 0}条 / 匹配${results.products.adsMatched || 0}`);
+      } catch (e) {
+        results.errors.push(`商品: ${e.message}`);
+        console.error('  ❌', e.message);
+      }
+    } else {
+      console.log('\n[3/3] 商品跳过 (仅周日拉取)');
+      results.products = { skipped: true };
     }
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -234,7 +239,9 @@ async function main() {
         `> ${timestamp} | ${duration}s\n\n` +
         `- 📦 订单(${orderDays}天): ${results.orders?.ordersInserted || 0}新 / ${results.orders?.ordersUpdated || 0}更新\n` +
         `- 📢 广告: ${results.ads?.campaignsFetched || 0}条\n` +
-        `- 🏪 商品: ${results.products?.productsFetched || 0}条 / 匹配${results.products?.adsMatched || 0}`;
+        (results.products?.skipped 
+          ? `- 🏪 商品: 跳过(仅周日)` 
+          : `- 🏪 商品: ${results.products?.productsFetched || 0}条 / 匹配${results.products?.adsMatched || 0}`);
     }
 
     await notify(msg);
