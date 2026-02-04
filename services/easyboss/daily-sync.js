@@ -177,10 +177,12 @@ async function main() {
       console.log(`[Cookie] 有效 (${ck.hours}h前更新)`);
     }
 
-    // Step 1: 订单
-    console.log('\n[1/3] 拉取订单...');
+    // Step 1: 订单（周日拉7天，其他拉1天）
+    const dayOfWeek = new Date().getDay(); // 0=周日
+    const orderDays = dayOfWeek === 0 ? 7 : 1;
+    console.log(`\n[1/3] 拉取订单 (${orderDays}天, ${dayOfWeek === 0 ? '周日补全' : '日常'})...`);
     try {
-      results.orders = await callLocalApi('/api/easyboss/orders/fetch', 'POST', { days: 7 });
+      results.orders = await callLocalApi('/api/easyboss/orders/fetch', 'POST', { days: orderDays });
       if (results.orders.success === false) throw new Error(results.orders.error || '未知错误');
       console.log(`  ✅ ${results.orders.ordersInserted || 0}新增 / ${results.orders.ordersUpdated || 0}更新`);
     } catch (e) {
@@ -230,7 +232,7 @@ async function main() {
     } else {
       msg = `## ✅ GMV MAX 每日同步完成\n\n` +
         `> ${timestamp} | ${duration}s\n\n` +
-        `- 📦 订单: ${results.orders?.ordersInserted || 0}新 / ${results.orders?.ordersUpdated || 0}更新\n` +
+        `- 📦 订单(${orderDays}天): ${results.orders?.ordersInserted || 0}新 / ${results.orders?.ordersUpdated || 0}更新\n` +
         `- 📢 广告: ${results.ads?.campaignsFetched || 0}条\n` +
         `- 🏪 商品: ${results.products?.productsFetched || 0}条 / 匹配${results.products?.adsMatched || 0}`;
     }
