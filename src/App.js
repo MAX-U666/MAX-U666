@@ -7,6 +7,7 @@ import ExecuteCenter from './pages/ExecuteCenter';  // 新增：执行中心
 import OrderCenter from './pages/OrderCenter';  // 新增：订单中心
 import ProductCenter from './pages/ProductCenter';  // 新增：商品中心
 import AdCenter from './pages/AdCenter';  // 新增：广告中心
+import ShopAuth from './pages/ShopAuth';  // 新增：店铺授权
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
@@ -431,6 +432,27 @@ const App = () => {
           >
             📢 广告中心
           </button>
+          <button 
+            onClick={() => switchModule('shopAuth')}
+            style={{
+              padding: '10px 20px',
+              borderRadius: '8px',
+              border: 'none',
+              background: currentModule === 'shopAuth' 
+                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                : '#F5F5F7',
+              color: currentModule === 'shopAuth' ? '#fff' : '#333',
+              fontSize: '13px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'all 0.2s'
+            }}
+          >
+            🏪 店铺授权
+          </button>
         </div>
       )}
       
@@ -444,6 +466,8 @@ const App = () => {
           <ProductCenter />
         ) : currentModule === 'ads' ? (
           <AdCenter />
+        ) : currentModule === 'shopAuth' ? (
+          <ShopAuth />
         ) : currentView === 'dashboard' ? (
           <Dashboard 
             products={products} loading={loading} currentUser={currentUser}
