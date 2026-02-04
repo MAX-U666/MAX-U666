@@ -1,40 +1,37 @@
 /**
  * EasyBoss 订单数据抓取服务
- * 方案C：登录获取cookies → 直接调API → 不需要打开浏览器页面
+ * 方案D：使用手动配置的浏览器Cookie直接调API
  * 
+ * Cookie来源：从浏览器F12复制，存入 eb_config 表
  * API: POST https://www.easyboss.com/api/order/package/searchOrderPackageList
- * 认证: Cookie (dmerp_sid)
- * Content-Type: application/x-www-form-urlencoded
  */
-
-const { getAuthInstance } = require('./auth');
 
 class EasyBossOrderFetcher {
   constructor(pool) {
     this.pool = pool;
     this.baseUrl = 'https://www.easyboss.com';
     this.apiPath = '/api/order/package/searchOrderPackageList';
-    this.cookies = null;
+    this.cookieString = null;
     this.pageSize = 50;
   }
 
   /**
-   * 获取登录cookies
+   * 从数据库获取cookie字符串
    */
   async ensureLogin() {
-    if (this.cookies) return true;
-    
-    const auth = getAuthInstance();
-    const result = await auth.login();
-    
-    if (!result.success) {
-      throw new Error(`登录失败: ${result.error}`);
+    if (this.cookieString) return true;
+
+    // 从 eb_config 表读取保存的cookie
+    const [rows] = await this.pool.query(
+      "SELECT config_value FROM eb_config WHERE config_key = 'easyboss_cookie' LIMIT 1"
+    );
+
+    if (!rows.length || !rows[0].config_value) {
+      throw new Error('未配置EasyBoss Cookie，请通过 /api/easyboss/orders/set-cookie 接口设置');
     }
-    
-    this.cookies = result.cookies;
-    await auth.close();
-    
-    console.log(`[订单抓取] 登录成功，获取 ${this.cookies.length} 个cookies`);
+
+    this.cookieString = rows[0].config_value;
+    console.log(`[订单抓取] 使用已配置的Cookie (${this.cookieString.length} 字符)`);
     return true;
   }
 
@@ -42,8 +39,7 @@ class EasyBossOrderFetcher {
    * 构建cookie字符串
    */
   getCookieString() {
-    if (!this.cookies) return '';
-    return this.cookies.map(c => `${c.name}=${c.value}`).join('; ');
+    return this.cookieString || '';
   }
 
   /**
@@ -449,10 +445,10 @@ class EasyBossOrderFetcher {
   }
 
   /**
-   * 清理登录状态
+   * 清理cookie缓存（下次会重新从数据库读取）
    */
   clearCookies() {
-    this.cookies = null;
+    this.cookieString = null;
   }
 }
 
