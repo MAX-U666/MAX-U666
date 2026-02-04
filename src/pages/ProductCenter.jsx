@@ -470,7 +470,7 @@ const ProductCenter = () => {
                   transition: 'background 0.15s',
                   cursor: 'pointer',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                onMouseEnter={e => e.currentTarget.style.background = '#F5F5F7'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                 onClick={() => handleDetail(p.platform_item_id)}
               >
@@ -493,7 +493,7 @@ const ProductCenter = () => {
                 <div style={{ textAlign: 'right', fontSize: '12px', color: '#1a1a1a', fontWeight: '600' }}>
                   {formatNum(p.sell_cnt)}
                 </div>
-                <div style={{ textAlign: 'right', fontSize: '12px', color: p.stock < 10 ? '#EF4444' : '#F8FAFC' }}>
+                <div style={{ textAlign: 'right', fontSize: '12px', color: p.stock < 10 ? '#EF4444' : '#333' }}>
                   {formatNum(p.stock)}
                 </div>
                 <div style={{ textAlign: 'right', fontSize: '12px', color: '#666' }}>
