@@ -228,7 +228,7 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
                     transition: 'background 0.15s',
                     cursor: 'default',
                   }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseEnter={(e) => e.currentTarget.style.background = '#F5F5F7'}
                     onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                   >
                     <td style={{ padding: '10px 14px', color: '#555', fontFamily: 'monospace', fontSize: '11px' }}>
@@ -284,14 +284,14 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
       {totalPages > 1 && (
         <div style={{
           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px',
-          padding: '14px', borderTop: '1px solid rgba(255,255,255,0.04)',
+          padding: '14px', borderTop: '1px solid #F0F0F3',
         }}>
           <button
             onClick={() => onPageChange(page - 1)}
             disabled={page <= 1}
             style={{
               padding: '6px 14px', borderRadius: '6px', border: 'none',
-              background: page <= 1 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
+              background: page <= 1 ? '#E8E8ED' : '#F5F5F7',
               color: page <= 1 ? '#475569' : '#CBD5E1',
               fontSize: '12px', cursor: page <= 1 ? 'not-allowed' : 'pointer',
             }}
@@ -306,7 +306,7 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
             disabled={page >= totalPages}
             style={{
               padding: '6px 14px', borderRadius: '6px', border: 'none',
-              background: page >= totalPages ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.08)',
+              background: page >= totalPages ? '#E8E8ED' : '#F5F5F7',
               color: page >= totalPages ? '#475569' : '#CBD5E1',
               fontSize: '12px', cursor: page >= totalPages ? 'not-allowed' : 'pointer',
             }}
