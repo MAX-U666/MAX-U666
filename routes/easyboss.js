@@ -342,13 +342,13 @@ module.exports = function(pool) {
       const [shopStats] = await pool.query(`
         SELECT
           o.shop_id,
-          COALESCE(s.shop_name, o.shop_name, o.shop_id) as shop_name,
+          COALESCE(MAX(s.shop_name), MAX(o.shop_name), o.shop_id) as shop_name,
           COUNT(*) as count,
           SUM(CASE WHEN o.platform_order_status != 'CANCELLED' THEN o.pay_amount ELSE 0 END) as total_pay
         FROM eb_orders o
         LEFT JOIN eb_shops s ON s.shop_id = o.shop_id
         WHERE ${where.replace(/shop_id/g, 'o.shop_id').replace(/gmt_order_start/g, 'o.gmt_order_start')}
-        GROUP BY o.shop_id, s.shop_name
+        GROUP BY o.shop_id
         ORDER BY count DESC
       `, params);
 
