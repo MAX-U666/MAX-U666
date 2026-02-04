@@ -20,8 +20,10 @@ const http = require('http');
 const DB_CONFIG = {
   host: 'localhost',
   user: 'root',
+  password: '',
   database: 'gmvmax',
   charset: 'utf8mb4',
+  socketPath: '/var/run/mysqld/mysqld.sock',
 };
 
 const WECHAT_WEBHOOK = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=f74c9925-3967-4f21-b1d7-fae4865565cf';
