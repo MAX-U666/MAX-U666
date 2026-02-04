@@ -1,31 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiGet, apiPost } from '../utils/apiFetch';
 
 // ========== API ==========
-const fetchCampaigns = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`/api/easyboss/ads/campaigns?${query}`);
-  return res.json();
-};
-
-const fetchAdStats = async () => {
-  const res = await fetch('/api/easyboss/ads/stats');
-  return res.json();
-};
-
-const fetchDaily = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`/api/easyboss/ads/daily?${query}`);
-  return res.json();
-};
-
-const triggerAdFetch = async (status = 'ongoing', fetchDaily = false, dailyDays = 30) => {
-  const res = await fetch('/api/easyboss/ads/fetch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, fetchDaily, dailyDays }),
-  });
-  return res.json();
-};
+const fetchCampaigns = async (params = {}) => apiGet('/api/easyboss/ads/campaigns', params);
+const fetchAdStats = async () => apiGet('/api/easyboss/ads/stats');
+const fetchDaily = async (params = {}) => apiGet('/api/easyboss/ads/daily', params);
+const triggerAdFetch = async (status = 'ongoing', fetchDailyFlag = false, dailyDays = 30) =>
+  apiPost('/api/easyboss/ads/fetch', { status, fetchDaily: fetchDailyFlag, dailyDays });
 
 // ========== 格式化工具 ==========
 const formatIDR = (amount) => {
