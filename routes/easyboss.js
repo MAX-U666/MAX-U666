@@ -562,6 +562,165 @@ module.exports = function(pool) {
     }
   });
 
+  // =============================================
+  // 商品中心
+  // =============================================
+
+  const ProductsFetcher = require('../services/easyboss/fetch-products');
+  const productsFetcher = new ProductsFetcher(pool);
+
+  /**
+   * POST /api/easyboss/products/fetch
+   * 触发商品数据拉取 + 广告匹配
+   * Body: { status: 'onsale', matchAds: true }
+   */
+  router.post('/products/fetch', async (req, res) => {
+    try {
+      const { status = '', matchAds = true } = req.body || {};
+      const result = await productsFetcher.run({ status, matchAds });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/products/list
+   * 商品列表查询
+   */
+  router.get('/products/list', async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 100);
+      const offset = (page - 1) * pageSize;
+
+      let where = '1=1';
+      const params = [];
+
+      if (req.query.shopId) {
+        where += ' AND shop_id = ?';
+        params.push(req.query.shopId);
+      }
+      if (req.query.status) {
+        where += ' AND status = ?';
+        params.push(req.query.status);
+      }
+      if (req.query.keyword) {
+        where += ' AND title LIKE ?';
+        params.push(`%${req.query.keyword}%`);
+      }
+
+      const sortField = req.query.sortBy === 'sell' ? 'sell_cnt' :
+                        req.query.sortBy === 'stock' ? 'stock' :
+                        req.query.sortBy === 'price' ? 'sale_price' :
+                        req.query.sortBy === 'rating' ? 'rating_star' : 'sell_cnt';
+
+      const [countResult] = await pool.query(
+        `SELECT COUNT(*) as total FROM eb_products WHERE ${where}`, params
+      );
+
+      const [products] = await pool.query(
+        `SELECT * FROM eb_products WHERE ${where} ORDER BY ${sortField} DESC LIMIT ? OFFSET ?`,
+        [...params, pageSize, offset]
+      );
+
+      res.json({
+        success: true,
+        products,
+        total: countResult[0].total,
+        page,
+        pageSize,
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/products/stats
+   * 商品统计汇总
+   */
+  router.get('/products/stats', async (req, res) => {
+    try {
+      const [summary] = await pool.query(`
+        SELECT
+          COUNT(*) as total_products,
+          SUM(CASE WHEN status = 'onsale' THEN 1 ELSE 0 END) as onsale,
+          SUM(CASE WHEN status = 'soldout' THEN 1 ELSE 0 END) as soldout,
+          SUM(sell_cnt) as total_sold,
+          SUM(stock) as total_stock,
+          COUNT(DISTINCT shop_id) as shop_count,
+          AVG(rating_star) as avg_rating
+        FROM eb_products
+      `);
+
+      const [byShop] = await pool.query(`
+        SELECT shop_id, COUNT(*) as products, SUM(sell_cnt) as sold, SUM(stock) as stock
+        FROM eb_products WHERE status = 'onsale'
+        GROUP BY shop_id ORDER BY sold DESC
+      `);
+
+      // 广告匹配统计
+      const [adMatch] = await pool.query(`
+        SELECT 
+          COUNT(*) as total_ads,
+          SUM(CASE WHEN platform_item_id IS NOT NULL THEN 1 ELSE 0 END) as matched
+        FROM eb_ad_campaigns
+      `);
+
+      res.json({
+        success: true,
+        ...summary[0],
+        byShop,
+        adMatchRate: adMatch[0].total_ads > 0
+          ? ((adMatch[0].matched / adMatch[0].total_ads) * 100).toFixed(1) + '%'
+          : '0%',
+        adMatched: adMatch[0].matched,
+        adTotal: adMatch[0].total_ads,
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/products/:itemId
+   * 单个商品详情（含关联广告和订单数据）
+   */
+  router.get('/products/:itemId', async (req, res) => {
+    try {
+      const { itemId } = req.params;
+
+      const [products] = await pool.query(
+        'SELECT * FROM eb_products WHERE platform_item_id = ?', [itemId]
+      );
+      if (products.length === 0) {
+        return res.status(404).json({ success: false, error: '商品不存在' });
+      }
+
+      // 关联广告
+      const [ads] = await pool.query(
+        'SELECT * FROM eb_ad_campaigns WHERE platform_item_id = ?', [itemId]
+      );
+
+      // 关联订单
+      const [orders] = await pool.query(
+        `SELECT COUNT(*) as order_count, SUM(total_pay) as total_gmv
+         FROM eb_orders o JOIN eb_order_items i ON o.order_id = i.order_id
+         WHERE i.platform_item_id = ?`, [itemId]
+      );
+
+      res.json({
+        success: true,
+        product: products[0],
+        ads,
+        orderStats: orders[0],
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
     try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
