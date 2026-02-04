@@ -407,6 +407,161 @@ module.exports = function(pool) {
     }
   });
 
+  // =============================================
+  // 广告数据
+  // =============================================
+
+  const AdsFetcher = require('../services/easyboss/fetch-ads');
+  const adsFetcher = new AdsFetcher(pool);
+
+  /**
+   * POST /api/easyboss/ads/fetch
+   * 触发广告数据拉取
+   * Body: { status: 'ongoing', fetchDaily: true, dailyDays: 30 }
+   */
+  router.post('/ads/fetch', async (req, res) => {
+    try {
+      const { status = 'ongoing', fetchDaily = true, dailyDays = 30 } = req.body || {};
+      const result = await adsFetcher.run({ status, fetchDaily, dailyDays });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/ads/campaigns
+   * 查询广告活动列表
+   */
+  router.get('/ads/campaigns', async (req, res) => {
+    try {
+      const page = parseInt(req.query.page) || 1;
+      const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 100);
+      const offset = (page - 1) * pageSize;
+
+      let where = '1=1';
+      const params = [];
+
+      if (req.query.status) {
+        where += ' AND campaign_status = ?';
+        params.push(req.query.status);
+      }
+      if (req.query.shopId) {
+        where += ' AND shop_id = ?';
+        params.push(req.query.shopId);
+      }
+      if (req.query.matched === 'true') {
+        where += ' AND platform_item_id IS NOT NULL';
+      }
+
+      const [countResult] = await pool.query(
+        `SELECT COUNT(*) as total FROM eb_ad_campaigns WHERE ${where}`, params
+      );
+      const total = countResult[0].total;
+
+      const [campaigns] = await pool.query(
+        `SELECT * FROM eb_ad_campaigns WHERE ${where} ORDER BY expense DESC LIMIT ? OFFSET ?`,
+        [...params, pageSize, offset]
+      );
+
+      res.json({ success: true, campaigns, total, page, pageSize });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/ads/stats
+   * 广告统计汇总
+   */
+  router.get('/ads/stats', async (req, res) => {
+    try {
+      let where = '1=1';
+      const params = [];
+
+      if (req.query.status) {
+        where += ' AND campaign_status = ?';
+        params.push(req.query.status);
+      }
+
+      const [summary] = await pool.query(`
+        SELECT
+          COUNT(*) as total_campaigns,
+          SUM(expense) as total_expense,
+          SUM(broad_gmv) as total_gmv,
+          SUM(broad_order) as total_orders,
+          SUM(direct_gmv) as total_direct_gmv,
+          SUM(direct_order) as total_direct_orders,
+          COUNT(DISTINCT shop_id) as shop_count,
+          SUM(CASE WHEN platform_item_id IS NOT NULL THEN 1 ELSE 0 END) as matched_count
+        FROM eb_ad_campaigns WHERE ${where}
+      `, params);
+
+      const s = summary[0];
+      const overallRoi = s.total_expense > 0 ? (s.total_gmv / s.total_expense).toFixed(2) : '0';
+
+      // 按店铺统计
+      const [byShop] = await pool.query(`
+        SELECT shop_id, COUNT(*) as campaigns,
+          SUM(expense) as expense, SUM(broad_gmv) as gmv,
+          SUM(broad_order) as orders
+        FROM eb_ad_campaigns WHERE ${where}
+        GROUP BY shop_id ORDER BY expense DESC
+      `, params);
+
+      res.json({
+        success: true,
+        totalCampaigns: s.total_campaigns,
+        totalExpense: s.total_expense,
+        totalGmv: s.total_gmv,
+        totalOrders: s.total_orders,
+        overallRoi,
+        matchedCount: s.matched_count,
+        shopCount: s.shop_count,
+        byShop,
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/ads/daily
+   * 广告每日明细（支持按campaign/shop/日期筛选）
+   */
+  router.get('/ads/daily', async (req, res) => {
+    try {
+      let where = '1=1';
+      const params = [];
+
+      if (req.query.campaignId) {
+        where += ' AND platform_campaign_id = ?';
+        params.push(req.query.campaignId);
+      }
+      if (req.query.shopId) {
+        where += ' AND shop_id = ?';
+        params.push(req.query.shopId);
+      }
+      if (req.query.dateFrom) {
+        where += ' AND date >= ?';
+        params.push(req.query.dateFrom);
+      }
+      if (req.query.dateTo) {
+        where += ' AND date <= ?';
+        params.push(req.query.dateTo);
+      }
+
+      const [records] = await pool.query(
+        `SELECT * FROM eb_ad_daily WHERE ${where} ORDER BY date DESC LIMIT 500`,
+        params
+      );
+
+      res.json({ success: true, records, count: records.length });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
     try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
