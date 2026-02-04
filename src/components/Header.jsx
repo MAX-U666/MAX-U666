@@ -6,12 +6,9 @@ const Header = ({
   currentView, 
   setCurrentView, 
   currentUser, 
-  setCurrentUser, 
-  users, 
   selectedProduct,
   setSelectedProduct,
   countdown,
-  setFilterOwner,
   onLogout,
   onUserManagement
 }) => {
@@ -68,20 +65,15 @@ const Header = ({
             </button>
             
             {showUserMenu && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E8E8ED', boxShadow: '0 10px 40px rgba(0,0,0,0.12)', padding: '10px', minWidth: '220px', zIndex: 1000 }}>
-                <div style={{ padding: '10px 14px', fontSize: '11px', color: '#999', borderBottom: '1px solid #F0F0F3', marginBottom: '8px' }}>切换用户</div>
-                {users.map(user => (
-                  <button key={user.id} onClick={() => { setCurrentUser(user); setShowUserMenu(false); setFilterOwner('mine'); }} style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 14px', borderRadius: '10px', border: 'none', background: currentUser?.id === user.id ? 'rgba(255,107,53,0.08)' : 'transparent', cursor: 'pointer', textAlign: 'left' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: `linear-gradient(135deg, ${user.color}30, ${user.color}10)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>{user.avatar}</div>
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a' }}>{user.name}</div>
-                      <div style={{ fontSize: '10px', color: '#999' }}>{user.role === 'admin' ? '管理员' : '运营'}</div>
-                    </div>
-                    {currentUser?.id === user.id && <span style={{ marginLeft: 'auto', color: '#FF6B35' }}>✓</span>}
-                  </button>
-                ))}
-                
-                <div style={{ height: '1px', background: '#F0F0F3', margin: '8px 0' }} />
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E8E8ED', boxShadow: '0 10px 40px rgba(0,0,0,0.12)', padding: '10px', minWidth: '200px', zIndex: 1000 }}>
+                {/* 当前用户信息 */}
+                <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #F0F0F3', marginBottom: '8px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: `linear-gradient(135deg, ${currentUser?.color || '#3b82f6'}40, ${currentUser?.color || '#3b82f6'}15)`, border: `1px solid ${currentUser?.color || '#3b82f6'}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>{currentUser?.avatar || '👤'}</div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#1a1a1a' }}>{currentUser?.name || '用户'}</div>
+                    <div style={{ fontSize: '11px', color: '#999' }}>{currentUser?.role === 'admin' ? '管理员' : '运营'}</div>
+                  </div>
+                </div>
                 
                 {currentUser?.role === 'admin' && (
                   <button 
