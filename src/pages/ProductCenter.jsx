@@ -1,30 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { apiGet, apiPost } from '../utils/apiFetch';
 
 // ========== API ==========
-const fetchProducts = async (params = {}) => {
-  const query = new URLSearchParams(params).toString();
-  const res = await fetch(`/api/easyboss/products/list?${query}`);
-  return res.json();
-};
-
-const fetchStats = async () => {
-  const res = await fetch('/api/easyboss/products/stats');
-  return res.json();
-};
-
-const fetchProductDetail = async (itemId) => {
-  const res = await fetch(`/api/easyboss/products/${itemId}`);
-  return res.json();
-};
-
-const triggerFetch = async (status = '', matchAds = true) => {
-  const res = await fetch('/api/easyboss/products/fetch', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status, matchAds }),
-  });
-  return res.json();
-};
+const fetchProducts = async (params = {}) => apiGet('/api/easyboss/products/list', params);
+const fetchStats = async () => apiGet('/api/easyboss/products/stats');
+const fetchProductDetail = async (itemId) => apiGet(`/api/easyboss/products/${itemId}`);
+const triggerFetch = async (status = '', matchAds = true) => apiPost('/api/easyboss/products/fetch', { status, matchAds });
 
 // ========== 格式化工具 ==========
 const formatIDR = (amount) => {
