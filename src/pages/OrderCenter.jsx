@@ -527,20 +527,20 @@ const OrderCenter = () => {
           value={filterDateFrom}
           onChange={(e) => setFilterDateFrom(e.target.value)}
           style={{
-            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none',
+            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
           }}
         />
-        <span style={{ color: '#475569', fontSize: '11px' }}>~</span>
+        <span style={{ color: '#475569', fontSize: '13px' }}>~</span>
         <input
           type="date"
           value={filterDateTo}
           onChange={(e) => setFilterDateTo(e.target.value)}
           style={{
-            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
             background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-            color: '#CBD5E1', outline: 'none',
+            color: '#CBD5E1', outline: 'none', cursor: 'pointer',
           }}
         />
         <select
