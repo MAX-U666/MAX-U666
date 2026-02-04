@@ -1,460 +1,504 @@
 /**
- * EasyBoss 广告数据拉取模块
- * 从 EasyBoss ERP 抓取广告活动数据
- * 支持按店铺、日期范围筛选
+ * EasyBoss 广告数据拉取服务
+ * 
+ * 接口：
+ * 1. searchProductCampaignList - 广告活动列表（含汇总数据）
+ * 2. getProductCampaignDailyPerformanceStatDetail - 每日明细
+ * 
+ * 商品关联：通过 adName（广告标题）匹配 eb_order_items.title → platform_item_id
  */
 
-const { getAuthInstance } = require('./auth');
+const https = require('https');
 
-class EasyBossFetcher {
+class AdsFetcher {
   constructor(pool) {
-    this.pool = pool; // MySQL 连接池
-    this.auth = getAuthInstance();
-    this.baseUrl = 'https://www.easyboss.com';
+    this.pool = pool;
+    this.cookieString = null;
+    this.baseUrl = 'https://www.easyboss.com/api/platform/shopee/ads/ads';
+    
+    // 所有店铺ID
+    this.allShopIds = [
+      '1259862', '1259850', '1259865', '1259869', '1259870',
+      '1259878', '1259971', '1259966', '1259948', '1259933',
+      '1259925', '1260204', '1260105', '1259842', '1259847',
+      '1259853', '1259856', '1259858', '2256701', '2149211',
+      '2053413', '2052766', '2035937', '1259950'
+    ];
   }
 
-  /**
-   * 拉取广告数据（通过页面拦截 API）
-   * EasyBoss 广告页面加载时会请求内部 API
-   */
-  async fetchAdData(options = {}) {
-    const {
-      shopId = null,       // 店铺ID，null = 全部
-      dateFrom = null,     // 开始日期 YYYY-MM-DD
-      dateTo = null,       // 结束日期 YYYY-MM-DD
-    } = options;
-
+  // 从数据库读取cookie
+  async ensureCookie() {
+    if (this.cookieString) return true;
     try {
-      console.log('[EasyBoss] 开始拉取广告数据...');
-      
-      const page = await this.auth.getPage();
-      
-      // 收集所有 API 响应
-      const apiResponses = [];
-      
-      // 监听网络请求
-      const responseHandler = async (response) => {
-        const url = response.url();
-        // 匹配可能的广告数据 API 路径
-        if (url.includes('/api/') && (
-          url.includes('ad') || 
-          url.includes('campaign') || 
-          url.includes('marketing') ||
-          url.includes('promote')
-        )) {
-          try {
-            const contentType = response.headers()['content-type'] || '';
-            if (contentType.includes('json')) {
-              const data = await response.json();
-              apiResponses.push({ url, data, status: response.status() });
-              console.log(`[EasyBoss] 捕获API: ${url.substring(0, 100)}...`);
-            }
-          } catch (e) {
-            // 忽略非JSON响应
-          }
-        }
+      const [rows] = await this.pool.query(
+        "SELECT config_value FROM eb_config WHERE config_key = 'easyboss_cookie'"
+      );
+      if (rows.length > 0 && rows[0].config_value) {
+        this.cookieString = rows[0].config_value;
+        return true;
+      }
+    } catch (e) {
+      console.error('[广告拉取] 读取cookie失败:', e.message);
+    }
+    return false;
+  }
+
+  // HTTP POST请求
+  async postRequest(url, data, timeout = 60000) {
+    return new Promise((resolve, reject) => {
+      const urlObj = new URL(url);
+      const postData = typeof data === 'string' ? data : new URLSearchParams(data).toString();
+
+      const options = {
+        hostname: urlObj.hostname,
+        port: 443,
+        path: urlObj.pathname,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'Cookie': this.cookieString,
+          'X-language': 'zh-cn',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Content-Length': Buffer.byteLength(postData),
+        },
       };
 
-      page.on('response', responseHandler);
-
-      // 导航到广告管理页面
-      // 常见路径：/marketing/ad 或 /ads 或 /campaign
-      const adUrls = [
-        `${this.baseUrl}/marketing/ad`,
-        `${this.baseUrl}/marketing/ads`, 
-        `${this.baseUrl}/ads`,
-        `${this.baseUrl}/campaign`,
-        `${this.baseUrl}/marketing`
-      ];
-
-      let navigated = false;
-      for (const adUrl of adUrls) {
-        try {
-          await page.goto(adUrl, { waitUntil: 'networkidle', timeout: 20000 });
-          const currentUrl = page.url();
-          if (!currentUrl.includes('/login')) {
-            navigated = true;
-            console.log(`[EasyBoss] 已导航到: ${currentUrl}`);
-            break;
+      const req = https.request(options, (res) => {
+        let body = '';
+        res.on('data', (chunk) => body += chunk);
+        res.on('end', () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (e) {
+            reject(new Error(`JSON解析失败: ${body.substring(0, 200)}`));
           }
-        } catch (e) {
-          continue;
-        }
-      }
-
-      if (!navigated) {
-        // 从首页找广告入口
-        await page.goto(this.baseUrl, { waitUntil: 'networkidle', timeout: 20000 });
-        // 尝试点击菜单
-        const menuItems = await page.$$('a, [class*="menu"], [class*="nav"]');
-        for (const item of menuItems) {
-          const text = await item.textContent().catch(() => '');
-          if (text.includes('营销') || text.includes('广告') || text.includes('Marketing') || text.includes('Ad')) {
-            await item.click();
-            await page.waitForTimeout(3000);
-            navigated = true;
-            console.log('[EasyBoss] 通过菜单导航到广告页面');
-            break;
-          }
-        }
-      }
-
-      // 等待数据加载
-      await page.waitForTimeout(5000);
-
-      // 如果需要选择日期范围
-      if (dateFrom || dateTo) {
-        await this._selectDateRange(page, dateFrom, dateTo);
-        await page.waitForTimeout(3000);
-      }
-
-      // 如果需要选择店铺
-      if (shopId) {
-        await this._selectShop(page, shopId);
-        await page.waitForTimeout(3000);
-      }
-
-      // 移除监听器
-      page.removeListener('response', responseHandler);
-
-      // 如果 API 拦截有数据，直接用
-      if (apiResponses.length > 0) {
-        console.log(`[EasyBoss] 捕获到 ${apiResponses.length} 个API响应`);
-        return this._parseApiResponses(apiResponses);
-      }
-
-      // 否则尝试从页面 DOM 抓取
-      console.log('[EasyBoss] 未捕获到API，尝试DOM抓取...');
-      return await this._scrapeFromDOM(page);
-
-    } catch (err) {
-      console.error('[EasyBoss] 拉取广告数据失败:', err.message);
-      throw err;
-    }
-  }
-
-  /**
-   * 选择日期范围
-   */
-  async _selectDateRange(page, dateFrom, dateTo) {
-    try {
-      // 查找日期选择器
-      const dateInputs = await page.$$('input[type="date"], input[placeholder*="日期"], .ant-picker, .date-picker, [class*="date"]');
-      if (dateInputs.length >= 1) {
-        await dateInputs[0].click();
-        await page.waitForTimeout(1000);
-        // 尝试直接设置值
-        if (dateFrom) {
-          await page.keyboard.type(dateFrom);
-        }
-        console.log('[EasyBoss] 日期范围已设置');
-      }
-    } catch (e) {
-      console.log('[EasyBoss] 日期选择跳过:', e.message);
-    }
-  }
-
-  /**
-   * 选择店铺
-   */
-  async _selectShop(page, shopId) {
-    try {
-      const shopSelectors = await page.$$('select, [class*="shop"], [class*="store"], .ant-select');
-      for (const selector of shopSelectors) {
-        const text = await selector.textContent().catch(() => '');
-        if (text.includes('店铺') || text.includes('shop') || text.includes('store')) {
-          await selector.click();
-          await page.waitForTimeout(1000);
-          // 选择对应店铺
-          const options = await page.$$('[class*="option"], li, .ant-select-item');
-          for (const opt of options) {
-            const optText = await opt.textContent().catch(() => '');
-            if (optText.includes(shopId)) {
-              await opt.click();
-              break;
-            }
-          }
-          break;
-        }
-      }
-    } catch (e) {
-      console.log('[EasyBoss] 店铺选择跳过:', e.message);
-    }
-  }
-
-  /**
-   * 解析拦截到的 API 响应
-   */
-  _parseApiResponses(responses) {
-    const results = [];
-
-    for (const { url, data } of responses) {
-      // 尝试从不同格式中提取广告数据
-      let items = [];
-      
-      if (Array.isArray(data)) {
-        items = data;
-      } else if (data.data && Array.isArray(data.data)) {
-        items = data.data;
-      } else if (data.data && data.data.list && Array.isArray(data.data.list)) {
-        items = data.data.list;
-      } else if (data.result && Array.isArray(data.result)) {
-        items = data.result;
-      } else if (data.list && Array.isArray(data.list)) {
-        items = data.list;
-      }
-
-      for (const item of items) {
-        const parsed = this._normalizeAdItem(item);
-        if (parsed) {
-          results.push(parsed);
-        }
-      }
-    }
-
-    console.log(`[EasyBoss] 解析得到 ${results.length} 条广告数据`);
-    return results;
-  }
-
-  /**
-   * 标准化广告数据字段
-   */
-  _normalizeAdItem(item) {
-    // 映射不同的字段名
-    const fieldMaps = {
-      impressions: ['impressions', 'impression', 'views', 'view', 'exposure', '浏览数', '曝光'],
-      clicks: ['clicks', 'click', '点击数', '点击'],
-      ctr: ['ctr', 'click_rate', 'click_through_rate', '点击率'],
-      orders: ['orders', 'order', 'conversions', 'conversion', '订单数', '订单'],
-      sales: ['sales', 'sale', 'revenue', 'gmv', '销售金额', '销售额'],
-      spend: ['spend', 'cost', 'expense', '花费', '消耗'],
-      roas: ['roas', 'roi', 'return_on_ad_spend'],
-      campaign_name: ['campaign_name', 'name', 'title', 'ad_name', '广告名称'],
-      campaign_id: ['campaign_id', 'id', 'ad_id', '广告ID'],
-      status: ['status', 'state', '状态'],
-      budget: ['budget', 'daily_budget', '预算'],
-      bid: ['bid', 'bid_price', '出价', '竞价'],
-      shop_name: ['shop_name', 'store_name', '店铺名'],
-      shop_id: ['shop_id', 'store_id', '店铺ID']
-    };
-
-    const result = {};
-    let hasData = false;
-
-    for (const [key, aliases] of Object.entries(fieldMaps)) {
-      for (const alias of aliases) {
-        if (item[alias] !== undefined && item[alias] !== null) {
-          result[key] = item[alias];
-          hasData = true;
-          break;
-        }
-      }
-    }
-
-    // 至少要有一些关键数据才算有效
-    if (!hasData || (!result.impressions && !result.clicks && !result.spend && !result.campaign_name)) {
-      return null;
-    }
-
-    // 数值清洗
-    result.impressions = parseInt(result.impressions) || 0;
-    result.clicks = parseInt(result.clicks) || 0;
-    result.orders = parseInt(result.orders) || 0;
-    result.sales = parseFloat(result.sales) || 0;
-    result.spend = parseFloat(result.spend) || 0;
-    result.roas = result.spend > 0 ? parseFloat((result.sales / result.spend).toFixed(2)) : 0;
-    result.ctr = result.impressions > 0 ? parseFloat((result.clicks / result.impressions * 100).toFixed(2)) : 0;
-
-    return result;
-  }
-
-  /**
-   * 从页面 DOM 抓取表格数据
-   */
-  async _scrapeFromDOM(page) {
-    try {
-      // 查找表格
-      const tableData = await page.evaluate(() => {
-        const results = [];
-        
-        // 方法1: 标准 table
-        const tables = document.querySelectorAll('table');
-        for (const table of tables) {
-          const headers = [];
-          const headerRow = table.querySelector('thead tr, tr:first-child');
-          if (headerRow) {
-            headerRow.querySelectorAll('th, td').forEach(cell => {
-              headers.push(cell.textContent.trim());
-            });
-          }
-
-          const rows = table.querySelectorAll('tbody tr, tr:not(:first-child)');
-          for (const row of rows) {
-            const cells = row.querySelectorAll('td');
-            if (cells.length > 0) {
-              const rowData = {};
-              cells.forEach((cell, idx) => {
-                if (headers[idx]) {
-                  rowData[headers[idx]] = cell.textContent.trim();
-                }
-              });
-              if (Object.keys(rowData).length > 0) {
-                results.push(rowData);
-              }
-            }
-          }
-        }
-
-        // 方法2: ant-design 或其他 UI 框架的虚拟表格
-        if (results.length === 0) {
-          const rows = document.querySelectorAll('[class*="table-row"], [class*="list-item"], [class*="data-row"]');
-          for (const row of rows) {
-            const cells = row.querySelectorAll('[class*="cell"], [class*="col"], td');
-            if (cells.length >= 3) {
-              const rowData = {};
-              cells.forEach((cell, idx) => {
-                rowData[`col_${idx}`] = cell.textContent.trim();
-              });
-              results.push(rowData);
-            }
-          }
-        }
-
-        return results;
+        });
       });
 
-      console.log(`[EasyBoss] DOM抓取得到 ${tableData.length} 行数据`);
+      req.on('error', reject);
+      req.setTimeout(timeout, () => {
+        req.destroy();
+        reject(new Error('请求超时'));
+      });
 
-      // 尝试标准化
-      return tableData.map(row => this._normalizeAdItem(row)).filter(Boolean);
+      req.write(postData);
+      req.end();
+    });
+  }
 
-    } catch (err) {
-      console.error('[EasyBoss] DOM抓取失败:', err.message);
-      return [];
-    }
+  // 构建shopIds参数字符串
+  buildShopIdsParam(shopIds) {
+    return shopIds.map((id, i) => `shopIds%5B${i}%5D=${id}`).join('&');
   }
 
   /**
-   * 拉取数据并保存到 MySQL
+   * 拉取广告活动列表
+   * @param {string} status - ongoing/paused/ended/空(全部)
+   * @param {number} pageSize - 每页条数
    */
-  async fetchAndSave(options = {}) {
-    const data = await this.fetchAdData(options);
+  async fetchCampaignList(status = 'ongoing', pageSize = 20) {
+    const allCampaigns = [];
+    let pageNo = 1;
+    let total = 0;
 
-    if (data.length === 0) {
-      console.log('[EasyBoss] 没有获取到数据');
-      return { saved: 0, data: [] };
-    }
+    console.log(`[广告拉取] 开始拉取广告列表 (status=${status || '全部'})...`);
 
-    const today = new Date().toISOString().split('T')[0];
-    let saved = 0;
+    do {
+      const shopIdsParam = this.buildShopIdsParam(this.allShopIds);
+      const data = `campaignStatus=${status}&${shopIdsParam}&pageNo=${pageNo}&pageSize=${pageSize}`;
 
-    for (const item of data) {
       try {
-        await this.pool.query(
-          `INSERT INTO eb_ad_metrics 
-           (date, shop_id, shop_name, campaign_id, campaign_name, status,
-            impressions, clicks, ctr, orders, sales, spend, roas, budget, bid,
-            fetched_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-           ON DUPLICATE KEY UPDATE
-            impressions = VALUES(impressions),
-            clicks = VALUES(clicks),
-            ctr = VALUES(ctr),
-            orders = VALUES(orders),
-            sales = VALUES(sales),
-            spend = VALUES(spend),
-            roas = VALUES(roas),
-            budget = VALUES(budget),
-            bid = VALUES(bid),
-            status = VALUES(status),
-            fetched_at = NOW()`,
-          [
-            today,
-            item.shop_id || 'default',
-            item.shop_name || '',
-            item.campaign_id || `camp_${Date.now()}_${saved}`,
-            item.campaign_name || '未知广告',
-            item.status || 'active',
-            item.impressions,
-            item.clicks,
-            item.ctr,
-            item.orders,
-            item.sales,
-            item.spend,
-            item.roas,
-            item.budget || 0,
-            item.bid || 0
-          ]
-        );
-        saved++;
-      } catch (err) {
-        console.error(`[EasyBoss] 保存数据失败:`, err.message);
+        const result = await this.postRequest(`${this.baseUrl}/searchProductCampaignList`, data);
+
+        if (result.result !== 'success') {
+          console.error(`[广告拉取] 第${pageNo}页失败:`, result);
+          break;
+        }
+
+        total = parseInt(result.total) || 0;
+        const list = result.promotionList || [];
+        allCampaigns.push(...list);
+
+        console.log(`[广告拉取] 第 ${pageNo}/${Math.ceil(total / pageSize)} 页，本页 ${list.length} 条，累计 ${allCampaigns.length}/${total}`);
+
+        pageNo++;
+
+        // 防止被限流，间隔200ms
+        await new Promise(r => setTimeout(r, 200));
+
+      } catch (e) {
+        console.error(`[广告拉取] 第${pageNo}页异常:`, e.message);
+        break;
       }
-    }
+    } while (allCampaigns.length < total);
 
-    console.log(`[EasyBoss] 保存完成: ${saved}/${data.length} 条`);
-    return { saved, total: data.length, data };
+    console.log(`[广告拉取] 广告列表拉取完成，共 ${allCampaigns.length} 条`);
+    return allCampaigns;
   }
 
   /**
-   * 获取已保存的广告数据（从MySQL读取）
+   * 拉取单个广告的每日明细
    */
-  async getSavedMetrics(options = {}) {
-    const { date, shopId, days = 7 } = options;
+  async fetchDailyPerformance(platformCampaignId, shopId, startDate, endDate) {
+    const data = `platformCampaignId=${platformCampaignId}&shopId=${shopId}&startDate=${encodeURIComponent(startDate)}&endDate=${endDate}`;
 
-    let sql = `SELECT * FROM eb_ad_metrics WHERE 1=1`;
-    const params = [];
+    try {
+      const result = await this.postRequest(
+        `${this.baseUrl}/getProductCampaignDailyPerformanceStatDetail`,
+        data,
+        30000
+      );
 
-    if (date) {
-      sql += ` AND date = ?`;
-      params.push(date);
-    } else {
-      sql += ` AND date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`;
-      params.push(days);
+      if (result.result === 'success') {
+        return result.dailyPerformanceList || [];
+      }
+    } catch (e) {
+      console.error(`[广告拉取] 每日明细失败 campaign=${platformCampaignId}:`, e.message);
     }
-
-    if (shopId) {
-      sql += ` AND shop_id = ?`;
-      params.push(shopId);
-    }
-
-    sql += ` ORDER BY date DESC, spend DESC`;
-
-    const [rows] = await this.pool.query(sql, params);
-    return rows;
+    return [];
   }
 
   /**
-   * 获取汇总数据
+   * 通过adName匹配platform_item_id
+   * 取标题前40个字符做LIKE匹配
    */
-  async getSummary(options = {}) {
-    const { days = 7, shopId } = options;
+  async matchItemId(adName, shopId) {
+    // 去掉末尾的 [数字] 标记
+    let cleanName = adName.replace(/\s*\[\d+\]\s*$/, '').trim();
+    // 取前40个字符
+    const prefix = cleanName.substring(0, 40).replace(/'/g, "\\'");
 
-    let sql = `SELECT 
-      date,
-      COUNT(*) as campaign_count,
-      SUM(impressions) as total_impressions,
-      SUM(clicks) as total_clicks,
-      SUM(orders) as total_orders,
-      SUM(sales) as total_sales,
-      SUM(spend) as total_spend,
-      CASE WHEN SUM(spend) > 0 THEN ROUND(SUM(sales) / SUM(spend), 2) ELSE 0 END as overall_roas,
-      CASE WHEN SUM(impressions) > 0 THEN ROUND(SUM(clicks) / SUM(impressions) * 100, 2) ELSE 0 END as overall_ctr
-    FROM eb_ad_metrics 
-    WHERE date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)`;
-    
-    const params = [days];
+    try {
+      const [rows] = await this.pool.query(
+        `SELECT DISTINCT platform_item_id FROM eb_order_items 
+         WHERE title LIKE ? AND shop_id = ? LIMIT 1`,
+        [`${prefix}%`, shopId]
+      );
+      if (rows.length > 0) return rows[0].platform_item_id;
 
-    if (shopId) {
-      sql += ` AND shop_id = ?`;
-      params.push(shopId);
+      // 如果shop_id匹配不到，尝试不限shop_id
+      const [rows2] = await this.pool.query(
+        `SELECT DISTINCT platform_item_id FROM eb_order_items 
+         WHERE title LIKE ? LIMIT 1`,
+        [`${prefix}%`]
+      );
+      return rows2.length > 0 ? rows2[0].platform_item_id : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 建表
+   */
+  async ensureTables() {
+    // 广告活动表
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS eb_ad_campaigns (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        shopee_ads_campaign_id VARCHAR(20) NOT NULL,
+        shop_id VARCHAR(20) NOT NULL,
+        platform_campaign_id VARCHAR(20) NOT NULL,
+        platform_item_id VARCHAR(30) DEFAULT NULL COMMENT '匹配到的商品ID',
+        ad_name TEXT,
+        ad_type VARCHAR(20),
+        region VARCHAR(10),
+        bidding_method VARCHAR(20),
+        campaign_placement VARCHAR(20),
+        campaign_status VARCHAR(20),
+        campaign_budget DECIMAL(15,2) DEFAULT 0,
+        start_time VARCHAR(20),
+        end_time VARCHAR(20),
+        gmt_start_time DATETIME DEFAULT NULL,
+        gmt_end_time DATETIME DEFAULT NULL,
+        currency VARCHAR(10) DEFAULT 'IDR',
+        -- 汇总指标
+        impression INT DEFAULT 0,
+        clicks INT DEFAULT 0,
+        ctr DECIMAL(8,2) DEFAULT 0,
+        expense DECIMAL(15,2) DEFAULT 0,
+        broad_gmv DECIMAL(15,2) DEFAULT 0,
+        broad_order INT DEFAULT 0,
+        broad_roi DECIMAL(8,2) DEFAULT 0,
+        broad_cir DECIMAL(8,2) DEFAULT 0,
+        cr DECIMAL(8,2) DEFAULT 0,
+        cpc DECIMAL(15,2) DEFAULT 0,
+        direct_gmv DECIMAL(15,2) DEFAULT 0,
+        direct_order INT DEFAULT 0,
+        direct_roi DECIMAL(8,2) DEFAULT 0,
+        direct_cir DECIMAL(8,2) DEFAULT 0,
+        direct_cr DECIMAL(8,2) DEFAULT 0,
+        -- 时间
+        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_campaign (platform_campaign_id, shop_id),
+        INDEX idx_shop (shop_id),
+        INDEX idx_status (campaign_status),
+        INDEX idx_item (platform_item_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 广告每日明细表
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS eb_ad_daily (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        shop_id VARCHAR(20) NOT NULL,
+        platform_campaign_id VARCHAR(20) NOT NULL,
+        platform_item_id VARCHAR(30) DEFAULT NULL,
+        date DATE NOT NULL,
+        region VARCHAR(10),
+        currency VARCHAR(10) DEFAULT 'IDR',
+        impression INT DEFAULT 0,
+        clicks INT DEFAULT 0,
+        ctr DECIMAL(8,2) DEFAULT 0,
+        expense DECIMAL(15,2) DEFAULT 0,
+        expense_cny DECIMAL(15,4) DEFAULT 0,
+        broad_gmv DECIMAL(15,2) DEFAULT 0,
+        broad_order INT DEFAULT 0,
+        broad_roi DECIMAL(8,2) DEFAULT 0,
+        broad_cir DECIMAL(8,2) DEFAULT 0,
+        cr DECIMAL(8,2) DEFAULT 0,
+        cpc DECIMAL(15,2) DEFAULT 0,
+        direct_gmv DECIMAL(15,2) DEFAULT 0,
+        direct_order INT DEFAULT 0,
+        direct_roi DECIMAL(8,2) DEFAULT 0,
+        direct_cir DECIMAL(8,2) DEFAULT 0,
+        direct_cr DECIMAL(8,2) DEFAULT 0,
+        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uk_daily (platform_campaign_id, shop_id, date),
+        INDEX idx_date (date),
+        INDEX idx_shop_date (shop_id, date),
+        INDEX idx_item_date (platform_item_id, date)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    // 拉取日志表
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS eb_ad_fetch_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        fetch_type VARCHAR(20) NOT NULL COMMENT 'campaigns/daily',
+        status VARCHAR(20) NOT NULL COMMENT 'ongoing/paused/all',
+        campaigns_fetched INT DEFAULT 0,
+        daily_records_fetched INT DEFAULT 0,
+        items_matched INT DEFAULT 0,
+        duration VARCHAR(20),
+        error TEXT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+
+    console.log('[广告拉取] 数据表检查完成');
+  }
+
+  /**
+   * 保存广告活动到数据库
+   */
+  async saveCampaign(campaign, platformItemId) {
+    const sql = `
+      INSERT INTO eb_ad_campaigns (
+        shopee_ads_campaign_id, shop_id, platform_campaign_id, platform_item_id,
+        ad_name, ad_type, region, bidding_method, campaign_placement,
+        campaign_status, campaign_budget, start_time, end_time,
+        gmt_start_time, gmt_end_time, currency,
+        impression, clicks, ctr, expense,
+        broad_gmv, broad_order, broad_roi, broad_cir, cr, cpc,
+        direct_gmv, direct_order, direct_roi, direct_cir, direct_cr
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        platform_item_id = VALUES(platform_item_id),
+        ad_name = VALUES(ad_name),
+        campaign_status = VALUES(campaign_status),
+        campaign_budget = VALUES(campaign_budget),
+        impression = VALUES(impression), clicks = VALUES(clicks),
+        ctr = VALUES(ctr), expense = VALUES(expense),
+        broad_gmv = VALUES(broad_gmv), broad_order = VALUES(broad_order),
+        broad_roi = VALUES(broad_roi), broad_cir = VALUES(broad_cir),
+        cr = VALUES(cr), cpc = VALUES(cpc),
+        direct_gmv = VALUES(direct_gmv), direct_order = VALUES(direct_order),
+        direct_roi = VALUES(direct_roi), direct_cir = VALUES(direct_cir),
+        direct_cr = VALUES(direct_cr),
+        updated_at = NOW()
+    `;
+
+    const c = campaign;
+    await this.pool.query(sql, [
+      c.shopeeAdsProductCampaignId, c.shopId, c.platformCampaignId, platformItemId,
+      c.adName, c.adType, c.region, c.biddingMethod, c.campaignPlacement,
+      c.campaignStatus, parseFloat(c.campaignBudget) || 0,
+      c.startTime, c.endTime,
+      c.gmtStartTime || null, c.gmtEndTime || null, c.currency || 'IDR',
+      parseInt(c.impression) || 0, parseInt(c.clicks) || 0,
+      parseFloat(c.ctr) || 0, parseFloat(c.expense) || 0,
+      parseFloat(c.broadGmv) || 0, parseInt(c.broadOrder) || 0,
+      parseFloat(c.broadRoi) || 0, parseFloat(c.broadCir) || 0,
+      parseFloat(c.cr) || 0, parseFloat(c.cpc) || 0,
+      parseFloat(c.directGmv) || 0, parseInt(c.directOrder) || 0,
+      parseFloat(c.directRoi) || 0, parseFloat(c.directCir) || 0,
+      parseFloat(c.directCr) || 0,
+    ]);
+  }
+
+  /**
+   * 保存每日明细到数据库
+   */
+  async saveDailyRecord(record, platformItemId) {
+    const sql = `
+      INSERT INTO eb_ad_daily (
+        shop_id, platform_campaign_id, platform_item_id, date,
+        region, currency, impression, clicks, ctr,
+        expense, expense_cny, broad_gmv, broad_order, broad_roi, broad_cir,
+        cr, cpc, direct_gmv, direct_order, direct_roi, direct_cir, direct_cr
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        platform_item_id = VALUES(platform_item_id),
+        impression = VALUES(impression), clicks = VALUES(clicks),
+        ctr = VALUES(ctr), expense = VALUES(expense), expense_cny = VALUES(expense_cny),
+        broad_gmv = VALUES(broad_gmv), broad_order = VALUES(broad_order),
+        broad_roi = VALUES(broad_roi), broad_cir = VALUES(broad_cir),
+        cr = VALUES(cr), cpc = VALUES(cpc),
+        direct_gmv = VALUES(direct_gmv), direct_order = VALUES(direct_order),
+        direct_roi = VALUES(direct_roi), direct_cir = VALUES(direct_cir),
+        direct_cr = VALUES(direct_cr),
+        updated_at = NOW()
+    `;
+
+    const r = record;
+    await this.pool.query(sql, [
+      r.shopId, r.platformCampaignId, platformItemId, r.date,
+      r.region || 'ID', r.currency || 'IDR',
+      parseInt(r.impression) || 0, parseInt(r.clicks) || 0, parseFloat(r.ctr) || 0,
+      parseFloat(r.expense) || 0, parseFloat(r.expenseCny) || 0,
+      parseFloat(r.broadGmv) || 0, parseInt(r.broadOrder) || 0,
+      parseFloat(r.broadRoi) || 0, parseFloat(r.broadCir) || 0,
+      parseFloat(r.cr) || 0, parseFloat(r.cpc) || 0,
+      parseFloat(r.directGmv) || 0, parseInt(r.directOrder) || 0,
+      parseFloat(r.directRoi) || 0, parseFloat(r.directCir) || 0,
+      parseFloat(r.directCr) || 0,
+    ]);
+  }
+
+  /**
+   * 主运行入口
+   * @param {Object} options
+   * @param {string} options.status - ongoing/paused/空
+   * @param {boolean} options.fetchDaily - 是否拉取每日明细
+   * @param {number} options.dailyDays - 每日明细拉取天数
+   */
+  async run(options = {}) {
+    const startTime = Date.now();
+    const {
+      status = 'ongoing',
+      fetchDaily = true,
+      dailyDays = 30,
+    } = options;
+
+    // 检查cookie
+    const hasCookie = await this.ensureCookie();
+    if (!hasCookie) {
+      return { success: false, error: 'Cookie未配置，请先设置Cookie' };
     }
 
-    sql += ` GROUP BY date ORDER BY date DESC`;
+    // 建表
+    await this.ensureTables();
 
-    const [rows] = await this.pool.query(sql, params);
-    return rows;
+    let campaignsSaved = 0;
+    let dailyRecordsSaved = 0;
+    let itemsMatched = 0;
+
+    try {
+      // Step 1: 拉取广告列表
+      const campaigns = await this.fetchCampaignList(status);
+
+      // Step 2: 逐个处理 - 匹配商品ID + 保存
+      for (let i = 0; i < campaigns.length; i++) {
+        const campaign = campaigns[i];
+
+        // 匹配商品ID
+        const itemId = await this.matchItemId(campaign.adName, campaign.shopId);
+        if (itemId) itemsMatched++;
+
+        // 保存广告活动
+        try {
+          await this.saveCampaign(campaign, itemId);
+          campaignsSaved++;
+        } catch (e) {
+          console.error(`[广告拉取] 保存广告 ${campaign.platformCampaignId} 失败:`, e.message);
+        }
+
+        // Step 3: 拉取每日明细
+        if (fetchDaily) {
+          try {
+            const endDate = new Date().toISOString().split('T')[0];
+            const startDate = new Date(Date.now() - dailyDays * 86400000).toISOString().split('T')[0];
+            const gmtStart = campaign.gmtStartTime || `${startDate} 00:00:00`;
+
+            const dailyList = await this.fetchDailyPerformance(
+              campaign.platformCampaignId,
+              campaign.shopId,
+              gmtStart,
+              endDate
+            );
+
+            for (const record of dailyList) {
+              try {
+                await this.saveDailyRecord(record, itemId);
+                dailyRecordsSaved++;
+              } catch (e) {
+                // 静默处理单条失败
+              }
+            }
+
+            // 每个广告之间间隔100ms
+            await new Promise(r => setTimeout(r, 100));
+
+          } catch (e) {
+            console.error(`[广告拉取] 每日明细 ${campaign.platformCampaignId} 失败:`, e.message);
+          }
+        }
+
+        // 进度
+        if ((i + 1) % 10 === 0 || i === campaigns.length - 1) {
+          console.log(`[广告拉取] 进度: ${i + 1}/${campaigns.length}，已匹配商品: ${itemsMatched}，每日明细: ${dailyRecordsSaved}`);
+        }
+      }
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+
+      // 记录日志
+      await this.pool.query(
+        `INSERT INTO eb_ad_fetch_logs (fetch_type, status, campaigns_fetched, daily_records_fetched, items_matched, duration)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [fetchDaily ? 'full' : 'campaigns', status || 'all', campaignsSaved, dailyRecordsSaved, itemsMatched, duration]
+      );
+
+      console.log(`[广告拉取] 完成！广告: ${campaignsSaved}，每日明细: ${dailyRecordsSaved}，商品匹配: ${itemsMatched}，耗时: ${duration}`);
+
+      return {
+        success: true,
+        campaignsFetched: campaignsSaved,
+        dailyRecordsFetched: dailyRecordsSaved,
+        itemsMatched,
+        totalCampaigns: campaigns.length,
+        duration,
+      };
+
+    } catch (e) {
+      const duration = ((Date.now() - startTime) / 1000).toFixed(1) + 's';
+      await this.pool.query(
+        `INSERT INTO eb_ad_fetch_logs (fetch_type, status, campaigns_fetched, daily_records_fetched, items_matched, duration, error)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ['full', status || 'all', campaignsSaved, dailyRecordsSaved, itemsMatched, duration, e.message]
+      ).catch(() => {});
+
+      return { success: false, error: e.message, campaignsFetched: campaignsSaved, dailyRecordsFetched: dailyRecordsSaved };
+    }
+  }
+
+  clearCookies() {
+    this.cookieString = null;
   }
 }
 
-module.exports = EasyBossFetcher;
+module.exports = AdsFetcher;
