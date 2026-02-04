@@ -24,6 +24,10 @@ app.use('/api', apiRoutes);
 const easybossRoutes = require('./routes/easyboss')(pool);
 app.use('/api/easyboss', easybossRoutes);
 
+// EasyBoss 订单数据路由（新增）
+const ordersRoutes = require('./routes/orders')(pool);
+app.use('/api/easyboss/orders', ordersRoutes);
+
 // 静态文件：前端 build
 app.use(express.static(path.join(__dirname, 'build')));
 
@@ -37,4 +41,5 @@ app.listen(3001, () => {
   console.log('GMV MAX API v3.2 running on http://localhost:3001');
   console.log('集成千问 qwen-turbo AI 决策引擎');
   console.log('EasyBoss 数据采集模块已加载');
+  console.log('EasyBoss 订单数据模块已加载');
 });
