@@ -16,13 +16,16 @@ const pool = mysql.createPool({
   socketPath: '/var/run/mysqld/mysqld.sock'
 });
 
-// 加载路由
-const apiRoutes = require('./routes/api')(pool);
-app.use('/api', apiRoutes);
+// 加载路由（注意：Express 5 中 app.use('/api') 会拦截所有 /api/* 子路径）
+// 所以更具体的路径必须先注册
 
-// EasyBoss 数据采集 + 订单路由
+// EasyBoss 数据采集 + 订单路由（先注册，路径更具体）
 const easybossRoutes = require('./routes/easyboss')(pool);
 app.use('/api/easyboss', easybossRoutes);
+
+// 通用API路由
+const apiRoutes = require('./routes/api')(pool);
+app.use('/api', apiRoutes);
 
 // 静态文件：前端 build
 app.use(express.static(path.join(__dirname, 'build')));
