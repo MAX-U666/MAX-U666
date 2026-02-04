@@ -7,8 +7,9 @@ const fetchOrders = async (params = {}) => {
   return res.json();
 };
 
-const fetchStats = async () => {
-  const res = await fetch('/api/easyboss/orders/stats');
+const fetchStats = async (params = {}) => {
+  const query = new URLSearchParams(params).toString();
+  const res = await fetch(`/api/easyboss/orders/stats?${query}`);
   return res.json();
 };
 
@@ -337,18 +338,22 @@ const OrderCenter = () => {
   const [fetchDays, setFetchDays] = useState(1);
   const pageSize = 50;
 
-  // 加载统计
+  // 加载统计（跟随筛选联动）
   const loadStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const data = await fetchStats();
+      const params = {};
+      if (filterShop) params.shopId = filterShop;
+      if (filterDateFrom) params.dateFrom = filterDateFrom + ' 00:00:00';
+      if (filterDateTo) params.dateTo = filterDateTo + ' 23:59:59';
+      const data = await fetchStats(params);
       if (data.success) setStats(data);
     } catch (e) {
       console.error('统计加载失败:', e);
     } finally {
       setStatsLoading(false);
     }
-  }, []);
+  }, [filterShop, filterDateFrom, filterDateTo]);
 
   // 加载订单列表
   const loadOrders = useCallback(async (p = 1) => {
