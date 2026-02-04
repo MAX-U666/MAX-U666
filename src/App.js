@@ -323,8 +323,8 @@ const App = () => {
           display: 'flex', 
           gap: '8px', 
           padding: '12px 20px',
-          background: 'rgba(0,0,0,0.3)',
-          borderBottom: '1px solid rgba(0,0,0,0.04)'
+          background: '#FFFFFF',
+          borderBottom: '1px solid #E8E8ED'
         }}>
           <button 
             onClick={() => switchModule('decision')}
@@ -334,8 +334,8 @@ const App = () => {
               border: 'none',
               background: currentModule === 'decision' 
                 ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'rgba(0,0,0,0.04)',
-              color: currentModule === 'decision' ? '#fff' : '#6E6E73',
+                : '#F5F5F7',
+              color: currentModule === 'decision' ? '#fff' : '#333',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
@@ -355,8 +355,8 @@ const App = () => {
               border: 'none',
               background: currentModule === 'execute' 
                 ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'rgba(0,0,0,0.04)',
-              color: currentModule === 'execute' ? '#fff' : '#6E6E73',
+                : '#F5F5F7',
+              color: currentModule === 'execute' ? '#fff' : '#333',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
@@ -376,8 +376,8 @@ const App = () => {
               border: 'none',
               background: currentModule === 'orders' 
                 ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'rgba(0,0,0,0.04)',
-              color: currentModule === 'orders' ? '#fff' : '#6E6E73',
+                : '#F5F5F7',
+              color: currentModule === 'orders' ? '#fff' : '#333',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
@@ -397,8 +397,8 @@ const App = () => {
               border: 'none',
               background: currentModule === 'products' 
                 ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'rgba(0,0,0,0.04)',
-              color: currentModule === 'products' ? '#fff' : '#6E6E73',
+                : '#F5F5F7',
+              color: currentModule === 'products' ? '#fff' : '#333',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
@@ -418,8 +418,8 @@ const App = () => {
               border: 'none',
               background: currentModule === 'ads' 
                 ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'rgba(0,0,0,0.04)',
-              color: currentModule === 'ads' ? '#fff' : '#6E6E73',
+                : '#F5F5F7',
+              color: currentModule === 'ads' ? '#fff' : '#333',
               fontSize: '13px',
               fontWeight: '600',
               cursor: 'pointer',
