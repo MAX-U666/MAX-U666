@@ -205,18 +205,18 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
   };
 
   return (
-    <div style={{ ...styles.card, background: 'rgba(255,255,255,0.02)' }}>
+    <div style={{ ...styles.card, background: '#FAFBFC' }}>
       {/* 表头统计 */}
       <div style={{ 
         padding: '16px 20px', 
-        borderBottom: '1px solid rgba(255,255,255,0.06)', 
+        borderBottom: '1px solid #E8E8ED', 
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center' 
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <MiniLogo size={20} color="#FF6B35" />
-          <span style={{ fontSize: '14px', fontWeight: '700', color: '#E2E8F0' }}>7天数据追踪</span>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: '#333' }}>7天数据追踪</span>
           
           {/* 视图切换 */}
           <div style={{ display: 'flex', gap: '4px', marginLeft: '16px' }}>
@@ -251,7 +251,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: '#94A3B8' }}>
+        <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: '#666' }}>
           <span>总单 <strong style={{ color: '#10B981' }}>{summary.totalOrdersCreated}</strong></span>
           <span>发货 <strong style={{ color: '#3B82F6' }}>{summary.totalOrdersReady}</strong></span>
           <span>花费 <strong style={{ color: '#EF4444' }}>Rp {(summary.totalAdSpend/1000).toFixed(0)}k</strong></span>
@@ -278,12 +278,12 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                     padding: '14px 8px', 
                     textAlign: 'center', 
                     fontWeight: '600', 
-                    color: '#64748B', 
+                    color: '#999', 
                     fontSize: '10px', 
                     textTransform: 'uppercase', 
                     letterSpacing: '0.5px', 
-                    borderBottom: '1px solid rgba(255,255,255,0.06)', 
-                    background: 'rgba(255,255,255,0.02)',
+                    borderBottom: '1px solid #E8E8ED', 
+                    background: '#FAFBFC',
                     minWidth: h.width,
                     whiteSpace: 'nowrap'
                   }}
@@ -308,7 +308,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                     cursor: 'pointer',
                     transition: 'background 0.15s'
                   }}
-                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = '#F5F5F7'; }}
                   onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                 >
                   {headers.map((h, i) => (
@@ -317,9 +317,9 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                       style={{ 
                         padding: '12px 8px', 
                         textAlign: 'center', 
-                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        borderBottom: '1px solid #F0F0F3',
                         color: h.key === 'day' 
-                          ? (isSelected ? '#FF6B35' : '#E2E8F0')
+                          ? (isSelected ? '#FF6B35' : '#333')
                           : getCellColor(h.key, row),
                         fontWeight: ['day', 'orders_created', 'natural_orders', 'natural_visitors', 'natural_clicks', 'roi', 'ad_spend', 'ad_revenue', 'revenue_created'].includes(h.key) ? '600' : '400'
                       }}
@@ -339,11 +339,11 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
       {viewMode === 'full' && (
         <div style={{ 
           padding: '12px 20px', 
-          borderTop: '1px solid rgba(255,255,255,0.06)',
+          borderTop: '1px solid #E8E8ED',
           display: 'flex',
           gap: '24px',
           fontSize: '10px',
-          color: '#64748B'
+          color: '#999'
         }}>
           <span>📊 <strong>流量</strong>: 总访客/自然访客/浏览/总点击/自然点击/收藏</span>
           <span>🛒 <strong>加购</strong>: 加购人/加购数/加购率</span>
@@ -354,7 +354,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
       )}
       
       {/* 提示 */}
-      <div style={{ padding: '8px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', fontSize: '10px', color: '#64748B', textAlign: 'center' }}>
+      <div style={{ padding: '8px 20px', borderTop: '1px solid #E8E8ED', fontSize: '10px', color: '#999', textAlign: 'center' }}>
         💡 点击任意行查看该天的 AI 决策分析
       </div>
     </div>
