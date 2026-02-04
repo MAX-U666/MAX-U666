@@ -254,7 +254,7 @@ module.exports = function(pool) {
       const params = [];
 
       if (req.query.shop) {
-        where += ' AND shop_name = ?';
+        where += ' AND shop_id = ?';
         params.push(req.query.shop);
       }
       if (req.query.shopId) {
@@ -338,14 +338,17 @@ module.exports = function(pool) {
         ? ((summary.total_profit / summary.total_gmv) * 100).toFixed(1) + '%'
         : '0%';
 
-      // 按店铺统计
+      // 按店铺统计（映射真正店铺名）
       const [shopStats] = await pool.query(`
         SELECT
-          shop_name,
+          o.shop_id,
+          COALESCE(s.shop_name, o.shop_name, o.shop_id) as shop_name,
           COUNT(*) as count,
-          SUM(CASE WHEN platform_order_status != 'CANCELLED' THEN pay_amount ELSE 0 END) as total_pay
-        FROM eb_orders WHERE ${where}
-        GROUP BY shop_name
+          SUM(CASE WHEN o.platform_order_status != 'CANCELLED' THEN o.pay_amount ELSE 0 END) as total_pay
+        FROM eb_orders o
+        LEFT JOIN eb_shops s ON s.shop_id = o.shop_id
+        WHERE ${where.replace(/shop_id/g, 'o.shop_id').replace(/gmt_order_start/g, 'o.gmt_order_start')}
+        GROUP BY o.shop_id, s.shop_name
         ORDER BY count DESC
       `, params);
 
@@ -456,6 +459,20 @@ module.exports = function(pool) {
       }
       if (req.query.matched === 'true') {
         where += ' AND platform_item_id IS NOT NULL';
+      } else if (req.query.matched === 'false') {
+        where += ' AND (platform_item_id IS NULL OR platform_item_id = "")';
+      }
+      if (req.query.dateFrom) {
+        where += ' AND gmt_start_time >= ?';
+        params.push(req.query.dateFrom);
+      }
+      if (req.query.dateTo) {
+        where += ' AND gmt_start_time <= ?';
+        params.push(req.query.dateTo);
+      }
+      if (req.query.keyword) {
+        where += ' AND ad_name LIKE ?';
+        params.push(`%${req.query.keyword}%`);
       }
 
       const [countResult] = await pool.query(
@@ -466,7 +483,7 @@ module.exports = function(pool) {
       const [campaigns] = await pool.query(
         `SELECT a.*, s.shop_name FROM eb_ad_campaigns a 
          LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
-         WHERE ${where.replace(/shop_id/g, 'a.shop_id')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
+         WHERE ${where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/gmt_start_time/g, 'a.gmt_start_time').replace(/ad_name/g, 'a.ad_name')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
         [...params, pageSize, offset]
       );
 
@@ -566,6 +583,32 @@ module.exports = function(pool) {
       );
 
       res.json({ success: true, records, count: records.length });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/easyboss/ads/clean
+   * 清理超过N个月的广告数据
+   * Body: { months: 3 }
+   */
+  router.post('/ads/clean', async (req, res) => {
+    try {
+      const months = parseInt(req.body?.months) || 3;
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - months);
+      const cutoffStr = cutoff.toISOString().split('T')[0];
+
+      const [dailyResult] = await pool.query(
+        'DELETE FROM eb_ad_daily WHERE date < ?', [cutoffStr]
+      );
+
+      res.json({
+        success: true,
+        cutoffDate: cutoffStr,
+        deletedDaily: dailyResult.affectedRows,
+      });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
