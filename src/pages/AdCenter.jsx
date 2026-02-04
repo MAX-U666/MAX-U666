@@ -100,7 +100,7 @@ const ShopAdBar = ({ shops }) => {
         {shops.slice(0, 12).map((shop) => (
           <div key={shop.shop_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{ width: '60px', fontSize: '11px', color: '#94A3B8', textAlign: 'right', flexShrink: 0 }}>
-              {shop.shop_id}
+              {shop.shop_name || shop.shop_id}
             </div>
             <div style={{ flex: 1, height: '22px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', overflow: 'hidden' }}>
               <div style={{
@@ -149,7 +149,7 @@ const AdDetail = ({ ad, daily, onClose }) => {
               {ad.ad_name}
             </div>
             <div style={{ fontSize: '11px', color: '#64748B' }}>
-              广告ID: {ad.platform_campaign_id} · 店铺: {ad.shop_id} · {ad.ad_type} · {ad.bidding_method}
+              广告ID: {ad.platform_campaign_id} · 店铺: {ad.shop_name || ad.shop_id} · {ad.ad_type} · {ad.bidding_method}
               {ad.platform_item_id && <> · 商品: {ad.platform_item_id}</>}
             </div>
           </div>
@@ -375,7 +375,7 @@ const AdCenter = () => {
           >
             <option value="">全部店铺</option>
             {stats.byShop.map(s => (
-              <option key={s.shop_id} value={s.shop_id}>{s.shop_id} ({s.campaign_count})</option>
+              <option key={s.shop_id} value={s.shop_id}>{s.shop_name || s.shop_id} ({s.campaign_count})</option>
             ))}
           </select>
         )}
@@ -433,7 +433,7 @@ const AdCenter = () => {
                   {ad.ad_name}
                 </div>
                 <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <span>{ad.shop_id}</span>
+                  <span>{ad.shop_name || ad.shop_id}</span>
                   <span>·</span>
                   <span>{ad.ad_type}</span>
                   {ad.platform_item_id && (
