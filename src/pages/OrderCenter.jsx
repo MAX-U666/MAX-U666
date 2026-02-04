@@ -329,6 +329,9 @@ const OrderCenter = () => {
   const [totalOrders, setTotalOrders] = useState(0);
   const [filterShop, setFilterShop] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [fetching, setFetching] = useState(false);
   const [fetchResult, setFetchResult] = useState(null);
   const [fetchDays, setFetchDays] = useState(1);
@@ -354,6 +357,9 @@ const OrderCenter = () => {
       const params = { page: p, pageSize };
       if (filterShop) params.shop = filterShop;
       if (filterStatus) params.status = filterStatus;
+      if (filterDateFrom) params.dateFrom = filterDateFrom + ' 00:00:00';
+      if (filterDateTo) params.dateTo = filterDateTo + ' 23:59:59';
+      if (keyword) params.keyword = keyword;
       const data = await fetchOrders(params);
       if (data.success) {
         setOrders(data.orders || []);
@@ -366,7 +372,7 @@ const OrderCenter = () => {
     } finally {
       setLoading(false);
     }
-  }, [filterShop, filterStatus]);
+  }, [filterShop, filterStatus, filterDateFrom, filterDateTo, keyword]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadOrders(1); }, [loadOrders]);
@@ -499,6 +505,39 @@ const OrderCenter = () => {
       }}>
         <div style={{ fontSize: '13px', fontWeight: '600', color: '#F8FAFC' }}>📋 订单列表</div>
         <div style={{ flex: 1 }} />
+        <input
+          type="text"
+          placeholder="搜索订单号/买家..."
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && loadOrders(1)}
+          style={{
+            padding: '7px 12px', borderRadius: '8px', fontSize: '11px', width: '150px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#CBD5E1', outline: 'none',
+          }}
+        />
+        <input
+          type="date"
+          value={filterDateFrom}
+          onChange={(e) => setFilterDateFrom(e.target.value)}
+          style={{
+            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#CBD5E1', outline: 'none',
+          }}
+        />
+        <span style={{ color: '#475569', fontSize: '11px' }}>~</span>
+        <input
+          type="date"
+          value={filterDateTo}
+          onChange={(e) => setFilterDateTo(e.target.value)}
+          style={{
+            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#CBD5E1', outline: 'none',
+          }}
+        />
         <select
           value={filterShop}
           onChange={(e) => setFilterShop(e.target.value)}
@@ -510,7 +549,7 @@ const OrderCenter = () => {
         >
           <option value="">全部店铺</option>
           {shopList.map((s) => (
-            <option key={s.shop_name} value={s.shop_name}>{s.shop_name} ({s.count})</option>
+            <option key={s.shop_id || s.shop_name} value={s.shop_id || s.shop_name}>{s.shop_name} ({s.count})</option>
           ))}
         </select>
         <select
