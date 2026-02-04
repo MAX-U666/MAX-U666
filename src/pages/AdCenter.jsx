@@ -236,6 +236,8 @@ const AdCenter = () => {
   const [statusFilter, setStatusFilter] = useState('ongoing');
   const [shopFilter, setShopFilter] = useState('');
   const [matchedFilter, setMatchedFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [detail, setDetail] = useState(null);
   const [dailyData, setDailyData] = useState([]);
 
@@ -255,6 +257,8 @@ const AdCenter = () => {
       if (statusFilter) params.status = statusFilter;
       if (shopFilter) params.shopId = shopFilter;
       if (matchedFilter) params.matched = matchedFilter;
+      if (dateFrom) params.dateFrom = dateFrom + ' 00:00:00';
+      if (dateTo) params.dateTo = dateTo + ' 23:59:59';
       const data = await fetchCampaigns(params);
       if (data.success) {
         setCampaigns(data.campaigns);
@@ -262,7 +266,7 @@ const AdCenter = () => {
       }
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [page, statusFilter, shopFilter, matchedFilter]);
+  }, [page, statusFilter, shopFilter, matchedFilter, dateFrom, dateTo]);
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
@@ -340,9 +344,9 @@ const AdCenter = () => {
           value={statusFilter}
           onChange={e => { setStatusFilter(e.target.value); setPage(1); }}
           style={{
-            padding: '10px 14px', borderRadius: '10px',
+            padding: '8px 12px', borderRadius: '10px',
             border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '13px', outline: 'none',
+            color: '#F8FAFC', fontSize: '12px', outline: 'none',
           }}
         >
           <option value="">全部状态</option>
@@ -354,9 +358,9 @@ const AdCenter = () => {
           value={matchedFilter}
           onChange={e => { setMatchedFilter(e.target.value); setPage(1); }}
           style={{
-            padding: '10px 14px', borderRadius: '10px',
+            padding: '8px 12px', borderRadius: '10px',
             border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-            color: '#F8FAFC', fontSize: '13px', outline: 'none',
+            color: '#F8FAFC', fontSize: '12px', outline: 'none',
           }}
         >
           <option value="">全部匹配</option>
@@ -368,9 +372,9 @@ const AdCenter = () => {
             value={shopFilter}
             onChange={e => { setShopFilter(e.target.value); setPage(1); }}
             style={{
-              padding: '10px 14px', borderRadius: '10px',
+              padding: '8px 12px', borderRadius: '10px',
               border: '1px solid rgba(255,255,255,0.08)', background: '#1E293B',
-              color: '#F8FAFC', fontSize: '13px', outline: 'none', maxWidth: '180px',
+              color: '#F8FAFC', fontSize: '12px', outline: 'none', maxWidth: '180px',
             }}
           >
             <option value="">全部店铺</option>
@@ -379,6 +383,27 @@ const AdCenter = () => {
             ))}
           </select>
         )}
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+          style={{
+            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#CBD5E1', outline: 'none',
+          }}
+        />
+        <span style={{ color: '#475569', fontSize: '11px' }}>~</span>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={e => { setDateTo(e.target.value); setPage(1); }}
+          style={{
+            padding: '6px 8px', borderRadius: '8px', fontSize: '11px',
+            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+            color: '#CBD5E1', outline: 'none',
+          }}
+        />
         <div style={{ flex: 1 }} />
         <span style={{ fontSize: '12px', color: '#64748B' }}>
           共 {total} 条广告
