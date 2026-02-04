@@ -445,6 +445,7 @@ module.exports = function(pool) {
       const page = parseInt(req.query.page) || 1;
       const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 100);
       const offset = (page - 1) * pageSize;
+      const hasDateFilter = req.query.dateFrom || req.query.dateTo;
 
       let where = '1=1';
       const params = [];
@@ -462,32 +463,76 @@ module.exports = function(pool) {
       } else if (req.query.matched === 'false') {
         where += ' AND (platform_item_id IS NULL OR platform_item_id = "")';
       }
-      if (req.query.dateFrom) {
-        where += ' AND updated_at >= ?';
-        params.push(req.query.dateFrom);
-      }
-      if (req.query.dateTo) {
-        where += ' AND updated_at <= ?';
-        params.push(req.query.dateTo);
-      }
       if (req.query.keyword) {
         where += ' AND ad_name LIKE ?';
         params.push(`%${req.query.keyword}%`);
       }
 
-      const [countResult] = await pool.query(
-        `SELECT COUNT(*) as total FROM eb_ad_campaigns WHERE ${where}`, params
-      );
-      const total = countResult[0].total;
+      // 日期筛选 - 关联eb_ad_daily
+      let dailyWhere = '';
+      const dailyParams = [];
+      if (req.query.dateFrom) {
+        dailyWhere += ' AND d.date >= ?';
+        dailyParams.push(req.query.dateFrom);
+      }
+      if (req.query.dateTo) {
+        dailyWhere += ' AND d.date <= ?';
+        dailyParams.push(req.query.dateTo);
+      }
 
-      const [campaigns] = await pool.query(
-        `SELECT a.*, s.shop_name FROM eb_ad_campaigns a 
-         LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
-         WHERE ${where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/updated_at/g, 'a.updated_at').replace(/ad_name/g, 'a.ad_name')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
-        [...params, pageSize, offset]
-      );
+      if (hasDateFilter) {
+        // 有日期筛选：JOIN daily聚合该时段数据
+        const allParams = [...params, ...dailyParams, pageSize, offset];
+        const w = where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/ad_name/g, 'a.ad_name');
 
-      res.json({ success: true, campaigns, total, page, pageSize });
+        const [countResult] = await pool.query(`
+          SELECT COUNT(DISTINCT a.id) as total 
+          FROM eb_ad_campaigns a
+          INNER JOIN eb_ad_daily d ON d.platform_campaign_id = a.platform_campaign_id AND d.shop_id = a.shop_id
+          WHERE ${w} ${dailyWhere}
+        `, [...params, ...dailyParams]);
+        const total = countResult[0].total;
+
+        const [campaigns] = await pool.query(`
+          SELECT a.id, a.shopee_ads_campaign_id, a.shop_id, a.platform_campaign_id, a.platform_item_id,
+                 a.ad_name, a.ad_type, a.region, a.bidding_method, a.campaign_placement,
+                 a.campaign_status, a.campaign_budget, a.currency,
+                 s.shop_name,
+                 SUM(d.expense) as expense,
+                 SUM(d.impression) as impression,
+                 SUM(d.clicks) as clicks,
+                 CASE WHEN SUM(d.impression) > 0 THEN ROUND(SUM(d.clicks)/SUM(d.impression)*100, 2) ELSE 0 END as ctr,
+                 SUM(d.broad_gmv) as broad_gmv,
+                 SUM(d.broad_order) as broad_order,
+                 CASE WHEN SUM(d.expense) > 0 THEN ROUND(SUM(d.broad_gmv)/SUM(d.expense), 2) ELSE 0 END as broad_roi,
+                 SUM(d.direct_gmv) as direct_gmv,
+                 SUM(d.direct_order) as direct_order,
+                 CASE WHEN SUM(d.expense) > 0 THEN ROUND(SUM(d.direct_gmv)/SUM(d.expense), 2) ELSE 0 END as direct_roi
+          FROM eb_ad_campaigns a
+          INNER JOIN eb_ad_daily d ON d.platform_campaign_id = a.platform_campaign_id AND d.shop_id = a.shop_id
+          LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
+          WHERE ${w} ${dailyWhere}
+          GROUP BY a.id
+          ORDER BY expense DESC
+          LIMIT ? OFFSET ?
+        `, allParams);
+
+        res.json({ success: true, campaigns, total, page, pageSize });
+      } else {
+        // 无日期筛选：原逻辑
+        const [countResult] = await pool.query(
+          `SELECT COUNT(*) as total FROM eb_ad_campaigns WHERE ${where}`, params
+        );
+        const total = countResult[0].total;
+        const w = where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/ad_name/g, 'a.ad_name');
+        const [campaigns] = await pool.query(
+          `SELECT a.*, s.shop_name FROM eb_ad_campaigns a 
+           LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
+           WHERE ${w} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
+          [...params, pageSize, offset]
+        );
+        res.json({ success: true, campaigns, total, page, pageSize });
+      }
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
     }
