@@ -623,7 +623,7 @@ module.exports = function(pool) {
       }
 
       const [records] = await pool.query(
-        `SELECT * FROM eb_ad_daily WHERE ${where} ORDER BY date DESC LIMIT 500`,
+        `SELECT *, DATE_FORMAT(date, '%Y-%m-%d') as date FROM eb_ad_daily WHERE ${where} ORDER BY date DESC LIMIT 500`,
         params
       );
 
@@ -994,7 +994,7 @@ module.exports = function(pool) {
       const startDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
 
       const [orderTrend] = await pool.query(`
-        SELECT DATE(gmt_order_start) as date,
+        SELECT DATE_FORMAT(DATE(gmt_order_start), '%Y-%m-%d') as date,
           COUNT(*) as orders,
           SUM(pay_amount) as gmv,
           SUM(order_profit) as profit
@@ -1005,7 +1005,7 @@ module.exports = function(pool) {
       `, [startDate]);
 
       const [adTrend] = await pool.query(`
-        SELECT date,
+        SELECT DATE_FORMAT(date, '%Y-%m-%d') as date,
           SUM(expense) as ad_cost,
           SUM(broad_gmv) as ad_gmv,
           SUM(broad_order) as ad_orders,
@@ -1018,10 +1018,10 @@ module.exports = function(pool) {
 
       // 合并订单和广告趋势
       const adMap = {};
-      adTrend.forEach(a => { adMap[a.date instanceof Date ? a.date.toISOString().split('T')[0] : a.date] = a; });
+      adTrend.forEach(a => { adMap[a.date] = a; });
 
       const trend = orderTrend.map(o => {
-        const d = o.date instanceof Date ? o.date.toISOString().split('T')[0] : o.date;
+        const d = o.date;
         const a = adMap[d] || {};
         return {
           date: d,
