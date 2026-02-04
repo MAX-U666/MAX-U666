@@ -463,11 +463,11 @@ module.exports = function(pool) {
         where += ' AND (platform_item_id IS NULL OR platform_item_id = "")';
       }
       if (req.query.dateFrom) {
-        where += ' AND gmt_start_time >= ?';
+        where += ' AND updated_at >= ?';
         params.push(req.query.dateFrom);
       }
       if (req.query.dateTo) {
-        where += ' AND gmt_start_time <= ?';
+        where += ' AND updated_at <= ?';
         params.push(req.query.dateTo);
       }
       if (req.query.keyword) {
@@ -483,7 +483,7 @@ module.exports = function(pool) {
       const [campaigns] = await pool.query(
         `SELECT a.*, s.shop_name FROM eb_ad_campaigns a 
          LEFT JOIN eb_shops s ON s.shop_id = a.shop_id
-         WHERE ${where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/gmt_start_time/g, 'a.gmt_start_time').replace(/ad_name/g, 'a.ad_name')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
+         WHERE ${where.replace(/shop_id/g, 'a.shop_id').replace(/campaign_status/g, 'a.campaign_status').replace(/platform_item_id/g, 'a.platform_item_id').replace(/updated_at/g, 'a.updated_at').replace(/ad_name/g, 'a.ad_name')} ORDER BY a.expense DESC LIMIT ? OFFSET ?`,
         [...params, pageSize, offset]
       );
 
