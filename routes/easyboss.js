@@ -914,6 +914,244 @@ module.exports = function(pool) {
     }
   });
 
+  // =============================================
+  // 数据分析仪表盘
+  // =============================================
+
+  /**
+   * GET /api/easyboss/analytics/overview
+   * 综合概览：今日/昨日/本周/本月数据对比
+   */
+  router.get('/analytics/overview', async (req, res) => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+      const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0];
+      const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+
+      // 订单概览
+      const [orderStats] = await pool.query(`
+        SELECT
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN 1 ELSE 0 END) as today_orders,
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN pay_amount ELSE 0 END) as today_gmv,
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN order_profit ELSE 0 END) as today_profit,
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN 1 ELSE 0 END) as yesterday_orders,
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN pay_amount ELSE 0 END) as yesterday_gmv,
+          SUM(CASE WHEN DATE(gmt_order_start) = ? THEN order_profit ELSE 0 END) as yesterday_profit,
+          SUM(CASE WHEN DATE(gmt_order_start) >= ? THEN 1 ELSE 0 END) as week_orders,
+          SUM(CASE WHEN DATE(gmt_order_start) >= ? THEN pay_amount ELSE 0 END) as week_gmv,
+          SUM(CASE WHEN DATE(gmt_order_start) >= ? THEN order_profit ELSE 0 END) as week_profit
+        FROM eb_orders WHERE platform_order_status != 'CANCELLED'
+      `, [today, today, today, yesterday, yesterday, yesterday, weekAgo, weekAgo, weekAgo]);
+
+      // 广告概览
+      const [adStats] = await pool.query(`
+        SELECT
+          SUM(CASE WHEN date = ? THEN expense ELSE 0 END) as today_cost,
+          SUM(CASE WHEN date = ? THEN broad_gmv ELSE 0 END) as today_ad_gmv,
+          SUM(CASE WHEN date = ? THEN broad_order ELSE 0 END) as today_ad_orders,
+          SUM(CASE WHEN date = ? THEN expense ELSE 0 END) as yesterday_cost,
+          SUM(CASE WHEN date = ? THEN broad_gmv ELSE 0 END) as yesterday_ad_gmv,
+          SUM(CASE WHEN date >= ? THEN expense ELSE 0 END) as week_cost,
+          SUM(CASE WHEN date >= ? THEN broad_gmv ELSE 0 END) as week_ad_gmv,
+          SUM(CASE WHEN date >= ? THEN broad_order ELSE 0 END) as week_ad_orders
+        FROM eb_ad_daily
+      `, [today, today, today, yesterday, yesterday, weekAgo, weekAgo, weekAgo]);
+
+      const o = orderStats[0];
+      const a = adStats[0];
+
+      res.json({
+        success: true,
+        today: {
+          orders: o.today_orders || 0, gmv: o.today_gmv || 0, profit: o.today_profit || 0,
+          adCost: a.today_cost || 0, adGmv: a.today_ad_gmv || 0, adOrders: a.today_ad_orders || 0,
+          roi: a.today_cost > 0 ? (a.today_ad_gmv / a.today_cost).toFixed(2) : 0,
+        },
+        yesterday: {
+          orders: o.yesterday_orders || 0, gmv: o.yesterday_gmv || 0, profit: o.yesterday_profit || 0,
+          adCost: a.yesterday_cost || 0, adGmv: a.yesterday_ad_gmv || 0,
+          roi: a.yesterday_cost > 0 ? (a.yesterday_ad_gmv / a.yesterday_cost).toFixed(2) : 0,
+        },
+        week: {
+          orders: o.week_orders || 0, gmv: o.week_gmv || 0, profit: o.week_profit || 0,
+          adCost: a.week_cost || 0, adGmv: a.week_ad_gmv || 0, adOrders: a.week_ad_orders || 0,
+          roi: a.week_cost > 0 ? (a.week_ad_gmv / a.week_cost).toFixed(2) : 0,
+        },
+      });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/analytics/trend?days=14
+   * 每日趋势：订单数/GMV/利润/广告花费/广告ROI
+   */
+  router.get('/analytics/trend', async (req, res) => {
+    try {
+      const days = Math.min(parseInt(req.query.days) || 14, 90);
+      const startDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+
+      const [orderTrend] = await pool.query(`
+        SELECT DATE(gmt_order_start) as date,
+          COUNT(*) as orders,
+          SUM(pay_amount) as gmv,
+          SUM(order_profit) as profit
+        FROM eb_orders
+        WHERE DATE(gmt_order_start) >= ? AND platform_order_status != 'CANCELLED'
+        GROUP BY DATE(gmt_order_start)
+        ORDER BY date
+      `, [startDate]);
+
+      const [adTrend] = await pool.query(`
+        SELECT date,
+          SUM(expense) as ad_cost,
+          SUM(broad_gmv) as ad_gmv,
+          SUM(broad_order) as ad_orders,
+          CASE WHEN SUM(expense)>0 THEN ROUND(SUM(broad_gmv)/SUM(expense),2) ELSE 0 END as roi
+        FROM eb_ad_daily
+        WHERE date >= ?
+        GROUP BY date
+        ORDER BY date
+      `, [startDate]);
+
+      // 合并订单和广告趋势
+      const adMap = {};
+      adTrend.forEach(a => { adMap[a.date instanceof Date ? a.date.toISOString().split('T')[0] : a.date] = a; });
+
+      const trend = orderTrend.map(o => {
+        const d = o.date instanceof Date ? o.date.toISOString().split('T')[0] : o.date;
+        const a = adMap[d] || {};
+        return {
+          date: d,
+          orders: o.orders, gmv: parseFloat(o.gmv) || 0, profit: parseFloat(o.profit) || 0,
+          adCost: parseFloat(a.ad_cost) || 0, adGmv: parseFloat(a.ad_gmv) || 0,
+          adOrders: a.ad_orders || 0, roi: parseFloat(a.roi) || 0,
+        };
+      });
+
+      res.json({ success: true, trend });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/analytics/top-products?limit=10&days=30
+   * 商品利润排行 + 广告投产分析
+   */
+  router.get('/analytics/top-products', async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+      const days = Math.min(parseInt(req.query.days) || 30, 90);
+      const startDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+
+      const [products] = await pool.query(`
+        SELECT
+          p.platform_item_id, p.item_name, p.shop_id, p.sale_price, p.sell_cnt,
+          COALESCE(s.shop_name, p.shop_id) as shop_name,
+          COUNT(o.id) as order_count,
+          SUM(o.pay_amount) as total_gmv,
+          SUM(o.order_profit) as total_profit,
+          COALESCE(ad.total_cost, 0) as ad_cost,
+          COALESCE(ad.total_ad_gmv, 0) as ad_gmv,
+          COALESCE(ad.total_ad_orders, 0) as ad_orders,
+          CASE WHEN COALESCE(ad.total_cost,0) > 0
+            THEN ROUND(COALESCE(ad.total_ad_gmv,0) / ad.total_cost, 2) ELSE 0 END as ad_roi,
+          CASE WHEN COALESCE(ad.total_cost,0) > 0
+            THEN ROUND((SUM(o.order_profit) - COALESCE(ad.total_cost,0)), 0) ELSE SUM(o.order_profit) END as net_profit
+        FROM eb_products p
+        INNER JOIN eb_orders o ON o.platform_item_id = p.platform_item_id AND o.shop_id = p.shop_id
+          AND DATE(o.gmt_order_start) >= ? AND o.platform_order_status != 'CANCELLED'
+        LEFT JOIN eb_shops s ON s.shop_id = p.shop_id
+        LEFT JOIN (
+          SELECT platform_item_id, d.shop_id,
+            SUM(expense) as total_cost, SUM(broad_gmv) as total_ad_gmv, SUM(broad_order) as total_ad_orders
+          FROM eb_ad_daily d
+          INNER JOIN eb_ad_campaigns c ON c.platform_campaign_id = d.platform_campaign_id AND c.shop_id = d.shop_id
+          WHERE d.date >= ?
+          GROUP BY c.platform_item_id, d.shop_id
+        ) ad ON ad.platform_item_id = p.platform_item_id AND ad.shop_id = p.shop_id
+        GROUP BY p.platform_item_id, p.shop_id
+        ORDER BY total_profit DESC
+        LIMIT ?
+      `, [startDate, startDate, limit]);
+
+      res.json({ success: true, products });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/analytics/ad-decisions
+   * AI广告决策建议：哪些该加预算/减预算/暂停
+   */
+  router.get('/analytics/ad-decisions', async (req, res) => {
+    try {
+      const days = Math.min(parseInt(req.query.days) || 7, 30);
+      const startDate = new Date(Date.now() - days * 86400000).toISOString().split('T')[0];
+
+      const [ads] = await pool.query(`
+        SELECT
+          c.platform_campaign_id, c.ad_name, c.shop_id, c.campaign_status, c.campaign_budget,
+          COALESCE(s.shop_name, c.shop_id) as shop_name, c.platform_item_id,
+          SUM(d.expense) as cost_period,
+          SUM(d.broad_gmv) as gmv_period,
+          SUM(d.broad_order) as orders_period,
+          SUM(d.impression) as impressions,
+          SUM(d.clicks) as clicks,
+          CASE WHEN SUM(d.expense)>0 THEN ROUND(SUM(d.broad_gmv)/SUM(d.expense),2) ELSE 0 END as roi,
+          CASE WHEN SUM(d.impression)>0 THEN ROUND(SUM(d.clicks)/SUM(d.impression)*100,2) ELSE 0 END as ctr
+        FROM eb_ad_campaigns c
+        INNER JOIN eb_ad_daily d ON d.platform_campaign_id = c.platform_campaign_id AND d.shop_id = c.shop_id
+        LEFT JOIN eb_shops s ON s.shop_id = c.shop_id
+        WHERE d.date >= ? AND c.campaign_status = 'ongoing'
+        GROUP BY c.platform_campaign_id, c.shop_id
+        HAVING cost_period > 0
+        ORDER BY cost_period DESC
+      `, [startDate]);
+
+      // 生成决策建议
+      const decisions = ads.map(ad => {
+        const roi = parseFloat(ad.roi) || 0;
+        const ctr = parseFloat(ad.ctr) || 0;
+        const cost = parseFloat(ad.cost_period) || 0;
+        const orders = ad.orders_period || 0;
+
+        let action, reason, urgency;
+        if (roi >= 5) {
+          action = '🟢 加预算'; reason = `ROI ${roi} 表现优秀，加大投放`;  urgency = 'high';
+        } else if (roi >= 3) {
+          action = '🟡 维持'; reason = `ROI ${roi} 表现良好，维持当前投放`; urgency = 'low';
+        } else if (roi >= 1.5) {
+          action = '🟠 观察'; reason = `ROI ${roi} 偏低，优化素材或出价`; urgency = 'medium';
+        } else if (orders === 0 && cost > 100000) {
+          action = '🔴 暂停'; reason = `花费 ${(cost/1000).toFixed(0)}K 但0订单，建议暂停`; urgency = 'high';
+        } else if (roi > 0) {
+          action = '🔴 减预算'; reason = `ROI ${roi} 亏损，降低预算或暂停`; urgency = 'high';
+        } else {
+          action = '🔴 暂停'; reason = `无GMV产出，建议暂停`; urgency = 'high';
+        }
+
+        return { ...ad, action, reason, urgency };
+      });
+
+      const summary = {
+        increase: decisions.filter(d => d.action.includes('加预算')).length,
+        maintain: decisions.filter(d => d.action.includes('维持')).length,
+        observe: decisions.filter(d => d.action.includes('观察')).length,
+        decrease: decisions.filter(d => d.action.includes('减预算')).length,
+        pause: decisions.filter(d => d.action.includes('暂停')).length,
+      };
+
+      res.json({ success: true, decisions, summary, period: `${days}天` });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
     try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
