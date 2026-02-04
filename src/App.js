@@ -317,8 +317,8 @@ const App = () => {
         onUserManagement={() => setShowUserManagement(true)}
       />
 
-      {/* 新增：模块切换栏 - 仅管理员可见 */}
-      {currentUser?.role === 'admin' && (
+      {/* 模块切换栏 - 所有用户可见 */}
+      {isLoggedIn && (
         <div style={{ 
           display: 'flex', 
           gap: '8px', 
