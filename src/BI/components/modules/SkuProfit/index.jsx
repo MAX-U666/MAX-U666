@@ -4,31 +4,14 @@ import { SkuQuadrant } from "./SkuQuadrant";
 import { SkuRanking } from "./SkuRanking";
 import { SkuTable } from "./SkuTable";
 
-const cardStyle = {
-  background: '#FFFFFF',
-  borderRadius: '16px',
-  padding: '20px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-  border: '1px solid #E8E8ED'
-};
-
-const btnBase = {
-  padding: '8px 16px',
-  borderRadius: '8px',
-  fontSize: '13px',
-  fontWeight: '500',
-  cursor: 'pointer',
-  transition: 'all 0.2s'
-};
-
 export function SkuProfitModule() {
-  const [dateRange, setDateRange] = useState("7d");
+  const [dateRange, setDateRange] = useState("today");
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* 日期筛选 + 操作按钮 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+    <div className="space-y-5">
+      {/* 日期筛选 + 操作按钮 - 统一风格 */}
+      <div className="flex justify-between items-center">
+        <div className="flex gap-2">
           {[
             { key: "today", label: "今日" },
             { key: "yesterday", label: "昨日" },
@@ -38,22 +21,23 @@ export function SkuProfitModule() {
             <button
               key={item.key}
               onClick={() => setDateRange(item.key)}
-              style={{
-                ...btnBase,
-                background: dateRange === item.key ? 'linear-gradient(135deg, #FF6B35, #F7931E)' : '#F5F5F7',
-                color: dateRange === item.key ? '#fff' : '#666',
-                border: 'none'
-              }}
+              className={`
+                px-4 py-2 rounded-lg text-sm font-medium transition-all
+                ${dateRange === item.key 
+                  ? 'bg-orange-500 text-white' 
+                  : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                }
+              `}
             >
               {item.label}
             </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button style={{ ...btnBase, background: '#F5F5F7', color: '#333', border: '1px solid #E8E8ED' }}>
+        <div className="flex gap-3">
+          <button className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 transition-all">
             导出报表
           </button>
-          <button style={{ ...btnBase, background: 'linear-gradient(135deg, #FF6B35, #F7931E)', color: '#fff', border: 'none' }}>
+          <button className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-all">
             刷新数据
           </button>
         </div>
@@ -69,7 +53,7 @@ export function SkuProfitModule() {
       <SkuRanking />
 
       {/* SKU 明细表 */}
-      <div style={cardStyle}>
+      <div className="bg-white rounded-xl p-5 border border-gray-200">
         <SkuTable />
       </div>
     </div>
