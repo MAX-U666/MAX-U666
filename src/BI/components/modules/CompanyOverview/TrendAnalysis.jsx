@@ -51,7 +51,7 @@ export function TrendAnalysis() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 控制栏 */}
       <div className="flex items-center justify-between">
         <div className="flex gap-2">
@@ -59,12 +59,12 @@ export function TrendAnalysis() {
             <button
               key={m.key}
               onClick={() => setActiveMetric(m.key)}
-              className={`px-4 py-2 rounded-lg text-sm transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeMetric === m.key
                   ? "text-white"
-                  : "bg-[#1a1f2e] text-gray-400 hover:bg-[#252b3d]"
+                  : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
               }`}
-              style={activeMetric === m.key ? { backgroundColor: m.color + "33", color: m.color, border: `1px solid ${m.color}50` } : {}}
+              style={activeMetric === m.key ? { backgroundColor: m.color } : {}}
             >
               {m.label}
             </button>
@@ -75,10 +75,10 @@ export function TrendAnalysis() {
             <button
               key={range}
               onClick={() => setDateRange(range)}
-              className={`px-3 py-1.5 rounded text-xs ${
+              className={`px-3 py-1.5 rounded text-xs font-medium ${
                 dateRange === range
-                  ? "bg-blue-500/20 text-blue-400"
-                  : "text-gray-500 hover:text-gray-300"
+                  ? "bg-orange-100 text-orange-600"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {range === "7d" ? "7天" : range === "30d" ? "30天" : "90天"}
@@ -89,28 +89,28 @@ export function TrendAnalysis() {
 
       {/* 统计卡片 */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-[#1a1f2e] rounded-xl p-4">
-          <div className="text-gray-400 text-sm mb-1">累计</div>
-          <div className="text-2xl font-bold text-white">
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="text-sm text-gray-500 mb-1">累计</div>
+          <div className="text-2xl font-bold text-gray-800">
             {activeMetric === "orders" ? total.toLocaleString() : formatCNY(total)}
           </div>
         </div>
-        <div className="bg-[#1a1f2e] rounded-xl p-4">
-          <div className="text-gray-400 text-sm mb-1">日均</div>
-          <div className="text-2xl font-bold text-white">
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="text-sm text-gray-500 mb-1">日均</div>
+          <div className="text-2xl font-bold text-gray-800">
             {activeMetric === "orders" ? Math.round(avg).toLocaleString() : formatCNY(avg)}
           </div>
         </div>
-        <div className="bg-[#1a1f2e] rounded-xl p-4">
-          <div className="text-gray-400 text-sm mb-1">峰值</div>
-          <div className="text-2xl font-bold text-white">
+        <div className="bg-white rounded-xl p-4 border border-gray-200">
+          <div className="text-sm text-gray-500 mb-1">峰值</div>
+          <div className="text-2xl font-bold text-gray-800">
             {activeMetric === "orders" ? maxValue.toLocaleString() : formatCNY(maxValue)}
           </div>
         </div>
       </div>
 
       {/* 图表区域 */}
-      <div className="bg-[#1a1f2e] rounded-xl p-6">
+      <div className="bg-white rounded-xl p-6 border border-gray-200">
         <div className="flex items-end justify-between h-64 gap-4">
           {data.map((item, idx) => {
             const color = metrics.find(m => m.key === activeMetric)?.color || "#3b82f6";
