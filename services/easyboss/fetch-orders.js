@@ -1,11 +1,11 @@
 /**
  * EasyBoss 订单数据抓取服务
- * 支持自动登录获取Cookie + 手动配置Cookie
+ * 使用 HTTP API 自动登录，Cookie 过期自动刷新
  * 
  * API: POST https://www.easyboss.com/api/order/package/searchOrderPackageList
  */
 
-const { getAuthInstance } = require('./auth');
+const EasyBossHttpAuth = require('./http-auth');
 
 class EasyBossOrderFetcher {
   constructor(pool) {
@@ -14,66 +14,48 @@ class EasyBossOrderFetcher {
     this.apiPath = '/api/order/package/searchOrderPackageList';
     this.cookieString = null;
     this.pageSize = 50;
-    this.loginRetried = false; // 防止无限重试
+    this.loginRetried = false;
+    this.httpAuth = new EasyBossHttpAuth(pool);
   }
 
   /**
-   * 获取Cookie（优先数据库配置，失效则自动登录）
+   * 获取Cookie（优先数据库，失效则自动HTTP登录）
    */
   async ensureLogin() {
     if (this.cookieString) return true;
 
-    // 1. 先尝试从数据库读取已保存的cookie
-    const [rows] = await this.pool.query(
-      "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie' LIMIT 1"
-    );
+    // 从数据库读取已保存的cookie
+    const saved = await this.httpAuth.getCookie();
 
-    if (rows.length && rows[0].config_value) {
-      this.cookieString = rows[0].config_value;
+    if (saved && saved.cookieString) {
+      this.cookieString = saved.cookieString;
       console.log(`[订单抓取] 使用已配置的Cookie (${this.cookieString.length} 字符)`);
       return true;
     }
 
-    // 2. 没有配置cookie，尝试自动登录
-    console.log('[订单抓取] 未找到Cookie配置，尝试自动登录...');
+    // 没有配置cookie，自动登录
+    console.log('[订单抓取] 未找到Cookie配置，执行HTTP登录...');
     return await this.autoLogin();
   }
 
   /**
-   * 自动登录获取Cookie
+   * HTTP API 自动登录获取Cookie
    */
   async autoLogin() {
     try {
-      const auth = getAuthInstance();
-      const result = await auth.login();
+      const result = await this.httpAuth.loginAndSave();
       
       if (!result.success) {
-        console.error('[订单抓取] 自动登录失败:', result.error);
-        if (result.needVerify) {
-          throw new Error('EasyBoss需要异地登录验证，请手动登录后复制Cookie');
-        }
-        throw new Error('自动登录失败: ' + result.error);
+        console.error('[订单抓取] HTTP登录失败:', result.error);
+        throw new Error('登录失败: ' + result.error);
       }
 
-      // 登录成功，保存cookie到数据库
-      const cookieStr = result.cookies.map(c => `${c.name}=${c.value}`).join('; ');
-      this.cookieString = cookieStr;
-
-      await this.pool.query(
-        `INSERT INTO eb_config (config_key, config_value, updated_at) 
-         VALUES ('easyboss_cookie', ?, NOW())
-         ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()`,
-        [cookieStr, cookieStr]
-      );
-
-      console.log(`[订单抓取] ✅ 自动登录成功，Cookie已保存 (${cookieStr.length} 字符)`);
-      
-      // 关闭浏览器释放资源
-      await auth.close();
+      this.cookieString = result.cookieString;
+      console.log(`[订单抓取] ✅ HTTP登录成功，Cookie已保存 (${this.cookieString.length} 字符)`);
       
       return true;
     } catch (err) {
-      console.error('[订单抓取] 自动登录异常:', err.message);
+      console.error('[订单抓取] 登录异常:', err.message);
       throw err;
     }
   }
@@ -82,22 +64,12 @@ class EasyBossOrderFetcher {
    * Cookie失效时重新登录
    */
   async refreshLogin() {
-    console.log('[订单抓取] Cookie失效，尝试重新登录...');
-    const oldCookie = this.cookieString;
+    console.log('[订单抓取] Cookie失效，执行HTTP重新登录...');
     this.cookieString = null;
     this.loginRetried = true;
     
-    try {
-      await this.autoLogin();
-      return true;
-    } catch (err) {
-      // 自动登录失败，恢复旧cookie（可能只是临时问题）
-      if (oldCookie) {
-        console.log('[订单抓取] 自动登录失败，保留旧Cookie');
-        this.cookieString = oldCookie;
-      }
-      throw err;
-    }
+    await this.autoLogin();
+    return true;
   }
 
   /**
@@ -149,15 +121,15 @@ class EasyBossOrderFetcher {
 
     const data = await response.json();
     
-    // 检测登录失效
+    // 检测登录失效 → 自动刷新
     if (data.result === 'fail' && (data.code === 50001 || data.reason?.includes('登录失效'))) {
       if (!this.loginRetried) {
-        console.log('[订单抓取] 检测到登录失效，尝试重新登录...');
+        console.log('[订单抓取] 检测到登录失效，自动刷新Cookie...');
         await this.refreshLogin();
         // 重试请求
         return await this.fetchOrderPage(params);
       } else {
-        throw new Error('登录失效且重试失败，请检查账号密码或手动设置Cookie');
+        throw new Error('登录失效且重试失败，请检查账号密码');
       }
     }
     
@@ -207,7 +179,6 @@ class EasyBossOrderFetcher {
 
       page++;
       
-      // 防止请求太快被封
       if (page <= totalPages) {
         await new Promise(r => setTimeout(r, 500));
       }
@@ -435,7 +406,6 @@ class EasyBossOrderFetcher {
     } else {
       const days = options.days || 7;
       const now = new Date();
-      // 用东八区时间
       const offset = 8 * 60 * 60 * 1000;
       const nowLocal = new Date(now.getTime() + offset);
       const fromLocal = new Date(nowLocal);
@@ -456,7 +426,6 @@ class EasyBossOrderFetcher {
       const saveResult = await this.saveOrders(orders);
       const duration = Date.now() - startTime;
       
-      // 记录日志
       await this.logFetch({
         status: 'success',
         ordersFetched: saveResult.saved,
@@ -523,9 +492,6 @@ class EasyBossOrderFetcher {
     }
   }
 
-  /**
-   * 清理cookie缓存（下次会重新从数据库读取）
-   */
   clearCookies() {
     this.cookieString = null;
   }
