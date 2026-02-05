@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { shopData } from "../../../data/mock";
 import { formatCNY } from "../../../utils/format";
+import { ShopDetail } from "./ShopDetail";
 
 export function ShopProfitModule() {
   const [expandedShop, setExpandedShop] = useState(null);
@@ -11,30 +12,32 @@ export function ShopProfitModule() {
   const totalProfit = shopData.reduce((sum, s) => sum + s.profit, 0);
   const totalOrders = shopData.reduce((sum, s) => sum + s.orders, 0);
   const avgRoi = totalAd > 0 ? totalRevenue / totalAd : 0;
+  const avgProfitPerOrder = totalOrders > 0 ? totalProfit / totalOrders : 0;
 
   return (
     <div className="space-y-5">
-      {/* 集团汇总 */}
-      <div className="grid grid-cols-6 gap-4">
+      {/* A. 集团汇总 - 新顺序: 总回款→总订单→总利润→单笔利润→总广告→整体ROI→总成本 */}
+      <div className="grid grid-cols-7 gap-4">
         {[
-          { label: '总回款', value: formatCNY(totalRevenue), icon: '💰', bg: 'bg-blue-50' },
-          { label: '总广告费', value: formatCNY(totalAd), icon: '📢', bg: 'bg-red-50', color: 'text-red-600' },
-          { label: '总成本', value: formatCNY(totalCost), icon: '📦', bg: 'bg-gray-50' },
+          { label: '总回款', value: formatCNY(totalRevenue), icon: '💰', bg: 'bg-blue-50', color: 'text-blue-600' },
+          { label: '总订单', value: totalOrders.toLocaleString(), icon: '🛒', bg: 'bg-orange-50', color: 'text-orange-600' },
           { label: '总利润', value: formatCNY(totalProfit), icon: '✨', bg: 'bg-green-50', color: 'text-green-600' },
+          { label: '单笔利润', value: formatCNY(avgProfitPerOrder), icon: '📝', bg: 'bg-emerald-50', color: 'text-emerald-600' },
+          { label: '总广告', value: formatCNY(totalAd), icon: '📢', bg: 'bg-red-50', color: 'text-red-600' },
           { label: '整体ROI', value: avgRoi.toFixed(2), icon: '📊', bg: 'bg-purple-50', color: 'text-purple-600' },
-          { label: '总订单量', value: totalOrders.toLocaleString(), icon: '🛒', bg: 'bg-orange-50' }
+          { label: '总成本', value: formatCNY(totalCost), icon: '📦', bg: 'bg-gray-50', color: 'text-gray-600' },
         ].map((item, i) => (
           <div key={i} className={`${item.bg} rounded-xl p-4 border border-gray-100`}>
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
               <span>{item.icon}</span>
               <span>{item.label}</span>
             </div>
-            <div className={`text-xl font-bold ${item.color || 'text-gray-800'}`}>{item.value}</div>
+            <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
           </div>
         ))}
       </div>
 
-      {/* 成本结构 */}
+      {/* B. 成本结构 */}
       <div className="bg-white rounded-xl p-5 border border-gray-200">
         <div className="text-sm font-semibold text-gray-800 mb-4">📊 成本结构占比</div>
         <div className="grid grid-cols-4 gap-6">
@@ -61,7 +64,7 @@ export function ShopProfitModule() {
         </div>
       </div>
 
-      {/* 店铺列表 */}
+      {/* C. 店铺列表 - 新列顺序: 店铺→回款→订单数→利润→广告费→ROI→成本→操作 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold text-gray-800">🏪 各店铺利润</div>
@@ -69,7 +72,7 @@ export function ShopProfitModule() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              {['店铺', '订单数', '销售额', '广告费', '成本', '利润', 'ROI', '利润率', '操作'].map(h => (
+              {['店铺', '回款', '订单数', '利润', '广告费', 'ROI', '成本', '操作'].map(h => (
                 <th key={h} className="px-4 py-3 text-left font-medium text-gray-500">{h}</th>
               ))}
             </tr>
@@ -82,13 +85,12 @@ export function ShopProfitModule() {
                   onClick={() => setExpandedShop(expandedShop === shop.id ? null : shop.id)}
                 >
                   <td className="px-4 py-3 font-medium text-gray-800">{shop.id}</td>
-                  <td className="px-4 py-3 text-gray-600">{shop.orders}</td>
                   <td className="px-4 py-3 text-gray-600">{formatCNY(shop.revenue)}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.ad)}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.cost)}</td>
+                  <td className="px-4 py-3 text-gray-600">{shop.orders}</td>
                   <td className={`px-4 py-3 font-semibold ${shop.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     {formatCNY(shop.profit)}
                   </td>
+                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.ad)}</td>
                   <td className="px-4 py-3">
                     <span className={`
                       px-2 py-1 rounded text-xs font-medium
@@ -97,18 +99,16 @@ export function ShopProfitModule() {
                       {shop.roi.toFixed(2)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{shop.rate.toFixed(1)}%</td>
+                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.cost)}</td>
                   <td className="px-4 py-3">
-                    <span className="text-blue-600 text-xs">{expandedShop === shop.id ? '收起 ▲' : '展开 ▼'}</span>
+                    <span className="text-blue-600 text-xs">{expandedShop === shop.id ? '✕ 收起' : '展开 ▼'}</span>
                   </td>
                 </tr>
+                {/* D. 店铺详情展开面板 */}
                 {expandedShop === shop.id && (
                   <tr>
-                    <td colSpan={9} className="px-4 py-4 bg-gray-50">
-                      <div className="text-sm text-gray-600">
-                        店铺详情：{shop.id} 共 {shop.orders} 单，日均 {Math.round(shop.orders / 7)} 单，
-                        仓储费 {formatCNY(shop.warehouse)}，包材费 {formatCNY(shop.packing)}
-                      </div>
+                    <td colSpan={8} className="p-0">
+                      <ShopDetail shopId={shop.id} onClose={() => setExpandedShop(null)} />
                     </td>
                   </tr>
                 )}
@@ -120,3 +120,4 @@ export function ShopProfitModule() {
     </div>
   );
 }
+
