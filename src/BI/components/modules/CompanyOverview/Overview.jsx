@@ -7,42 +7,42 @@ import { groupSummary } from '../../../data/mock';
 
 export function Overview() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* 公司级汇总 */}
-      <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-        <h3 className="text-sm text-indigo-100 mb-4">🏢 公司级财务汇总</h3>
+      <div className="bg-gradient-to-r from-orange-500 to-orange-400 rounded-2xl p-6 text-white shadow-lg">
+        <h3 className="text-sm text-orange-100 mb-4">🏢 公司级财务汇总</h3>
         <div className="grid grid-cols-6 gap-6">
           <div>
-            <div className="text-indigo-200 text-xs">总营收</div>
+            <div className="text-orange-200 text-xs">总营收</div>
             <div className="text-2xl font-bold">{formatCNY(groupSummary.totalRevenue)}</div>
           </div>
           <div>
-            <div className="text-indigo-200 text-xs">总成本</div>
+            <div className="text-orange-200 text-xs">总成本</div>
             <div className="text-2xl font-bold">{formatCNY(groupSummary.totalCost)}</div>
           </div>
           <div>
-            <div className="text-indigo-200 text-xs">总广告费</div>
+            <div className="text-orange-200 text-xs">总广告费</div>
             <div className="text-2xl font-bold">{formatCNY(groupSummary.totalAd)}</div>
           </div>
           <div>
-            <div className="text-indigo-200 text-xs">公司费用</div>
-            <div className="text-2xl font-bold text-yellow-300">¥42,100</div>
+            <div className="text-orange-200 text-xs">公司费用</div>
+            <div className="text-2xl font-bold text-yellow-200">¥42,100</div>
           </div>
           <div>
-            <div className="text-indigo-200 text-xs">净利润</div>
-            <div className="text-2xl font-bold text-green-300">¥373,972</div>
+            <div className="text-orange-200 text-xs">净利润</div>
+            <div className="text-2xl font-bold text-green-200">¥373,972</div>
           </div>
           <div>
-            <div className="text-indigo-200 text-xs">净利润率</div>
-            <div className="text-2xl font-bold text-green-300">46.4%</div>
+            <div className="text-orange-200 text-xs">净利润率</div>
+            <div className="text-2xl font-bold text-green-200">46.4%</div>
           </div>
         </div>
       </div>
 
       {/* 店铺贡献度 + 关键指标 */}
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-          <h3 className="text-gray-700 text-sm font-semibold mb-4">🏪 店铺利润贡献度</h3>
+      <div className="grid grid-cols-2 gap-5">
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <h3 className="text-gray-800 text-sm font-semibold mb-4">🏪 店铺利润贡献度</h3>
           <div className="space-y-3">
             {[
               { name: 'B03', profit: 118265, percent: 28.4, color: 'bg-blue-500' },
@@ -64,8 +64,8 @@ export function Overview() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-          <h3 className="text-gray-700 text-sm font-semibold mb-4">📊 关键指标对比</h3>
+        <div className="bg-white rounded-xl p-5 border border-gray-200">
+          <h3 className="text-gray-800 text-sm font-semibold mb-4">📊 关键指标对比</h3>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-green-50 rounded-lg p-4 border border-green-200">
               <div className="text-green-600 text-xs font-medium">整体ROI</div>
