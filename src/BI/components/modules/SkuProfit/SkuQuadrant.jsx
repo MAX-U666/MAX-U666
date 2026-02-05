@@ -6,60 +6,55 @@ const quadrants = [
     icon: "🌟", 
     count: 0, 
     desc: "高ROI + 高利润",
-    bgColor: "rgba(16, 185, 129, 0.08)",
-    borderColor: "rgba(16, 185, 129, 0.2)",
-    textColor: "#10B981"
+    bgColor: "bg-green-50",
+    borderColor: "border-green-200",
+    textColor: "text-green-600"
   },
   { 
     label: "潜力SKU", 
     icon: "💪", 
     count: 2, 
     desc: "高ROI + 低销量",
-    bgColor: "rgba(59, 130, 246, 0.08)",
-    borderColor: "rgba(59, 130, 246, 0.2)",
-    textColor: "#3B82F6"
+    bgColor: "bg-blue-50",
+    borderColor: "border-blue-200",
+    textColor: "text-blue-600"
   },
   { 
     label: "薄利SKU", 
     icon: "⚠️", 
     count: 3, 
     desc: "低ROI + 高销量",
-    bgColor: "rgba(245, 158, 11, 0.08)",
-    borderColor: "rgba(245, 158, 11, 0.2)",
-    textColor: "#F59E0B"
+    bgColor: "bg-orange-50",
+    borderColor: "border-orange-200",
+    textColor: "text-orange-600"
   },
   { 
     label: "问题SKU", 
     icon: "🚨", 
     count: 3, 
     desc: "ROI小于2 或 亏损",
-    bgColor: "rgba(239, 68, 68, 0.08)",
-    borderColor: "rgba(239, 68, 68, 0.2)",
-    textColor: "#EF4444"
+    bgColor: "bg-red-50",
+    borderColor: "border-red-200",
+    textColor: "text-red-600"
   }
 ];
 
 export function SkuQuadrant() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+    <div className="grid grid-cols-4 gap-4">
       {quadrants.map((q, idx) => (
         <div 
           key={idx} 
-          style={{
-            background: q.bgColor,
-            border: `1px solid ${q.borderColor}`,
-            borderRadius: '12px',
-            padding: '16px 20px'
-          }}
+          className={`${q.bgColor} ${q.borderColor} border rounded-xl p-4`}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '16px' }}>{q.icon}</span>
-            <span style={{ fontSize: '14px', fontWeight: '600', color: q.textColor }}>{q.label}</span>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">{q.icon}</span>
+            <span className={`text-sm font-semibold ${q.textColor}`}>{q.label}</span>
           </div>
-          <div style={{ fontSize: '32px', fontWeight: '700', color: q.textColor, marginBottom: '4px' }}>
+          <div className={`text-3xl font-bold ${q.textColor} mb-1`}>
             {q.count}
           </div>
-          <div style={{ fontSize: '12px', color: '#999' }}>{q.desc}</div>
+          <div className="text-xs text-gray-500">{q.desc}</div>
         </div>
       ))}
     </div>
