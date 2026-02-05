@@ -346,7 +346,7 @@ class EasyBossOrderFetcher {
       pkg.gmtModified || null,
       pkg.gmtLastDelivery || null,
       pkg.fulfillmentType,
-      null,
+      pkg.warehouseName || null,
     ];
 
     await this.pool.query(sql, values);
