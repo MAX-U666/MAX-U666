@@ -9,12 +9,14 @@
  */
 
 const https = require('https');
+const { getAuthInstance } = require('./auth');
 
 class AdsFetcher {
   constructor(pool) {
     this.pool = pool;
     this.cookieString = null;
     this.baseUrl = 'https://www.easyboss.com/api/platform/shopee/ads/ads';
+    this.loginRetried = false;
     
     // 所有店铺ID
     this.allShopIds = [
@@ -26,7 +28,7 @@ class AdsFetcher {
     ];
   }
 
-  // 从数据库读取cookie
+  // 从数据库读取cookie，失效则自动登录
   async ensureCookie() {
     if (this.cookieString) return true;
     try {
@@ -37,10 +39,53 @@ class AdsFetcher {
         this.cookieString = rows[0].config_value;
         return true;
       }
+      
+      // 没有cookie，尝试自动登录
+      console.log('[广告拉取] 未找到Cookie，尝试自动登录...');
+      return await this.autoLogin();
     } catch (e) {
       console.error('[广告拉取] 读取cookie失败:', e.message);
     }
     return false;
+  }
+
+  // 自动登录
+  async autoLogin() {
+    try {
+      const auth = getAuthInstance();
+      const result = await auth.login();
+      
+      if (!result.success) {
+        console.error('[广告拉取] 自动登录失败:', result.error);
+        return false;
+      }
+
+      const cookieStr = result.cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      this.cookieString = cookieStr;
+
+      await this.pool.query(
+        `INSERT INTO eb_config (config_key, config_value, updated_at) 
+         VALUES ('easyboss_cookie', ?, NOW())
+         ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()`,
+        [cookieStr, cookieStr]
+      );
+
+      console.log(`[广告拉取] ✅ 自动登录成功，Cookie已保存`);
+      await auth.close();
+      return true;
+    } catch (err) {
+      console.error('[广告拉取] 自动登录异常:', err.message);
+      return false;
+    }
+  }
+
+  // Cookie失效时重新登录
+  async refreshLogin() {
+    console.log('[广告拉取] Cookie失效，尝试重新登录...');
+    this.cookieString = null;
+    this.loginRetried = true;
+    await this.pool.query("DELETE FROM eb_config WHERE config_key = 'easyboss_cookie'");
+    return await this.autoLogin();
   }
 
   // HTTP POST请求
@@ -111,10 +156,28 @@ class AdsFetcher {
       try {
         const result = await this.postRequest(`${this.baseUrl}/searchProductCampaignList`, data);
 
+        // 检测登录失效
+        if (result.result === 'fail' && (result.code === 50001 || (result.reason && result.reason.includes('登录失效')))) {
+          if (!this.loginRetried) {
+            console.log('[广告拉取] 检测到登录失效，尝试重新登录...');
+            const refreshed = await this.refreshLogin();
+            if (refreshed) {
+              pageNo = 1; // 重置页码重新开始
+              allCampaigns.length = 0;
+              continue;
+            }
+          }
+          console.error('[广告拉取] 登录失效且重试失败');
+          break;
+        }
+
         if (result.result !== 'success') {
           console.error(`[广告拉取] 第${pageNo}页失败:`, result);
           break;
         }
+
+        // 成功后重置重试标记
+        this.loginRetried = false;
 
         total = parseInt(result.total) || 0;
         const list = result.promotionList || [];
