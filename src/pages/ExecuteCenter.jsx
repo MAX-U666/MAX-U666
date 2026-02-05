@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiGet } from '../utils/apiFetch';
+import { apiGet, apiPost } from '../utils/apiFetch';
 
 // ========== API ==========
 const api = (path) => apiGet(`/api/easyboss/analytics/${path}`);
@@ -20,6 +20,18 @@ const fmtPct = (cur, prev) => {
   if (!prev || prev === 0) return null;
   const pct = ((cur - prev) / prev * 100).toFixed(0);
   return { value: `${pct > 0 ? '+' : ''}${pct}%`, up: pct > 0 };
+};
+
+// action_type 转显示标签
+const getActionLabel = (type) => {
+  const map = {
+    'increase': '🟢 加预算',
+    'maintain': '🟡 维持',
+    'observe': '🟠 观察',
+    'decrease': '🔴 减预算',
+    'pause': '🔴 暂停',
+  };
+  return map[type] || type;
 };
 
 // ========== KPI 卡片 ==========
@@ -82,8 +94,8 @@ const TrendChart = ({ data, metric, label, color = '#3B82F6' }) => {
   );
 };
 
-// ========== 广告决策卡 ==========
-const DecisionCard = ({ ad }) => {
+// ========== 广告决策卡（带执行按钮）==========
+const DecisionCard = ({ ad, onExecute, onIgnore, executing }) => {
   const bgMap = {
     '🟢 加预算': 'rgba(16,185,129,0.08)',
     '🟡 维持': 'rgba(245,158,11,0.06)',
@@ -98,28 +110,64 @@ const DecisionCard = ({ ad }) => {
     '🔴 减预算': 'rgba(239,68,68,0.2)',
     '🔴 暂停': 'rgba(239,68,68,0.25)',
   };
+  
+  const isExecuted = ad.execution_status === 'executed';
+  const isIgnored = ad.execution_status === 'ignored';
+  const isPending = !isExecuted && !isIgnored;
 
   return (
     <div style={{
-      background: bgMap[ad.action] || '#FFFFFF',
-      border: `1px solid ${borderMap[ad.action] || '#E8E8ED'}`,
+      background: isExecuted ? 'rgba(16,185,129,0.04)' : isIgnored ? '#FAFBFC' : (bgMap[ad.action] || '#FFFFFF'),
+      border: `1px solid ${isExecuted ? 'rgba(16,185,129,0.3)' : isIgnored ? '#E8E8ED' : (borderMap[ad.action] || '#E8E8ED')}`,
       borderRadius: '12px', padding: '14px 16px',
+      opacity: isIgnored ? 0.6 : 1,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
         <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a', flex: 1, lineHeight: 1.4 }}>
           {(ad.ad_name || '').substring(0, 60)}{ad.ad_name?.length > 60 ? '...' : ''}
         </div>
-        <div style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap', marginLeft: '10px' }}>{ad.action}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ fontSize: '13px', fontWeight: '700', whiteSpace: 'nowrap' }}>{ad.action}</div>
+          {isExecuted && <span style={{ fontSize: '11px', color: '#10B981', fontWeight: '600' }}>✓ 已执行</span>}
+          {isIgnored && <span style={{ fontSize: '11px', color: '#999', fontWeight: '600' }}>已忽略</span>}
+        </div>
       </div>
-      <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>{ad.reason}</div>
-      <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#999' }}>
-        <span>花费: {fmtIDR(ad.cost_period)}</span>
-        <span>GMV: {fmtIDR(ad.gmv_period)}</span>
-        <span style={{ color: parseFloat(ad.roi) >= 3 ? '#10B981' : parseFloat(ad.roi) >= 1.5 ? '#F59E0B' : '#EF4444', fontWeight: '600' }}>
-          ROI: {parseFloat(ad.roi || 0).toFixed(2)}
-        </span>
-        <span>订单: {ad.orders_period || 0}</span>
-        <span>{ad.shop_name}</span>
+      <div style={{ fontSize: '11px', color: '#666', marginBottom: '8px' }}>{ad.reason || ad.ai_reason}</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: '#999' }}>
+          <span>花费: {fmtIDR(ad.cost_period || ad.cost_before)}</span>
+          <span>GMV: {fmtIDR(ad.gmv_period || ad.gmv_before)}</span>
+          <span style={{ color: parseFloat(ad.roi || ad.roi_before) >= 3 ? '#10B981' : parseFloat(ad.roi || ad.roi_before) >= 1.5 ? '#F59E0B' : '#EF4444', fontWeight: '600' }}>
+            ROI: {parseFloat(ad.roi || ad.roi_before || 0).toFixed(2)}
+          </span>
+          <span>订单: {ad.orders_period || 0}</span>
+        </div>
+        {isPending && onExecute && (
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              onClick={() => onIgnore(ad)}
+              disabled={executing}
+              style={{
+                padding: '5px 10px', borderRadius: '6px', border: '1px solid #E8E8ED',
+                background: '#fff', color: '#666', fontSize: '11px', cursor: 'pointer',
+              }}
+            >忽略</button>
+            <button
+              onClick={() => onExecute(ad)}
+              disabled={executing}
+              style={{
+                padding: '5px 12px', borderRadius: '6px', border: 'none',
+                background: 'linear-gradient(135deg, #FF6B35, #F7931E)', color: '#fff',
+                fontSize: '11px', fontWeight: '600', cursor: 'pointer',
+              }}
+            >✓ 确认执行</button>
+          </div>
+        )}
+        {(isExecuted || isIgnored) && ad.executor_name && (
+          <div style={{ fontSize: '10px', color: '#999' }}>
+            {ad.executor_name} · {ad.executed_at ? new Date(ad.executed_at).toLocaleString('zh-CN') : ''}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -176,27 +224,85 @@ const ExecuteCenter = () => {
   const [trend, setTrend] = useState([]);
   const [products, setProducts] = useState([]);
   const [decisions, setDecisions] = useState(null);
+  const [pendingLogs, setPendingLogs] = useState([]);
+  const [executionHistory, setExecutionHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [executing, setExecuting] = useState(false);
   const [trendDays, setTrendDays] = useState(14);
+  const [activeTab, setActiveTab] = useState('pending'); // pending | history
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [ov, tr, pr, dc] = await Promise.all([
+      const [ov, tr, pr, dc, pending, history] = await Promise.all([
         api('overview'),
         api(`trend?days=${trendDays}`),
         api('top-products?limit=10&days=30'),
         api('ad-decisions?days=7'),
+        apiGet('/api/easyboss/execute/pending'),
+        apiGet('/api/easyboss/execute/history?days=7'),
       ]);
       if (ov.success) setOverview(ov);
       if (tr.success) setTrend(tr.trend || []);
       if (pr.success) setProducts(pr.products || []);
       if (dc.success) setDecisions(dc);
+      if (pending.success) setPendingLogs(pending.logs || []);
+      if (history.success) setExecutionHistory(history.logs || []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }, [trendDays]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // 同步AI决策到执行队列
+  const syncDecisions = async () => {
+    if (!decisions?.decisions?.length) return;
+    setExecuting(true);
+    try {
+      const actionMap = {
+        '🟢 加预算': 'increase',
+        '🟡 维持': 'maintain',
+        '🟠 观察': 'observe',
+        '🔴 减预算': 'decrease',
+        '🔴 暂停': 'pause',
+      };
+      const toSync = decisions.decisions.map(d => ({
+        ...d,
+        action_type: actionMap[d.action] || 'maintain',
+      }));
+      await apiPost('/api/easyboss/execute/log', { decisions: toSync });
+      await loadAll();
+    } catch (e) { console.error(e); }
+    setExecuting(false);
+  };
+
+  // 执行决策
+  const handleExecute = async (log) => {
+    if (!window.confirm(`确认执行「${log.ad_name}」的「${log.action || log.action_type}」操作？`)) return;
+    setExecuting(true);
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      await apiPost('/api/easyboss/execute/action', { 
+        logId: log.id, 
+        action: 'execute',
+      });
+      await loadAll();
+    } catch (e) { console.error(e); }
+    setExecuting(false);
+  };
+
+  // 忽略决策
+  const handleIgnore = async (log) => {
+    setExecuting(true);
+    try {
+      await apiPost('/api/easyboss/execute/action', { 
+        logId: log.id, 
+        action: 'ignore',
+      });
+      await loadAll();
+    } catch (e) { console.error(e); }
+    setExecuting(false);
+  };
 
   const t = overview?.today || {};
   const y = overview?.yesterday || {};
@@ -282,26 +388,134 @@ const ExecuteCenter = () => {
             <ProductRank products={products} />
           </div>
 
-          {/* AI广告决策 */}
-          {decisions && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#666' }}>🤖 AI广告决策 (近{decisions.period})</div>
-                <div style={{ display: 'flex', gap: '8px', fontSize: '11px' }}>
-                  {decisions.summary.increase > 0 && <span style={{ color: '#10B981' }}>🟢加预算 {decisions.summary.increase}</span>}
-                  {decisions.summary.maintain > 0 && <span style={{ color: '#F59E0B' }}>🟡维持 {decisions.summary.maintain}</span>}
-                  {decisions.summary.observe > 0 && <span style={{ color: '#F97316' }}>🟠观察 {decisions.summary.observe}</span>}
-                  {decisions.summary.decrease > 0 && <span style={{ color: '#EF4444' }}>🔴减预算 {decisions.summary.decrease}</span>}
-                  {decisions.summary.pause > 0 && <span style={{ color: '#EF4444' }}>⛔暂停 {decisions.summary.pause}</span>}
+          {/* ========== 执行中心 ========== */}
+          <div style={{
+            background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E8E8ED',
+            overflow: 'hidden', marginBottom: '28px',
+          }}>
+            {/* 标题栏 */}
+            <div style={{
+              padding: '16px 20px', borderBottom: '1px solid #E8E8ED',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              background: 'linear-gradient(135deg, rgba(255,107,53,0.06) 0%, rgba(247,147,30,0.03) 100%)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '10px',
+                  background: 'linear-gradient(135deg, #FF6B35, #F7931E)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: '16px',
+                }}>⚡</div>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: '700', color: '#1a1a1a' }}>执行中心</div>
+                  <div style={{ fontSize: '11px', color: '#999' }}>AI决策执行与追踪</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {decisions.decisions.map((ad, i) => (
-                  <DecisionCard key={`${ad.platform_campaign_id}-${i}`} ad={ad} />
-                ))}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {decisions?.decisions?.length > 0 && (
+                  <button onClick={syncDecisions} disabled={executing}
+                    style={{
+                      padding: '8px 14px', borderRadius: '8px', border: '1px solid #E8E8ED',
+                      background: '#fff', color: '#666', fontSize: '12px', cursor: 'pointer',
+                    }}>
+                    📥 同步今日决策
+                  </button>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Tab切换 */}
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid #E8E8ED', display: 'flex', gap: '8px' }}>
+              <button onClick={() => setActiveTab('pending')}
+                style={{
+                  padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '600',
+                  background: activeTab === 'pending' ? 'linear-gradient(135deg, #FF6B35, #F7931E)' : '#F5F5F7',
+                  color: activeTab === 'pending' ? '#fff' : '#666', cursor: 'pointer',
+                }}>
+                待执行 {pendingLogs.length > 0 && `(${pendingLogs.length})`}
+              </button>
+              <button onClick={() => setActiveTab('history')}
+                style={{
+                  padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '600',
+                  background: activeTab === 'history' ? 'linear-gradient(135deg, #FF6B35, #F7931E)' : '#F5F5F7',
+                  color: activeTab === 'history' ? '#fff' : '#666', cursor: 'pointer',
+                }}>
+                执行历史
+              </button>
+              <button onClick={() => setActiveTab('ai')}
+                style={{
+                  padding: '8px 16px', borderRadius: '8px', border: 'none', fontSize: '12px', fontWeight: '600',
+                  background: activeTab === 'ai' ? 'linear-gradient(135deg, #FF6B35, #F7931E)' : '#F5F5F7',
+                  color: activeTab === 'ai' ? '#fff' : '#666', cursor: 'pointer',
+                }}>
+                AI建议 {decisions?.decisions?.length > 0 && `(${decisions.decisions.length})`}
+              </button>
+            </div>
+
+            {/* 内容区 */}
+            <div style={{ padding: '20px', minHeight: '200px' }}>
+              {/* 待执行列表 */}
+              {activeTab === 'pending' && (
+                pendingLogs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📭</div>
+                    <div>暂无待执行的决策</div>
+                    <div style={{ fontSize: '11px', marginTop: '8px' }}>点击「同步今日决策」从AI建议导入</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {pendingLogs.map(log => (
+                      <DecisionCard
+                        key={log.id}
+                        ad={{ ...log, action: getActionLabel(log.action_type) }}
+                        onExecute={handleExecute}
+                        onIgnore={handleIgnore}
+                        executing={executing}
+                      />
+                    ))}
+                  </div>
+                )
+              )}
+
+              {/* 执行历史 */}
+              {activeTab === 'history' && (
+                executionHistory.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+                    <div style={{ fontSize: '32px', marginBottom: '12px' }}>📋</div>
+                    <div>暂无执行记录</div>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {executionHistory.map(log => (
+                      <DecisionCard
+                        key={log.id}
+                        ad={{ ...log, action: getActionLabel(log.action_type) }}
+                        executing={false}
+                      />
+                    ))}
+                  </div>
+                )
+              )}
+
+              {/* AI建议（原来的decisions） */}
+              {activeTab === 'ai' && decisions && (
+                <>
+                  <div style={{ display: 'flex', gap: '8px', fontSize: '11px', marginBottom: '14px' }}>
+                    {decisions.summary.increase > 0 && <span style={{ padding: '4px 10px', background: 'rgba(16,185,129,0.1)', borderRadius: '12px', color: '#10B981' }}>🟢加预算 {decisions.summary.increase}</span>}
+                    {decisions.summary.maintain > 0 && <span style={{ padding: '4px 10px', background: 'rgba(245,158,11,0.1)', borderRadius: '12px', color: '#F59E0B' }}>🟡维持 {decisions.summary.maintain}</span>}
+                    {decisions.summary.observe > 0 && <span style={{ padding: '4px 10px', background: 'rgba(249,115,22,0.1)', borderRadius: '12px', color: '#F97316' }}>🟠观察 {decisions.summary.observe}</span>}
+                    {decisions.summary.decrease > 0 && <span style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.1)', borderRadius: '12px', color: '#EF4444' }}>🔴减预算 {decisions.summary.decrease}</span>}
+                    {decisions.summary.pause > 0 && <span style={{ padding: '4px 10px', background: 'rgba(239,68,68,0.1)', borderRadius: '12px', color: '#EF4444' }}>⛔暂停 {decisions.summary.pause}</span>}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {decisions.decisions.map((ad, i) => (
+                      <DecisionCard key={`${ad.platform_campaign_id}-${i}`} ad={ad} executing={false} />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </>
       )}
 
