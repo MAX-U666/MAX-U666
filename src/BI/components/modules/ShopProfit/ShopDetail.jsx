@@ -179,7 +179,7 @@ function MetricCard({ label, value, color = 'gray', highlight = false, status = 
   );
 }
 
-export function ShopDetail({ shopId, onClose }) {
+export function ShopDetail({ shopId, onClose, isStandalone = false }) {
   const shop = shopData.find(s => s.id === shopId);
   if (!shop) return null;
 
@@ -188,14 +188,16 @@ export function ShopDetail({ shopId, onClose }) {
   const maxPercent = Math.max(...rangeData.map(d => d.percent));
 
   return (
-    <div className="bg-white border-t border-gray-200">
-      {/* 头部 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-bold text-gray-800">📊 {shopId} 店铺利润分析</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm">✕ 收起</button>
+    <div className={`bg-white ${!isStandalone ? 'border-t border-gray-200' : ''}`}>
+      {/* 头部 - 独立模式下不显示 */}
+      {!isStandalone && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold text-gray-800">📊 {shopId} 店铺利润分析</h3>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-sm">✕ 收起</button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="p-6">
         {/* D1. 店铺指标卡片 - 第一行 */}
