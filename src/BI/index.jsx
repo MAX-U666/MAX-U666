@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ShopProfitModule } from "./components/modules/ShopProfit";
 import { OrderProfitModule } from "./components/modules/OrderProfit";
 import { SkuProfitModule } from "./components/modules/SkuProfit";
@@ -13,6 +13,21 @@ const tabs = [
 
 export default function BICenter() {
   const [activeTab, setActiveTab] = useState("sku");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // 点击外部关闭下拉框
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const currentTab = tabs.find(t => t.key === activeTab) || tabs[0];
 
   const renderModule = () => {
     switch (activeTab) {
@@ -31,32 +46,63 @@ export default function BICenter() {
 
   return (
     <div>
-      {/* 页面标题 - 跟订单中心风格一致 */}
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
-          <span>📊</span> BI 中心
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">利润分析与经营洞察</p>
-      </div>
+      {/* 页面标题 + 下拉选择器 */}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+            <span>📊</span> BI 中心
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">利润分析与经营洞察</p>
+        </div>
 
-      {/* 子模块 Tab 切换 - 简洁风格 */}
-      <div className="flex gap-2 mb-6">
-        {tabs.map(tab => (
+        {/* 下拉选择器 */}
+        <div className="relative" ref={dropdownRef}>
           <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2
-              ${activeTab === tab.key 
-                ? 'bg-orange-500 text-white shadow-sm' 
-                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-              }
-            `}
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-200 rounded-xl shadow-sm hover:border-orange-300 hover:shadow transition-all"
           >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
+            <span className="text-lg">{currentTab.icon}</span>
+            <span className="font-medium text-gray-800">{currentTab.label}</span>
+            <svg 
+              className={`w-4 h-4 text-gray-400 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
           </button>
-        ))}
+
+          {/* 下拉菜单 */}
+          {isDropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-50">
+              {tabs.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    setIsDropdownOpen(false);
+                  }}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 text-left transition-colors
+                    ${activeTab === tab.key 
+                      ? 'bg-orange-50 text-orange-600' 
+                      : 'text-gray-700 hover:bg-gray-50'
+                    }
+                  `}
+                >
+                  <span className="text-lg">{tab.icon}</span>
+                  <span className="font-medium">{tab.label}</span>
+                  {activeTab === tab.key && (
+                    <svg className="w-4 h-4 ml-auto text-orange-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 模块内容 */}
