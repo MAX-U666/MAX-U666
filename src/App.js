@@ -314,7 +314,6 @@ const App = () => {
     { key: 'orders', label: '📦 订单中心' },
     { key: 'products', label: '🏪 商品中心' },
     { key: 'ads', label: '📢 广告中心' },
-    { key: 'shopAuth', label: '🔐 店铺授权' },
     { key: 'bi', label: '📈 BI 中心' },
   ];
 
@@ -328,6 +327,7 @@ const App = () => {
         setFilterOwner={setFilterOwner}
         onLogout={handleLogout}
         onUserManagement={() => setShowUserManagement(true)}
+        onShopAuth={() => setCurrentModule('shopAuth')}
       />
 
       {/* 模块切换栏 */}
