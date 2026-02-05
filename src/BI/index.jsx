@@ -5,9 +5,9 @@ import { SkuProfitModule } from "./components/modules/SkuProfit";
 import { CompanyOverviewModule } from "./components/modules/CompanyOverview";
 
 const tabs = [
+  { key: "sku", label: "SKU利润", icon: "📦" },
   { key: "shop", label: "店铺利润", icon: "🏪" },
   { key: "order", label: "订单利润", icon: "📋" },
-  { key: "sku", label: "SKU利润", icon: "📦" },
   { key: "company", label: "公司总览", icon: "🏢" },
 ];
 
@@ -31,36 +31,27 @@ export default function BICenter() {
 
   return (
     <div>
-      {/* Tab 切换栏 */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        marginBottom: '20px',
-        padding: '4px',
-        background: '#F5F5F7',
-        borderRadius: '12px',
-        width: 'fit-content'
-      }}>
+      {/* 页面标题 - 跟订单中心风格一致 */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+          <span>📊</span> BI 中心
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">利润分析与经营洞察</p>
+      </div>
+
+      {/* 子模块 Tab 切换 - 简洁风格 */}
+      <div className="flex gap-2 mb-6">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: activeTab === tab.key 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : 'transparent',
-              color: activeTab === tab.key ? '#fff' : '#666',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
+            className={`
+              px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2
+              ${activeTab === tab.key 
+                ? 'bg-orange-500 text-white shadow-sm' 
+                : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+              }
+            `}
           >
             <span>{tab.icon}</span>
             <span>{tab.label}</span>
@@ -69,7 +60,9 @@ export default function BICenter() {
       </div>
 
       {/* 模块内容 */}
-      {renderModule()}
+      <div>
+        {renderModule()}
+      </div>
     </div>
   );
 }
