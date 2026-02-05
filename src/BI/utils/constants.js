@@ -2,16 +2,19 @@
  * BI 模块 - 常量配置
  */
 
+// 印尼盾对人民币汇率 (1 CNY = ? IDR)
+export const RATE = 0.00046;  // 1 IDR ≈ 0.00046 CNY
+
 // Tab 配置
-export const BI_TABS = [
-  { id: 'shop', name: '店铺利润', icon: '🏪' },
-  { id: 'order', name: '订单利润', icon: '📋' },
-  { id: 'sku', name: 'SKU利润', icon: '📦' },
-  { id: 'company', name: '公司总览', icon: '🏢' },
+export const tabs = [
+  { key: 'shop', label: '店铺利润', icon: '🏪' },
+  { key: 'order', label: '订单利润', icon: '📋' },
+  { key: 'sku', label: 'SKU利润', icon: '📦' },
+  { key: 'company', label: '公司总览', icon: '🏢' },
 ];
 
 // 店铺列表
-export const SHOPS = [
+export const shops = [
   { id: 'all', name: '全部店铺' },
   { id: 'B03', name: 'B03店铺' },
   { id: '15004', name: '15004店铺' },
