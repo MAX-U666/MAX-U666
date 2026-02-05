@@ -1241,6 +1241,191 @@ module.exports = function(pool) {
     }
   });
 
+  // =============================================
+  // 执行中心 - 决策执行记录
+  // =============================================
+
+  // 建表（幂等）
+  const initExecutionLogs = async () => {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ad_execution_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        platform_campaign_id VARCHAR(50) NOT NULL,
+        shop_id VARCHAR(50) NOT NULL,
+        ad_name VARCHAR(255),
+        action_type ENUM('increase', 'maintain', 'observe', 'decrease', 'pause') NOT NULL,
+        ai_reason TEXT,
+        execution_status ENUM('pending', 'executed', 'ignored') DEFAULT 'pending',
+        executor_id INT,
+        executor_name VARCHAR(50),
+        executed_at TIMESTAMP NULL,
+        roi_before DECIMAL(10,2),
+        cost_before DECIMAL(15,2),
+        gmv_before DECIMAL(15,2),
+        note TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_campaign (platform_campaign_id, shop_id),
+        INDEX idx_status (execution_status),
+        INDEX idx_date (created_at)
+      )
+    `);
+  };
+  initExecutionLogs().catch(e => console.error('[ad_execution_logs] init error:', e.message));
+
+  /**
+   * POST /api/easyboss/execute/log
+   * 记录AI决策到执行队列
+   */
+  router.post('/execute/log', async (req, res) => {
+    try {
+      const { decisions } = req.body;
+      if (!decisions || !Array.isArray(decisions) || decisions.length === 0) {
+        return res.json({ success: false, error: '无决策数据' });
+      }
+
+      // 批量插入，ON DUPLICATE 更新
+      let inserted = 0;
+      for (const d of decisions) {
+        // 检查今天是否已有记录
+        const today = new Date().toISOString().split('T')[0];
+        const [existing] = await pool.query(
+          `SELECT id FROM ad_execution_logs 
+           WHERE platform_campaign_id = ? AND shop_id = ? AND DATE(created_at) = ?`,
+          [d.platform_campaign_id, d.shop_id, today]
+        );
+        
+        if (existing.length === 0) {
+          await pool.query(
+            `INSERT INTO ad_execution_logs 
+             (platform_campaign_id, shop_id, ad_name, action_type, ai_reason, roi_before, cost_before, gmv_before)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              d.platform_campaign_id, d.shop_id, d.ad_name,
+              d.action_type || 'maintain', d.reason,
+              d.roi || 0, d.cost_period || 0, d.gmv_period || 0
+            ]
+          );
+          inserted++;
+        }
+      }
+      
+      res.json({ success: true, inserted, total: decisions.length });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/easyboss/execute/action
+   * 执行/忽略决策
+   */
+  router.post('/execute/action', async (req, res) => {
+    try {
+      const { logId, action, note } = req.body;
+      // action: 'execute' | 'ignore'
+      
+      const userId = req.headers['x-user-id'];
+      const userName = req.headers['x-user-name'] || '未知';
+      
+      if (!logId || !action) {
+        return res.json({ success: false, error: '参数错误' });
+      }
+
+      const status = action === 'execute' ? 'executed' : 'ignored';
+      await pool.query(
+        `UPDATE ad_execution_logs 
+         SET execution_status = ?, executor_id = ?, executor_name = ?, executed_at = NOW(), note = ?
+         WHERE id = ?`,
+        [status, userId, userName, note || '', logId]
+      );
+
+      res.json({ success: true });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/execute/pending
+   * 获取待执行的决策列表
+   */
+  router.get('/execute/pending', async (req, res) => {
+    try {
+      const allowedShops = await getAllowedShopIds(req);
+      let where = "execution_status = 'pending'";
+      const params = [];
+      
+      if (allowedShops && allowedShops.length > 0) {
+        where += ` AND shop_id IN (${allowedShops.map(() => '?').join(',')})`;
+        params.push(...allowedShops);
+      } else if (allowedShops && allowedShops.length === 0) {
+        return res.json({ success: true, logs: [] });
+      }
+
+      const [logs] = await pool.query(
+        `SELECT l.*, s.shop_name 
+         FROM ad_execution_logs l
+         LEFT JOIN eb_shops s ON s.shop_id = l.shop_id
+         WHERE ${where}
+         ORDER BY l.created_at DESC`,
+        params
+      );
+
+      res.json({ success: true, logs });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/easyboss/execute/history
+   * 获取执行历史
+   */
+  router.get('/execute/history', async (req, res) => {
+    try {
+      const days = parseInt(req.query.days) || 7;
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      const allowedShops = await getAllowedShopIds(req);
+      let where = 'l.created_at >= ?';
+      const params = [startDate.toISOString().split('T')[0]];
+      
+      if (allowedShops && allowedShops.length > 0) {
+        where += ` AND l.shop_id IN (${allowedShops.map(() => '?').join(',')})`;
+        params.push(...allowedShops);
+      } else if (allowedShops && allowedShops.length === 0) {
+        return res.json({ success: true, logs: [], stats: {} });
+      }
+
+      const [logs] = await pool.query(
+        `SELECT l.*, s.shop_name 
+         FROM ad_execution_logs l
+         LEFT JOIN eb_shops s ON s.shop_id = l.shop_id
+         WHERE ${where}
+         ORDER BY l.created_at DESC
+         LIMIT 200`,
+        params
+      );
+
+      // 统计
+      const [stats] = await pool.query(
+        `SELECT 
+           COUNT(*) as total,
+           SUM(execution_status = 'executed') as executed,
+           SUM(execution_status = 'ignored') as ignored,
+           SUM(execution_status = 'pending') as pending
+         FROM ad_execution_logs l
+         WHERE ${where}`,
+        params
+      );
+
+      res.json({ success: true, logs, stats: stats[0] || {} });
+    } catch (err) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // 优雅关闭（加 try-catch 防止 shutdown 报错导致崩溃循环）
   process.on('SIGTERM', async () => {
     try { await scheduler.shutdown(); } catch(e) { console.error('[Shutdown] SIGTERM error:', e.message); }
