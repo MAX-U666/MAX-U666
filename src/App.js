@@ -3,11 +3,12 @@ import { Header, DayTable, NewProductModal, UploadModal, AbnormalModal } from '.
 import AIDecisionPanel from './components/AIDecisionPanel';
 import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
-import ExecuteCenter from './pages/ExecuteCenter';  // 新增：执行中心
-import OrderCenter from './pages/OrderCenter';  // 新增：订单中心
-import ProductCenter from './pages/ProductCenter';  // 新增：商品中心
-import AdCenter from './pages/AdCenter';  // 新增：广告中心
-import ShopAuth from './pages/ShopAuth';  // 新增：店铺授权
+import ExecuteCenter from './pages/ExecuteCenter';
+import OrderCenter from './pages/OrderCenter';
+import ProductCenter from './pages/ProductCenter';
+import AdCenter from './pages/AdCenter';
+import ShopAuth from './pages/ShopAuth';
+import BICenter from './BI';  // 新增：BI中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
@@ -22,7 +23,7 @@ const App = () => {
   // 用户管理弹窗
   const [showUserManagement, setShowUserManagement] = useState(false);
 
-  // 新增：模块切换 ('decision' | 'execute')
+  // 新增：模块切换 ('decision' | 'execute' | 'bi')
   const [currentModule, setCurrentModule] = useState('decision');
 
   const [currentView, setCurrentView] = useState('dashboard');
@@ -122,7 +123,7 @@ const App = () => {
     localStorage.removeItem('user');
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setCurrentModule('decision'); // 退出时重置模块
+    setCurrentModule('decision');
   };
 
   const handleCreateProduct = async () => {
@@ -230,7 +231,7 @@ const App = () => {
     loadProductDetail(product.id);
     setCurrentView('detail');
     setExecutionStatus(null);
-    setSelectedDay(null); // 重置，让 useEffect 设置为 current_day
+    setSelectedDay(null);
   };
 
   // 删除产品
@@ -247,7 +248,7 @@ const App = () => {
       const data = await response.json();
       if (data.success) {
         alert('产品删除成功');
-        loadProducts(); // 刷新产品列表
+        loadProducts();
       } else {
         alert('删除失败: ' + (data.error || '未知错误'));
       }
@@ -306,6 +307,17 @@ const App = () => {
   const currentDayData = selectedProduct?.daily_data?.find(d => d.day_number === currentDayNumber);
   const dayStatus = getDayStatus(currentDayData);
 
+  // 模块按钮配置
+  const moduleButtons = [
+    { key: 'decision', label: '📊 决策工作台' },
+    { key: 'execute', label: '🤖 执行中心' },
+    { key: 'orders', label: '📦 订单中心' },
+    { key: 'products', label: '🏪 商品中心' },
+    { key: 'ads', label: '📢 广告中心' },
+    { key: 'shopAuth', label: '🔐 店铺授权' },
+    { key: 'bi', label: '📈 BI 中心' },
+  ];
+
   return (
     <div style={styles.container}>
       <Header 
@@ -318,147 +330,49 @@ const App = () => {
         onUserManagement={() => setShowUserManagement(true)}
       />
 
-      {/* 模块切换栏 - 所有用户可见 */}
+      {/* 模块切换栏 */}
       {isLoggedIn && (
         <div style={{ 
           display: 'flex', 
           gap: '8px', 
           padding: '12px 20px',
           background: '#FFFFFF',
-          borderBottom: '1px solid #E8E8ED'
+          borderBottom: '1px solid #E8E8ED',
+          overflowX: 'auto'
         }}>
-          <button 
-            onClick={() => switchModule('decision')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'decision' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'decision' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            📊 决策工作台
-          </button>
-          <button 
-            onClick={() => switchModule('execute')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'execute' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'execute' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            🤖 执行中心
-          </button>
-          <button 
-            onClick={() => switchModule('orders')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'orders' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'orders' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            📦 订单中心
-          </button>
-          <button 
-            onClick={() => switchModule('products')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'products' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'products' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            🏪 商品中心
-          </button>
-          <button 
-            onClick={() => switchModule('ads')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'ads' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'ads' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            📢 广告中心
-          </button>
-          <button 
-            onClick={() => switchModule('shopAuth')}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: 'none',
-              background: currentModule === 'shopAuth' 
-                ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                : '#F5F5F7',
-              color: currentModule === 'shopAuth' ? '#fff' : '#333',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-          >
-            🏪 店铺授权
-          </button>
+          {moduleButtons.map(btn => (
+            <button 
+              key={btn.key}
+              onClick={() => switchModule(btn.key)}
+              style={{
+                padding: '10px 20px',
+                borderRadius: '8px',
+                border: 'none',
+                background: currentModule === btn.key 
+                  ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
+                  : '#F5F5F7',
+                color: currentModule === btn.key ? '#fff' : '#333',
+                fontSize: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {btn.label}
+            </button>
+          ))}
         </div>
       )}
       
       <div style={styles.content}>
         {/* 根据模块切换显示不同内容 */}
-        {currentModule === 'execute' ? (
+        {currentModule === 'bi' ? (
+          <BICenter />
+        ) : currentModule === 'execute' ? (
           <ExecuteCenter />
         ) : currentModule === 'orders' ? (
           <OrderCenter />
@@ -674,7 +588,3 @@ const Detail = ({ selectedProduct, selectedDay, onDaySelect, dayStatus, currentD
 };
 
 export default App;
-
-
-
-
