@@ -78,10 +78,16 @@ class ProductsFetcher {
 
   async refreshLogin() {
     console.log('[商品拉取] Cookie失效，尝试重新登录...');
+    const oldCookie = this.cookieString;
     this.cookieString = null;
     this.loginRetried = true;
-    await this.pool.query("DELETE FROM eb_config WHERE config_key = 'easyboss_cookie'");
-    return await this.autoLogin();
+    
+    const success = await this.autoLogin();
+    if (!success && oldCookie) {
+      console.log('[商品拉取] 自动登录失败，保留旧Cookie');
+      this.cookieString = oldCookie;
+    }
+    return success;
   }
 
   async postRequest(url, data, timeout = 60000) {
