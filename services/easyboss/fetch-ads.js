@@ -9,7 +9,7 @@
  */
 
 const https = require('https');
-const { getAuthInstance } = require('./auth');
+const EasyBossHttpAuth = require('./http-auth');
 
 class AdsFetcher {
   constructor(pool) {
@@ -49,32 +49,22 @@ class AdsFetcher {
     return false;
   }
 
-  // 自动登录
+  // HTTP API 自动登录
   async autoLogin() {
     try {
-      const auth = getAuthInstance();
-      const result = await auth.login();
+      const httpAuth = new EasyBossHttpAuth(this.pool);
+      const result = await httpAuth.loginAndSave();
       
       if (!result.success) {
-        console.error('[广告拉取] 自动登录失败:', result.error);
+        console.error('[广告拉取] HTTP登录失败:', result.error);
         return false;
       }
 
-      const cookieStr = result.cookies.map(c => `${c.name}=${c.value}`).join('; ');
-      this.cookieString = cookieStr;
-
-      await this.pool.query(
-        `INSERT INTO eb_config (config_key, config_value, updated_at) 
-         VALUES ('easyboss_cookie', ?, NOW())
-         ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()`,
-        [cookieStr, cookieStr]
-      );
-
-      console.log(`[广告拉取] ✅ 自动登录成功，Cookie已保存`);
-      await auth.close();
+      this.cookieString = result.cookieString;
+      console.log(`[广告拉取] ✅ HTTP登录成功，Cookie已保存`);
       return true;
     } catch (err) {
-      console.error('[广告拉取] 自动登录异常:', err.message);
+      console.error('[广告拉取] 登录异常:', err.message);
       return false;
     }
   }
@@ -572,3 +562,4 @@ class AdsFetcher {
 }
 
 module.exports = AdsFetcher;
+
