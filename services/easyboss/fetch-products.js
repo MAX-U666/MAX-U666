@@ -9,12 +9,14 @@
  */
 
 const https = require('https');
+const { getAuthInstance } = require('./auth');
 
 class ProductsFetcher {
   constructor(pool) {
     this.pool = pool;
     this.cookieString = null;
     this.baseUrl = 'https://www.easyboss.com/api/platform/shopee/item/item';
+    this.loginRetried = false;
 
     this.allShopIds = [
       '1259862', '1259850', '1259865', '1259869', '1259870',
@@ -35,10 +37,51 @@ class ProductsFetcher {
         this.cookieString = rows[0].config_value;
         return true;
       }
+      
+      // 没有cookie，尝试自动登录
+      console.log('[商品拉取] 未找到Cookie，尝试自动登录...');
+      return await this.autoLogin();
     } catch (e) {
       console.error('[商品拉取] 读取cookie失败:', e.message);
     }
     return false;
+  }
+
+  async autoLogin() {
+    try {
+      const auth = getAuthInstance();
+      const result = await auth.login();
+      
+      if (!result.success) {
+        console.error('[商品拉取] 自动登录失败:', result.error);
+        return false;
+      }
+
+      const cookieStr = result.cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      this.cookieString = cookieStr;
+
+      await this.pool.query(
+        `INSERT INTO eb_config (config_key, config_value, updated_at) 
+         VALUES ('easyboss_cookie', ?, NOW())
+         ON DUPLICATE KEY UPDATE config_value = ?, updated_at = NOW()`,
+        [cookieStr, cookieStr]
+      );
+
+      console.log(`[商品拉取] ✅ 自动登录成功，Cookie已保存`);
+      await auth.close();
+      return true;
+    } catch (err) {
+      console.error('[商品拉取] 自动登录异常:', err.message);
+      return false;
+    }
+  }
+
+  async refreshLogin() {
+    console.log('[商品拉取] Cookie失效，尝试重新登录...');
+    this.cookieString = null;
+    this.loginRetried = true;
+    await this.pool.query("DELETE FROM eb_config WHERE config_key = 'easyboss_cookie'");
+    return await this.autoLogin();
   }
 
   async postRequest(url, data, timeout = 60000) {
