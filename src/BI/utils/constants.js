@@ -5,16 +5,17 @@
 // 印尼盾对人民币汇率
 export const RATE = 0.00046;
 
-// Tab 配置 (同时导出大小写兼容)
+// Tab 配置 (多种导出名兼容)
 export const tabs = [
-  { key: 'shop', label: '店铺利润', icon: '🏪' },
-  { key: 'order', label: '订单利润', icon: '📋' },
-  { key: 'sku', label: 'SKU利润', icon: '📦' },
-  { key: 'company', label: '公司总览', icon: '🏢' },
+  { key: 'shop', id: 'shop', label: '店铺利润', name: '店铺利润', icon: '🏪' },
+  { key: 'order', id: 'order', label: '订单利润', name: '订单利润', icon: '📋' },
+  { key: 'sku', id: 'sku', label: 'SKU利润', name: 'SKU利润', icon: '📦' },
+  { key: 'company', id: 'company', label: '公司总览', name: '公司总览', icon: '🏢' },
 ];
 export const TABS = tabs;
+export const BI_TABS = tabs;
 
-// 店铺列表 (同时导出大小写兼容)
+// 店铺列表 (多种导出名兼容)
 export const shops = [
   { id: 'all', name: '全部店铺' },
   { id: 'B03', name: 'B03店铺' },
