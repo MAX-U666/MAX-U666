@@ -1,86 +1,67 @@
-/**
- * SKU四象限组件
- */
-import React from 'react';
-import { getSkuQuadrant } from '../../../utils/helpers';
-import { skuData } from '../../../data/mock';
+import React from "react";
 
-export function SkuQuadrant({ selectedQuadrant, onSelect }) {
-  // 四象限统计
-  const quadrantStats = {
-    star: skuData.filter(s => getSkuQuadrant(s) === 'star').length,
-    potential: skuData.filter(s => getSkuQuadrant(s) === 'potential').length,
-    thin: skuData.filter(s => getSkuQuadrant(s) === 'thin').length,
-    problem: skuData.filter(s => getSkuQuadrant(s) === 'problem').length,
-  };
+const quadrants = [
+  { 
+    label: "明星SKU", 
+    icon: "🌟", 
+    count: 0, 
+    desc: "高ROI + 高利润",
+    bgColor: "rgba(16, 185, 129, 0.08)",
+    borderColor: "rgba(16, 185, 129, 0.2)",
+    textColor: "#10B981"
+  },
+  { 
+    label: "潜力SKU", 
+    icon: "💪", 
+    count: 2, 
+    desc: "高ROI + 低销量",
+    bgColor: "rgba(59, 130, 246, 0.08)",
+    borderColor: "rgba(59, 130, 246, 0.2)",
+    textColor: "#3B82F6"
+  },
+  { 
+    label: "薄利SKU", 
+    icon: "⚠️", 
+    count: 3, 
+    desc: "低ROI + 高销量",
+    bgColor: "rgba(245, 158, 11, 0.08)",
+    borderColor: "rgba(245, 158, 11, 0.2)",
+    textColor: "#F59E0B"
+  },
+  { 
+    label: "问题SKU", 
+    icon: "🚨", 
+    count: 3, 
+    desc: "ROI小于2 或 亏损",
+    bgColor: "rgba(239, 68, 68, 0.08)",
+    borderColor: "rgba(239, 68, 68, 0.2)",
+    textColor: "#EF4444"
+  }
+];
 
-  const quadrants = [
-    { 
-      id: 'star', 
-      title: '🌟 明星SKU', 
-      count: quadrantStats.star, 
-      desc: '高ROI + 高利润',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      activeBorderColor: 'border-green-500',
-      textColor: 'text-green-700',
-      countColor: 'text-green-600'
-    },
-    { 
-      id: 'potential', 
-      title: '💪 潜力SKU', 
-      count: quadrantStats.potential, 
-      desc: '高ROI + 低销量',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      activeBorderColor: 'border-blue-500',
-      textColor: 'text-blue-700',
-      countColor: 'text-blue-600'
-    },
-    { 
-      id: 'thin', 
-      title: '⚠️ 薄利SKU', 
-      count: quadrantStats.thin, 
-      desc: '低ROI + 高销量',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      activeBorderColor: 'border-yellow-500',
-      textColor: 'text-yellow-700',
-      countColor: 'text-yellow-600'
-    },
-    { 
-      id: 'problem', 
-      title: '🚨 问题SKU', 
-      count: quadrantStats.problem, 
-      desc: 'ROI小于2 或 亏损',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      activeBorderColor: 'border-red-500',
-      textColor: 'text-red-700',
-      countColor: 'text-red-600'
-    },
-  ];
-
+export function SkuQuadrant() {
   return (
-    <div className="grid grid-cols-4 gap-4">
-      {quadrants.map((q) => (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      {quadrants.map((q, idx) => (
         <div 
-          key={q.id}
-          onClick={() => onSelect(selectedQuadrant === q.id ? null : q.id)}
-          className={`${q.bgColor} border-2 rounded-xl p-4 cursor-pointer transition hover:shadow-md ${
-            selectedQuadrant === q.id ? `${q.activeBorderColor} ring-2 ring-opacity-50` : q.borderColor
-          }`}
+          key={idx} 
+          style={{
+            background: q.bgColor,
+            border: `1px solid ${q.borderColor}`,
+            borderRadius: '12px',
+            padding: '16px 20px'
+          }}
         >
-          <h4 className={`${q.textColor} text-sm font-semibold mb-2`}>{q.title}</h4>
-          <div className={`text-3xl font-bold ${q.countColor}`}>{q.count}</div>
-          <p className="text-xs text-gray-500 mt-1">{q.desc}</p>
-          {selectedQuadrant === q.id && (
-            <span className={`text-xs ${q.countColor} mt-2 block`}>✓ 已筛选</span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '16px' }}>{q.icon}</span>
+            <span style={{ fontSize: '14px', fontWeight: '600', color: q.textColor }}>{q.label}</span>
+          </div>
+          <div style={{ fontSize: '32px', fontWeight: '700', color: q.textColor, marginBottom: '4px' }}>
+            {q.count}
+          </div>
+          <div style={{ fontSize: '12px', color: '#999' }}>{q.desc}</div>
         </div>
       ))}
     </div>
   );
 }
-
-export default SkuQuadrant;
