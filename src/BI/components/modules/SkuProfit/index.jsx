@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { SkuOverview } from "./SkuOverview";
 import { SkuQuadrant } from "./SkuQuadrant";
 import { SkuRanking } from "./SkuRanking";
+import { SkuCharts } from "./SkuCharts";
 import { SkuTable } from "./SkuTable";
 
 export function SkuProfitModule() {
@@ -49,8 +50,11 @@ export function SkuProfitModule() {
       {/* 四象限 */}
       <SkuQuadrant />
 
-      {/* 排行榜 */}
+      {/* 排行榜 (3列: 利润TOP5 + ROI TOP5 + 利润区间分布) */}
       <SkuRanking />
+
+      {/* 双环图 + 散点图 */}
+      <SkuCharts />
 
       {/* SKU 明细表 */}
       <div className="bg-white rounded-xl p-5 border border-gray-200">
@@ -59,3 +63,4 @@ export function SkuProfitModule() {
     </div>
   );
 }
+
