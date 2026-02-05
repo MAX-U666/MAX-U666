@@ -4,7 +4,8 @@ import { formatCNY } from "../../../utils/format";
 import { ShopDetail } from "./ShopDetail";
 
 export function ShopProfitModule() {
-  const [expandedShop, setExpandedShop] = useState(null);
+  // 当前选中的店铺Tab（默认第一个店铺）
+  const [activeShopTab, setActiveShopTab] = useState(shopData[0]?.id || 'B03');
 
   const totalRevenue = shopData.reduce((sum, s) => sum + s.revenue, 0);
   const totalAd = shopData.reduce((sum, s) => sum + s.ad, 0);
@@ -64,7 +65,7 @@ export function ShopProfitModule() {
         </div>
       </div>
 
-      {/* C. 店铺列表 - 新列顺序: 店铺→回款→订单数→利润→广告费→ROI→成本→操作 */}
+      {/* C. 店铺列表 - 列顺序: 店铺→回款→订单数→利润→广告费→ROI→成本 */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100">
           <div className="text-sm font-semibold text-gray-800">🏪 各店铺利润</div>
@@ -72,52 +73,76 @@ export function ShopProfitModule() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
-              {['店铺', '回款', '订单数', '利润', '广告费', 'ROI', '成本', '操作'].map(h => (
+              {['店铺', '回款', '订单数', '利润', '广告费', 'ROI', '成本'].map(h => (
                 <th key={h} className="px-4 py-3 text-left font-medium text-gray-500">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {shopData.map((shop, i) => (
-              <React.Fragment key={i}>
-                <tr 
-                  className="border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition"
-                  onClick={() => setExpandedShop(expandedShop === shop.id ? null : shop.id)}
-                >
-                  <td className="px-4 py-3 font-medium text-gray-800">{shop.id}</td>
-                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.revenue)}</td>
-                  <td className="px-4 py-3 text-gray-600">{shop.orders}</td>
-                  <td className={`px-4 py-3 font-semibold ${shop.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {formatCNY(shop.profit)}
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.ad)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`
-                      px-2 py-1 rounded text-xs font-medium
-                      ${shop.roi >= 4 ? 'bg-green-100 text-green-700' : shop.roi >= 2 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}
-                    `}>
-                      {shop.roi.toFixed(2)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{formatCNY(shop.cost)}</td>
-                  <td className="px-4 py-3">
-                    <span className="text-blue-600 text-xs">{expandedShop === shop.id ? '✕ 收起' : '展开 ▼'}</span>
-                  </td>
-                </tr>
-                {/* D. 店铺详情展开面板 */}
-                {expandedShop === shop.id && (
-                  <tr>
-                    <td colSpan={8} className="p-0">
-                      <ShopDetail shopId={shop.id} onClose={() => setExpandedShop(null)} />
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
+              <tr 
+                key={i}
+                className={`border-b border-gray-50 hover:bg-gray-50 transition ${
+                  activeShopTab === shop.id ? 'bg-blue-50' : ''
+                }`}
+              >
+                <td className="px-4 py-3 font-medium text-gray-800">{shop.id}</td>
+                <td className="px-4 py-3 text-gray-600">{formatCNY(shop.revenue)}</td>
+                <td className="px-4 py-3 text-gray-600">{shop.orders}</td>
+                <td className={`px-4 py-3 font-semibold ${shop.profit > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCNY(shop.profit)}
+                </td>
+                <td className="px-4 py-3 text-gray-600">{formatCNY(shop.ad)}</td>
+                <td className="px-4 py-3">
+                  <span className={`
+                    px-2 py-1 rounded text-xs font-medium
+                    ${shop.roi >= 4 ? 'bg-green-100 text-green-700' : shop.roi >= 2 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}
+                  `}>
+                    {shop.roi.toFixed(2)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 text-gray-600">{formatCNY(shop.cost)}</td>
+              </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* D. 店铺详情 - 独立板块，Tab切换 */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        {/* Tab标签页 */}
+        <div className="flex border-b border-gray-200">
+          {shopData.map((shop) => (
+            <button
+              key={shop.id}
+              onClick={() => setActiveShopTab(shop.id)}
+              className={`
+                px-6 py-3 text-sm font-medium transition-all relative
+                ${activeShopTab === shop.id 
+                  ? 'text-blue-600 bg-blue-50' 
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                }
+              `}
+            >
+              <span className="flex items-center gap-2">
+                <span>{shop.id}</span>
+                {shop.profit > 0 ? (
+                  <span className="text-green-500 text-xs">+{formatCNY(shop.profit)}</span>
+                ) : (
+                  <span className="text-red-500 text-xs">{formatCNY(shop.profit)}</span>
+                )}
+              </span>
+              {/* 选中指示条 */}
+              {activeShopTab === shop.id && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600" />
+              )}
+            </button>
+          ))}
+        </div>
+        
+        {/* 店铺详情内容 */}
+        <ShopDetail shopId={activeShopTab} isStandalone={true} />
+      </div>
     </div>
   );
 }
-
