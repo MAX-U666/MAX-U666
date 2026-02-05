@@ -1,34 +1,41 @@
-/**
- * SKU概览卡片组件
- */
-import React from 'react';
-import { SummaryCard } from '../../common';
-import { skuData } from '../../../data/mock';
+import React from "react";
+import { formatCNY } from "../../../utils/format";
+
+const mockData = {
+  totalSku: 10,
+  profitSku: 7,
+  lossSku: 3,
+  roiReached: 2,
+  totalProfit: 22932.82
+};
+
+const cardStyle = {
+  background: '#FFFFFF',
+  borderRadius: '12px',
+  padding: '16px 20px',
+  border: '1px solid #E8E8ED'
+};
 
 export function SkuOverview() {
-  const summary = {
-    totalSku: skuData.length,
-    profitSku: skuData.filter(s => s.profit > 0).length,
-    lossSku: skuData.filter(s => s.profit <= 0).length,
-    roiOk: skuData.filter(s => s.roi >= 4).length,
-    totalProfit: skuData.reduce((sum, s) => sum + s.profit, 0)
-  };
-
-  const stats = [
-    { title: 'SKU总数', value: summary.totalSku },
-    { title: '盈利SKU', value: summary.profitSku, badge: `${(summary.profitSku/summary.totalSku*100).toFixed(1)}%`, positive: true },
-    { title: '亏损SKU', value: summary.lossSku, badge: `${(summary.lossSku/summary.totalSku*100).toFixed(1)}%` },
-    { title: 'ROI达标', value: summary.roiOk, badge: 'ROI≥4', positive: true },
-    { title: 'SKU总利润', value: `¥${summary.totalProfit.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`, positive: true },
+  const metrics = [
+    { label: "SKU总数", value: mockData.totalSku, sub: null },
+    { label: "盈利SKU", value: mockData.profitSku, sub: `${(mockData.profitSku/mockData.totalSku*100).toFixed(1)}%`, subColor: "#10B981" },
+    { label: "亏损SKU", value: mockData.lossSku, sub: `${(mockData.lossSku/mockData.totalSku*100).toFixed(1)}%`, subColor: "#EF4444" },
+    { label: "ROI达标", value: mockData.roiReached, sub: "ROI≥4", subColor: "#3B82F6" },
+    { label: "SKU总利润", value: formatCNY(mockData.totalProfit), sub: null }
   ];
 
   return (
-    <div className="grid grid-cols-5 gap-4">
-      {stats.map((stat, index) => (
-        <SummaryCard key={index} {...stat} />
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px' }}>
+      {metrics.map((item, idx) => (
+        <div key={idx} style={cardStyle}>
+          <div style={{ fontSize: '13px', color: '#999', marginBottom: '8px' }}>{item.label}</div>
+          <div style={{ fontSize: '24px', fontWeight: '700', color: '#1a1a1a' }}>{item.value}</div>
+          {item.sub && (
+            <div style={{ fontSize: '12px', color: item.subColor, marginTop: '4px' }}>{item.sub}</div>
+          )}
+        </div>
       ))}
     </div>
   );
 }
-
-export default SkuOverview;
