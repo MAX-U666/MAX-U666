@@ -17,46 +17,32 @@ const roiTop5 = [
   { name: "凡士林真润倍护霜40G", orders: 269, roi: 3.84, profit: 18735.74 }
 ];
 
-const cardStyle = {
-  background: '#FFFFFF',
-  borderRadius: '12px',
-  padding: '20px',
-  border: '1px solid #E8E8ED'
-};
-
 const medals = ["🥇", "🥈", "🥉", "4", "5"];
 
 export function SkuRanking() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+    <div className="grid grid-cols-2 gap-4">
       {/* 利润排行榜 */}
-      <div style={cardStyle}>
-        <div style={{ fontSize: '15px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="bg-white rounded-xl p-5 border border-gray-200">
+        <div className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <span>🏆</span> 利润排行榜 TOP5
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="space-y-3">
           {profitTop5.map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  fontSize: idx < 3 ? '18px' : '12px',
-                  background: idx >= 3 ? '#F5F5F7' : 'transparent',
-                  borderRadius: '50%',
-                  color: '#999'
-                }}>
+            <div key={idx} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`
+                  w-7 h-7 flex items-center justify-center rounded-full text-sm
+                  ${idx < 3 ? 'text-base' : 'bg-gray-100 text-gray-500 text-xs'}
+                `}>
                   {medals[idx]}
                 </span>
                 <div>
-                  <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500' }}>{item.name}</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>{item.orders}单 | ROI {item.roi}</div>
+                  <div className="text-sm text-gray-800 font-medium">{item.name}</div>
+                  <div className="text-xs text-gray-500">{item.orders}单 | ROI {item.roi}</div>
                 </div>
               </div>
-              <div style={{ fontSize: '16px', fontWeight: '600', color: '#FF6B35' }}>
+              <div className="text-base font-semibold text-orange-500">
                 {formatCNY(item.profit)}
               </div>
             </div>
@@ -65,33 +51,26 @@ export function SkuRanking() {
       </div>
 
       {/* ROI排行榜 */}
-      <div style={cardStyle}>
-        <div style={{ fontSize: '15px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="bg-white rounded-xl p-5 border border-gray-200">
+        <div className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
           <span>⚡</span> ROI排行榜 TOP5
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="space-y-3">
           {roiTop5.map((item, idx) => (
-            <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ 
-                  width: '28px', 
-                  height: '28px', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center',
-                  fontSize: idx < 3 ? '18px' : '12px',
-                  background: idx >= 3 ? '#F5F5F7' : 'transparent',
-                  borderRadius: '50%',
-                  color: '#999'
-                }}>
+            <div key={idx} className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`
+                  w-7 h-7 flex items-center justify-center rounded-full text-sm
+                  ${idx < 3 ? 'text-base' : 'bg-gray-100 text-gray-500 text-xs'}
+                `}>
                   {medals[idx]}
                 </span>
                 <div>
-                  <div style={{ fontSize: '14px', color: '#1a1a1a', fontWeight: '500' }}>{item.name}</div>
-                  <div style={{ fontSize: '12px', color: '#999' }}>{item.orders}单 | 利润 {formatCNY(item.profit)}</div>
+                  <div className="text-sm text-gray-800 font-medium">{item.name}</div>
+                  <div className="text-xs text-gray-500">{item.orders}单 | 利润 {formatCNY(item.profit)}</div>
                 </div>
               </div>
-              <div style={{ fontSize: '16px', fontWeight: '600', color: '#3B82F6' }}>
+              <div className="text-base font-semibold text-blue-500">
                 {item.roi}
               </div>
             </div>
