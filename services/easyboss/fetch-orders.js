@@ -83,15 +83,21 @@ class EasyBossOrderFetcher {
    */
   async refreshLogin() {
     console.log('[订单抓取] Cookie失效，尝试重新登录...');
+    const oldCookie = this.cookieString;
     this.cookieString = null;
     this.loginRetried = true;
     
-    // 清除数据库中的旧cookie
-    await this.pool.query(
-      "DELETE FROM eb_config WHERE config_key = 'easyboss_cookie'"
-    );
-    
-    return await this.autoLogin();
+    try {
+      await this.autoLogin();
+      return true;
+    } catch (err) {
+      // 自动登录失败，恢复旧cookie（可能只是临时问题）
+      if (oldCookie) {
+        console.log('[订单抓取] 自动登录失败，保留旧Cookie');
+        this.cookieString = oldCookie;
+      }
+      throw err;
+    }
   }
 
   /**
