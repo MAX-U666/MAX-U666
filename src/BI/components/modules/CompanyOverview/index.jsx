@@ -38,17 +38,17 @@ export function CompanyOverviewModule() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* 子导航 */}
-      <div className="flex gap-2 bg-[#0d1117] p-1 rounded-xl">
+    <div className="space-y-5">
+      {/* 子导航 - 白色风格 */}
+      <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
         {tabs.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-all ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.key
-                ? "bg-[#1a1f2e] text-white"
-                : "text-gray-400 hover:text-gray-200"
+                ? "bg-white text-gray-800 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
             }`}
           >
             <span>{tab.icon}</span>
