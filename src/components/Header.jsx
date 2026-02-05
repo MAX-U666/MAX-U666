@@ -10,7 +10,8 @@ const Header = ({
   setSelectedProduct,
   countdown,
   onLogout,
-  onUserManagement
+  onUserManagement,
+  onShopAuth
 }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -82,6 +83,16 @@ const Header = ({
                   >
                     <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👥</div>
                     <div style={{ fontSize: '13px', fontWeight: '600', color: '#3B82F6' }}>用户管理</div>
+                  </button>
+                )}
+
+                {currentUser?.role === 'admin' && (
+                  <button 
+                    onClick={() => { setShowUserMenu(false); onShopAuth && onShopAuth(); }} 
+                    style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%', padding: '12px 14px', borderRadius: '10px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                  >
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>🔐</div>
+                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#10B981' }}>店铺授权</div>
                   </button>
                 )}
                 
