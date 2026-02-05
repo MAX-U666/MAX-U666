@@ -82,10 +82,17 @@ class AdsFetcher {
   // Cookie失效时重新登录
   async refreshLogin() {
     console.log('[广告拉取] Cookie失效，尝试重新登录...');
+    const oldCookie = this.cookieString;
     this.cookieString = null;
     this.loginRetried = true;
-    await this.pool.query("DELETE FROM eb_config WHERE config_key = 'easyboss_cookie'");
-    return await this.autoLogin();
+    
+    const success = await this.autoLogin();
+    if (!success && oldCookie) {
+      // 自动登录失败，恢复旧cookie（可能只是临时问题）
+      console.log('[广告拉取] 自动登录失败，保留旧Cookie');
+      this.cookieString = oldCookie;
+    }
+    return success;
   }
 
   // HTTP POST请求
