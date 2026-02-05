@@ -19,7 +19,7 @@ const subModules = [
   { id: 'growth', name: '增长分析', icon: '🚀', component: GrowthAnalysis },
 ];
 
-export function CompanyOverview() {
+export function CompanyOverviewModule() {
   const [activeModule, setActiveModule] = useState('overview');
 
   const ActiveComponent = subModules.find(m => m.id === activeModule)?.component || Overview;
@@ -56,4 +56,4 @@ export function CompanyOverview() {
   );
 }
 
-export default CompanyOverview;
+export default CompanyOverviewModule;
