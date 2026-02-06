@@ -15,7 +15,10 @@ export default function BICenter({ defaultTab }) {
   // 从外部传入的 key 映射：bi-sku -> sku, bi-shop -> shop, etc.
   const mapTabKey = (key) => {
     if (!key) return 'sku';
-    return key.replace('bi-', '');
+    const mapped = key.replace('bi-', '');
+    // bi-overview 对应内部 tab key 'company'
+    if (mapped === 'overview') return 'company';
+    return mapped;
   };
 
   const [activeTab, setActiveTab] = useState(mapTabKey(defaultTab));
