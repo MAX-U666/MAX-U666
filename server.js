@@ -27,6 +27,10 @@ app.use('/api/easyboss', easybossRoutes);
 const productsRoutes = require('./routes/products')(pool);
 app.use('/api/products', productsRoutes);
 
+// SKU利润计算路由
+const profitRoutes = require('./routes/profit')(pool);
+app.use('/api/profit', profitRoutes);
+
 // 通用API路由
 const apiRoutes = require('./routes/api')(pool);
 app.use('/api', apiRoutes);
