@@ -169,10 +169,22 @@ module.exports = function(pool) {
         }
       }
 
-      // 广告费 + 利润
+      // 统计每个platform_item_id被多少个SKU引用（用于均摊广告费）
+      const itemIdSkuCount = {};
       for (const sku of Object.values(skuMap)) {
         for (const itemId of sku.itemIds) {
-          if (adMap[itemId]) sku.ad += adMap[itemId];
+          if (!itemIdSkuCount[itemId]) itemIdSkuCount[itemId] = 0;
+          itemIdSkuCount[itemId]++;
+        }
+      }
+
+      // 广告费按SKU数量均摊 + 利润
+      for (const sku of Object.values(skuMap)) {
+        for (const itemId of sku.itemIds) {
+          if (adMap[itemId]) {
+            const skuCount = itemIdSkuCount[itemId] || 1;
+            sku.ad += adMap[itemId] / skuCount;
+          }
         }
         delete sku.itemIds;
         sku.profit = sku.revenue - sku.cost - sku.packing - sku.ad;
