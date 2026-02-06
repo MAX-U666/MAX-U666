@@ -1,10 +1,8 @@
 /**
  * EasyBoss HTTP API 自动登录模块
- * 纯 HTTP 请求，无需浏览器，避免异地验证
  * 
- * 登录流程：AES加密账号密码 → POST登录接口 → 获取Cookie
- * 
- * [2026-02-06] 修复：Cookie同时写入文件，getCookie优先读文件，解决API进程内存缓存导致cookie过期问题
+ * [2026-02-06] 统一使用 /api/auth/account/login 接口 + CryptoJS加密
+ *              同时写入Cookie文件，getCookie优先读文件
  */
 
 const crypto = require('crypto');
@@ -12,129 +10,120 @@ const fs = require('fs');
 const path = require('path');
 const COOKIE_FILE = path.join(__dirname, '.easyboss_cookie');
 
+// AES加密（与daily-sync一致，使用CryptoJS兼容方式）
+const EB_AES_KEY = '@3438jj;siduf832';
+
+function aesEncryptCryptoJS(data) {
+  // CryptoJS CBC with empty IV, PKCS7 padding
+  const key = Buffer.from(EB_AES_KEY, 'utf-8');
+  const iv = Buffer.alloc(16, 0); // empty IV
+  const cipher = crypto.createCipheriv('aes-128-cbc', key, iv);
+  let encrypted = cipher.update(data, 'utf8', 'base64');
+  encrypted += cipher.final('base64');
+  return encrypted;
+}
+
 class EasyBossHttpAuth {
   constructor(pool, config = {}) {
     this.pool = pool;
     this.username = config.username || 'xuziyi';
     this.password = config.password || 'Xuziyi123.';
-    this.loginUrl = 'https://www.easyboss.com/api/user/login';
-    
-    // AES 加密配置 (EasyBoss 使用的密钥)
-    this.aesKey = 'dmerp1234567890a';
-    this.aesIv = 'dmerp1234567890a';
+    // 统一使用 auth/account/login 接口（与daily-sync一致）
+    this.loginUrl = 'https://www.easyboss.com/api/auth/account/login';
   }
 
   /**
-   * AES-128-CBC 加密
-   */
-  aesEncrypt(text) {
-    const cipher = crypto.createCipheriv('aes-128-cbc', this.aesKey, this.aesIv);
-    let encrypted = cipher.update(text, 'utf8', 'base64');
-    encrypted += cipher.final('base64');
-    return encrypted;
-  }
-
-  /**
-   * 执行登录，返回 Cookie 字符串
+   * 执行登录（使用https模块，与daily-sync一致的方式）
    */
   async login() {
+    const https = require('https');
+    
     try {
-      console.log('[HttpAuth] 开始登录 EasyBoss...');
+      console.log('[HttpAuth] 开始登录 EasyBoss (auth/account/login)...');
       
-      // AES 加密账号密码
-      const encryptedAccount = this.aesEncrypt(this.username);
-      const encryptedPassword = this.aesEncrypt(this.password);
-      
-      console.log('[HttpAuth] 账号密码已加密');
+      const mobile = aesEncryptCryptoJS(this.username);
+      const password = aesEncryptCryptoJS(this.password);
 
-      // 发送登录请求
-      const response = await fetch(this.loginUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Origin': 'https://www.easyboss.com',
-          'Referer': 'https://www.easyboss.com/account/login.html',
-        },
-        body: JSON.stringify({
-          account: encryptedAccount,
-          password: encryptedPassword,
-          isEncrypt: true,
-          loginType: 'web'
-        }),
+      const result = await new Promise((resolve, reject) => {
+        const formData = {
+          mobile, password,
+          loginValidateCode: '',
+          isForwarderLogin: '1',
+          isVerifyRemoteLogin: '1',
+          from: 'erp',
+        };
+        const body = Object.entries(formData)
+          .map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v))
+          .join('&');
+
+        const req = https.request({
+          hostname: 'www.easyboss.com',
+          port: 443,
+          path: '/api/auth/account/login',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Content-Length': Buffer.byteLength(body),
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0',
+          },
+          timeout: 15000,
+        }, res => {
+          let d = '';
+          const setCookies = res.headers['set-cookie'] || [];
+          res.on('data', c => d += c);
+          res.on('end', () => {
+            try { resolve({ data: JSON.parse(d), setCookies, status: res.statusCode }); }
+            catch { resolve({ data: d, setCookies, status: res.statusCode }); }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('登录请求超时')); });
+        req.write(body);
+        req.end();
       });
 
-      // 提取 Set-Cookie
-      // Node 22 fetch 兼容：getSetCookie() 或 fallback
-      let setCookies = [];
-      if (typeof response.headers.getSetCookie === 'function') {
-        setCookies = response.headers.getSetCookie();
-      } else if (typeof response.headers.raw === 'function') {
-        setCookies = response.headers.raw()['set-cookie'] || [];
-      } else {
-        const raw = response.headers.get('set-cookie');
-        if (raw) setCookies = raw.split(', ');
-      }
-      const data = await response.json();
+      console.log('[HttpAuth] 响应状态:', result.status);
+      console.log('[HttpAuth] Set-Cookie 数量:', result.setCookies.length);
 
-      console.log('[HttpAuth] 响应状态:', response.status);
-      console.log('[HttpAuth] 响应内容:', JSON.stringify(data));
-      console.log('[HttpAuth] Set-Cookie 数量:', setCookies.length);
-
-      // 检查登录结果
-      if (data.result === 'success' || data.code === 200) {
-        // 解析 cookies
-        const cookiePairs = setCookies.map(c => {
-          const match = c.match(/^([^=]+)=([^;]*)/);
-          return match ? `${match[1]}=${match[2]}` : null;
-        }).filter(Boolean);
-
-        const cookieString = cookiePairs.join('; ');
+      if (result.data && result.data.result === 'success' && result.setCookies.length > 0) {
+        const cookieString = result.setCookies.map(c => c.split(';')[0]).join('; ');
         
-        console.log('[HttpAuth] ✅ 登录成功!');
-        console.log('[HttpAuth] Cookie 长度:', cookieString.length);
-
+        console.log('[HttpAuth] ✅ 登录成功! Cookie长度:', cookieString.length);
         return {
           success: true,
           cookieString,
-          accountId: data.accountId,
-          subAccountId: data.subAccountId
+          accountId: result.data.accountId,
+          subAccountId: result.data.subAccountId
         };
+      } else if (result.data && result.data.needSmsVerify) {
+        return { success: false, error: '需要短信验证码(异地登录)' };
       } else {
-        console.log('[HttpAuth] ❌ 登录失败:', data.reason || data.message || '未知错误');
-        return {
-          success: false,
-          error: data.reason || data.message || '登录失败'
-        };
+        const reason = result.data?.reason || result.data?.message || '未知错误';
+        console.log('[HttpAuth] ❌ 登录失败:', reason);
+        return { success: false, error: reason };
       }
     } catch (err) {
       console.error('[HttpAuth] 登录异常:', err.message);
-      return {
-        success: false,
-        error: err.message
-      };
+      return { success: false, error: err.message };
     }
   }
 
   /**
-   * 登录并保存 Cookie 到数据库+文件
+   * 登录并保存 Cookie 到文件+数据库
    */
   async loginAndSave() {
     const result = await this.login();
-    
     if (result.success && result.cookieString) {
       await this.saveCookie(result.cookieString);
     }
-    
     return result;
   }
 
   /**
-   * 保存 Cookie 到数据库 + 文件
+   * 保存 Cookie 到文件 + 数据库
    */
   async saveCookie(cookieString) {
-    // 写入文件（最可靠，不受进程缓存影响）
+    // 写入文件（最可靠）
     try {
       fs.writeFileSync(COOKIE_FILE, cookieString, 'utf-8');
       console.log('[HttpAuth] Cookie 已写入文件:', COOKIE_FILE);
@@ -151,7 +140,7 @@ class EasyBossHttpAuth {
       );
       console.log('[HttpAuth] Cookie 已保存到数据库');
     } catch (err) {
-      console.error('[HttpAuth] 保存 Cookie 到数据库失败:', err.message);
+      console.error('[HttpAuth] 保存到数据库失败:', err.message);
     }
   }
 
@@ -159,7 +148,7 @@ class EasyBossHttpAuth {
    * 获取 Cookie（优先读文件，fallback数据库）
    */
   async getCookie() {
-    // 优先从文件读取（最新，不受进程缓存影响）
+    // 优先从文件读取
     try {
       if (fs.existsSync(COOKIE_FILE)) {
         const cookieStr = fs.readFileSync(COOKIE_FILE, 'utf-8').trim();
@@ -178,10 +167,7 @@ class EasyBossHttpAuth {
         "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie' LIMIT 1"
       );
       if (rows.length && rows[0].config_value) {
-        return {
-          cookieString: rows[0].config_value,
-          updatedAt: rows[0].updated_at
-        };
+        return { cookieString: rows[0].config_value, updatedAt: rows[0].updated_at };
       }
       return null;
     } catch (err) {
@@ -196,18 +182,14 @@ class EasyBossHttpAuth {
   async isCookieExpiringSoon() {
     const saved = await this.getCookie();
     if (!saved) return true;
-    
     const age = Date.now() - new Date(saved.updatedAt).getTime();
-    const maxAge = 20 * 60 * 60 * 1000; // 20小时
-    
-    return age > maxAge;
+    return age > 20 * 60 * 60 * 1000;
   }
 
   /**
    * 智能获取 Cookie：过期则自动刷新
    */
   async ensureFreshCookie() {
-    // 检查是否需要刷新
     if (await this.isCookieExpiringSoon()) {
       console.log('[HttpAuth] Cookie 即将过期，自动刷新...');
       const result = await this.loginAndSave();
@@ -216,8 +198,6 @@ class EasyBossHttpAuth {
       }
       return result.cookieString;
     }
-    
-    // 使用现有 Cookie
     const saved = await this.getCookie();
     return saved?.cookieString;
   }
