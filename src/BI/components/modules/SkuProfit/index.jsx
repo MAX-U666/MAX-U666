@@ -7,17 +7,31 @@ import { SkuTable } from "./SkuTable";
 
 export function SkuProfitModule() {
   const [dateRange, setDateRange] = useState("today");
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
   const [skuData, setSkuData] = useState([]);
   const [overview, setOverview] = useState(null);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchData = useCallback(async () => {
+  useEffect(() => {
+    const now = new Date(Date.now() + 7 * 3600000);
+    setCustomStart(now.toISOString().split('T')[0]);
+    setCustomEnd(now.toISOString().split('T')[0]);
+  }, []);
+
+  const fetchData = useCallback(async (useCustom = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/profit/sku-list?range=${dateRange}`);
+      let url;
+      if (useCustom && customStart && customEnd) {
+        url = `/api/profit/sku-list?startDate=${customStart}&endDate=${customEnd}`;
+      } else {
+        url = `/api/profit/sku-list?range=${dateRange}`;
+      }
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
         setSkuData(json.data || []);
@@ -30,15 +44,20 @@ export function SkuProfitModule() {
       setError(err.message);
     }
     setLoading(false);
-  }, [dateRange]);
+  }, [dateRange, customStart, customEnd]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [dateRange]);
+
+  const handleCustomQuery = () => {
+    setDateRange("custom");
+    fetchData(true);
+  };
 
   return (
     <div className="space-y-5">
-      {/* 日期筛选 + 操作按钮 */}
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
+      {/* 日期筛选 */}
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {[
             { key: "today", label: "今日" },
             { key: "yesterday", label: "昨日" },
@@ -48,27 +67,31 @@ export function SkuProfitModule() {
             <button
               key={item.key}
               onClick={() => setDateRange(item.key)}
-              className={`
-                px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${dateRange === item.key 
-                  ? 'bg-orange-500 text-white' 
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                dateRange === item.key
+                  ? 'bg-orange-500 text-white'
                   : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
-                }
-              `}
-            >
-              {item.label}
-            </button>
+              }`}
+            >{item.label}</button>
           ))}
+          <span className="text-gray-300 mx-1">|</span>
+          <span className="text-sm text-gray-500">📅</span>
+          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
+          <span className="text-gray-400 text-sm">至</span>
+          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+            className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
+          <button onClick={handleCustomQuery}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              dateRange === 'custom'
+                ? 'bg-orange-500 text-white'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}>查询</button>
         </div>
-        <div className="flex gap-3">
-          <button 
-            onClick={fetchData}
-            disabled={loading}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-all disabled:opacity-50"
-          >
-            {loading ? "加载中..." : "刷新数据"}
-          </button>
-        </div>
+        <button onClick={() => fetchData(dateRange === 'custom')} disabled={loading}
+          className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm hover:bg-orange-600 transition-all disabled:opacity-50">
+          {loading ? "加载中..." : "刷新数据"}
+        </button>
       </div>
 
       {error && (
@@ -77,19 +100,11 @@ export function SkuProfitModule() {
         </div>
       )}
 
-      {/* 概览卡片 */}
       <SkuOverview data={overview} loading={loading} />
-
-      {/* 四象限 */}
       <SkuQuadrant data={skuData} />
-
-      {/* 排行榜 */}
       <SkuRanking data={skuData} />
-
-      {/* 图表 */}
       <SkuCharts data={skuData} />
 
-      {/* SKU 明细表 */}
       <div className="bg-white rounded-xl p-5 border border-gray-200">
         <SkuTable data={skuData} shops={shops} loading={loading} />
       </div>
