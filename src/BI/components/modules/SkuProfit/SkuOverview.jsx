@@ -2,7 +2,7 @@ import React from "react";
 import { formatCNY } from "../../../utils/format";
 
 export function SkuOverview({ data, loading }) {
-  const d = data || { totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0, totalProfit: 0, totalOrders: 0 };
+  const d = data || { totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0, totalProfit: 0, totalOrders: 0, totalQty: 0 };
 
   const metrics = [
     { 
@@ -11,6 +11,13 @@ export function SkuOverview({ data, loading }) {
       icon: "🛒",
       bgColor: "bg-cyan-50",
       iconBg: "bg-cyan-100"
+    },
+    { 
+      label: "售出件数", 
+      value: (d.totalQty || 0).toLocaleString(), 
+      icon: "📊",
+      bgColor: "bg-indigo-50",
+      iconBg: "bg-indigo-100"
     },
     { 
       label: "SKU总数", 
@@ -56,7 +63,7 @@ export function SkuOverview({ data, loading }) {
   ];
 
   return (
-    <div className="grid grid-cols-6 gap-4">
+    <div className="grid grid-cols-7 gap-4">
       {metrics.map((item, idx) => (
         <div key={idx} className={`${item.bgColor} rounded-xl p-4 border border-gray-100 ${loading ? 'animate-pulse' : ''}`}>
           <div className="flex items-start justify-between">
