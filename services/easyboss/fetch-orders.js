@@ -3,6 +3,8 @@
  * 使用 HTTP API 自动登录，Cookie 过期自动刷新
  * 
  * API: POST https://www.easyboss.com/api/order/package/searchOrderPackageList
+ * 
+ * [2026-02-06] 修复：ensureLogin每次从文件读取最新Cookie，不再使用内存缓存
  */
 
 const EasyBossHttpAuth = require('./http-auth');
@@ -19,17 +21,15 @@ class EasyBossOrderFetcher {
   }
 
   /**
-   * 获取Cookie（优先数据库，失效则自动HTTP登录）
+   * 获取Cookie（每次从文件/数据库读取最新，不使用内存缓存）
    */
   async ensureLogin() {
-    if (this.cookieString) return true;
-
-    // 从数据库读取已保存的cookie
+    // 每次都从文件/数据库读取最新cookie，不使用内存缓存
     const saved = await this.httpAuth.getCookie();
 
     if (saved && saved.cookieString) {
       this.cookieString = saved.cookieString;
-      console.log(`[订单抓取] 使用已配置的Cookie (${this.cookieString.length} 字符)`);
+      console.log(`[订单抓取] 使用最新Cookie (${this.cookieString.length} 字符)`);
       return true;
     }
 
