@@ -25,6 +25,7 @@ const App = () => {
 
   // 新增：模块切换 ('decision' | 'execute' | 'bi')
   const [currentModule, setCurrentModule] = useState('decision');
+  const [openDropdown, setOpenDropdown] = useState(null);
 
   const [currentView, setCurrentView] = useState('dashboard');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -308,7 +309,6 @@ const App = () => {
   const dayStatus = getDayStatus(currentDayData);
 
   // 导航分组配置
-  const [openDropdown, setOpenDropdown] = useState(null);
 
   const navGroups = [
     { 
