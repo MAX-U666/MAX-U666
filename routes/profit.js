@@ -174,21 +174,23 @@ module.exports = function(pool) {
         }
       }
 
-      // 统计每个platform_item_id被多少个SKU引用（用于均摊广告费）
-      const itemIdSkuCount = {};
+      // 统计每个platform_item_id下各SKU的订单量（用于按订单量占比分摊广告费）
+      const itemIdSkuOrders = {}; // { itemId: { skuId: orders, ... } }
       for (const sku of Object.values(skuMap)) {
         for (const itemId of sku.itemIds) {
-          if (!itemIdSkuCount[itemId]) itemIdSkuCount[itemId] = 0;
-          itemIdSkuCount[itemId]++;
+          if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
+          itemIdSkuOrders[itemId][sku.sku] = (itemIdSkuOrders[itemId][sku.sku] || 0) + sku.orders;
         }
       }
 
-      // 广告费按SKU数量均摊 + 利润
+      // 广告费按订单量占比分摊 + 利润
       for (const sku of Object.values(skuMap)) {
         for (const itemId of sku.itemIds) {
-          if (adMap[itemId]) {
-            const skuCount = itemIdSkuCount[itemId] || 1;
-            sku.ad += adMap[itemId] / skuCount;
+          if (adMap[itemId] && itemIdSkuOrders[itemId]) {
+            const totalOrders = Object.values(itemIdSkuOrders[itemId]).reduce((a, b) => a + b, 0);
+            const myOrders = itemIdSkuOrders[itemId][sku.sku] || 0;
+            const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
+            sku.ad += adMap[itemId] * ratio;
           }
         }
         delete sku.itemIds;
@@ -318,20 +320,13 @@ module.exports = function(pool) {
       const adMap = {};
       adData.forEach(r => { adMap[r.platform_item_id] = parseFloat(r.total_ad_cny) || 0; });
 
-      // 统计每个item_id被多少SKU引用
-      const itemIdSkuCount = {};
-      const skuItemIds = {};
+      // 统计每个item_id下各SKU的订单量（用于按订单量占比分摊广告费）
+      const itemIdSkuOrders = {}; // { itemId: { skuId: totalQty } }
       for (const r of rows) {
         const itemId = String(r.platform_item_id);
         if (r.platform_item_id) {
-          if (!skuItemIds[r.sku_id]) skuItemIds[r.sku_id] = new Set();
-          skuItemIds[r.sku_id].add(itemId);
-        }
-      }
-      for (const ids of Object.values(skuItemIds)) {
-        for (const id of ids) {
-          if (!itemIdSkuCount[id]) itemIdSkuCount[id] = 0;
-          itemIdSkuCount[id]++;
+          if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
+          itemIdSkuOrders[itemId][r.sku_id] = (itemIdSkuOrders[itemId][r.sku_id] || 0) + (r.quantity || 1);
         }
       }
 
@@ -367,11 +362,15 @@ module.exports = function(pool) {
         const itemCost = unitCost * (r.quantity || 1);
         const packCost = getPackingCost(r.warehouse_name, xrate);
         
-        // 广告费(按SKU均摊)
+        // 广告费(按SKU订单量占比分摊)
         let itemAd = 0;
         if (r.platform_item_id && adMap[String(r.platform_item_id)]) {
-          const cnt = itemIdSkuCount[String(r.platform_item_id)] || 1;
-          itemAd = adMap[String(r.platform_item_id)] / cnt;
+          const itemId = String(r.platform_item_id);
+          const skuOrders = itemIdSkuOrders[itemId] || {};
+          const totalOrders = Object.values(skuOrders).reduce((a, b) => a + b, 0);
+          const myOrders = skuOrders[r.sku_id] || 0;
+          const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
+          itemAd = adMap[itemId] * ratio;
         }
 
         ord.items.push({
