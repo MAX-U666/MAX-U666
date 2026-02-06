@@ -1,16 +1,57 @@
-import React, { Fragment, useState, useMemo } from 'react';
+import React, { Fragment, useState, useMemo, useCallback, useEffect } from 'react';
 import { formatCNY } from '../../../utils/format';
 
-export function OrderTable({ data, shops, loading }) {
+const PAGE_SIZE = 20;
+
+export function OrderTable({ data: parentData, shops: parentShops, loading: parentLoading }) {
   const [expandedOrder, setExpandedOrder] = useState(null);
   const [selectedShop, setSelectedShop] = useState('全部');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchText, setSearchText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const shopList = ['全部', ...(shops || [])];
+  // 独立日期查询
+  const [useCustomDate, setUseCustomDate] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [customData, setCustomData] = useState(null);
+  const [customLoading, setCustomLoading] = useState(false);
+
+  useEffect(() => {
+    const now = new Date(Date.now() + 7 * 3600000);
+    const todayStr = now.toISOString().split('T')[0];
+    setStartDate(todayStr);
+    setEndDate(todayStr);
+  }, []);
+
+  const fetchCustomData = useCallback(async () => {
+    if (!startDate || !endDate) return;
+    setCustomLoading(true);
+    try {
+      const res = await fetch(`/api/profit/order-list?startDate=${startDate}&endDate=${endDate}`);
+      const json = await res.json();
+      if (json.success !== false) {
+        setCustomData({ data: json.data || [], shops: [...new Set((json.data || []).map(o => o.store))] });
+        setUseCustomDate(true);
+        setCurrentPage(1);
+      }
+    } catch (err) { console.error(err); }
+    setCustomLoading(false);
+  }, [startDate, endDate]);
+
+  const clearCustomDate = () => {
+    setUseCustomDate(false);
+    setCustomData(null);
+    setCurrentPage(1);
+  };
+
+  const activeData = useCustomDate && customData ? customData.data : (parentData || []);
+  const activeShops = useCustomDate && customData ? customData.shops : (parentShops || []);
+  const isLoading = useCustomDate ? customLoading : parentLoading;
+  const shopList = ['全部', ...activeShops];
 
   const filteredData = useMemo(() => {
-    let result = [...(data || [])];
+    let result = [...activeData];
     if (selectedShop !== '全部') result = result.filter(o => o.store === selectedShop);
     if (selectedStatus === 'profit') result = result.filter(o => o.profit > 0);
     else if (selectedStatus === 'loss') result = result.filter(o => o.profit <= 0);
@@ -22,14 +63,26 @@ export function OrderTable({ data, shops, loading }) {
       );
     }
     return result;
-  }, [data, selectedShop, selectedStatus, searchText]);
+  }, [activeData, selectedShop, selectedStatus, searchText]);
+
+  useEffect(() => { setCurrentPage(1); }, [selectedShop, selectedStatus, searchText]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const pagedData = filteredData.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const totals = useMemo(() => ({
+    count: filteredData.length,
+    qty: filteredData.reduce((s, o) => s + o.qty, 0),
+    revenue: filteredData.reduce((s, o) => s + o.revenue, 0),
+    cost: filteredData.reduce((s, o) => s + o.cost + o.packing, 0),
+    ad: filteredData.reduce((s, o) => s + o.ad, 0),
+    profit: filteredData.reduce((s, o) => s + o.profit, 0),
+  }), [filteredData]);
 
   const handleExport = () => {
     const headers = ['订单号', '店铺', '日期', 'SKU', '数量', '回款', '成本', '包材', '广告费', '利润', '利润率'];
     const rows = filteredData.map(o => [
-      o.id, o.store, o.date,
-      o.items.map(i => i.sku).join('+'),
-      o.qty,
+      o.id, o.store, o.date, o.items.map(i => i.sku).join('+'), o.qty,
       o.revenue.toFixed(2), o.cost.toFixed(2), o.packing.toFixed(2),
       o.ad.toFixed(2), o.profit.toFixed(2),
       o.revenue > 0 ? ((o.profit / o.revenue) * 100).toFixed(1) + '%' : '0%'
@@ -44,9 +97,30 @@ export function OrderTable({ data, shops, loading }) {
 
   return (
     <div>
-      {/* 筛选栏 */}
-      <div className="flex items-center justify-between mb-4 gap-4">
-        <div className="flex items-center gap-4">
+      {/* 独立日期查询栏 */}
+      <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
+        <span className="text-sm font-medium text-gray-600">📅 自定义日期:</span>
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
+        <span className="text-gray-400">至</span>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
+          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
+        <button onClick={fetchCustomData} disabled={customLoading}
+          className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          {customLoading ? '查询中...' : '查询'}
+        </button>
+        {useCustomDate && (
+          <>
+            <button onClick={clearCustomDate}
+              className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-300">恢复默认</button>
+            <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">当前: {startDate} 至 {endDate}</span>
+          </>
+        )}
+      </div>
+
+      {/* 筛选栏 + 合计摘要 */}
+      <div className="flex items-start justify-between mb-4 gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">店铺:</span>
             <select value={selectedShop} onChange={e => setSelectedShop(e.target.value)}
@@ -66,17 +140,30 @@ export function OrderTable({ data, shops, loading }) {
           <div className="relative">
             <input type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
               placeholder="搜索订单号或SKU..."
-              className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm w-64" />
+              className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm w-56" />
             {searchText && <button onClick={() => setSearchText('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>}
           </div>
         </div>
-        <button onClick={handleExport}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700">导出Excel</button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <span className="text-gray-500">{totals.count}单</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">回款<span className="font-bold text-blue-600 ml-0.5">{formatCNY(totals.revenue)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">成本<span className="font-bold text-orange-600 ml-0.5">{formatCNY(totals.cost)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">广告<span className="font-bold text-pink-600 ml-0.5">{formatCNY(totals.ad)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">利润<span className={`font-bold ml-0.5 ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCNY(totals.profit)}</span></span>
+          </div>
+          <button onClick={handleExport}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 whitespace-nowrap">导出Excel</button>
+        </div>
       </div>
 
       {/* 表格 */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${isLoading ? 'animate-pulse' : ''}`}>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -93,11 +180,11 @@ export function OrderTable({ data, shops, loading }) {
             </tr>
           </thead>
           <tbody>
-            {loading ? (
+            {isLoading ? (
               <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-400">加载中...</td></tr>
-            ) : filteredData.length === 0 ? (
+            ) : pagedData.length === 0 ? (
               <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-500">暂无数据</td></tr>
-            ) : filteredData.map((order) => {
+            ) : pagedData.map((order) => {
               const profitRate = order.revenue > 0 ? (order.profit / order.revenue) * 100 : 0;
               const mainSku = order.items[0] || {};
               return (
@@ -131,7 +218,6 @@ export function OrderTable({ data, shops, loading }) {
                       </span>
                     </td>
                   </tr>
-                  
                   {expandedOrder === order.id && (
                     <tr>
                       <td colSpan="10" className="bg-gray-50 p-4">
@@ -183,21 +269,36 @@ export function OrderTable({ data, shops, loading }) {
               );
             })}
           </tbody>
-          {filteredData.length > 0 && (
-            <tfoot className="bg-gray-50">
-              <tr className="font-semibold">
-                <td className="px-4 py-4" colSpan="4">合计 ({filteredData.length} 单)</td>
-                <td className="px-4 py-4 text-right">{filteredData.reduce((s, o) => s + o.qty, 0)}</td>
-                <td className="px-4 py-4 text-right">{formatCNY(filteredData.reduce((s, o) => s + o.revenue, 0))}</td>
-                <td className="px-4 py-4 text-right text-blue-600">{formatCNY(filteredData.reduce((s, o) => s + o.cost + o.packing, 0))}</td>
-                <td className="px-4 py-4 text-right text-orange-600">{formatCNY(filteredData.reduce((s, o) => s + o.ad, 0))}</td>
-                <td className="px-4 py-4 text-right text-green-600">{formatCNY(filteredData.reduce((s, o) => s + o.profit, 0))}</td>
-                <td className="px-4 py-4 text-right">-</td>
-              </tr>
-            </tfoot>
-          )}
         </table>
       </div>
+
+      {/* 分页 */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-500">共 {filteredData.length} 条，第 {currentPage}/{totalPages} 页</div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">首页</button>
+            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">上一页</button>
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let page;
+              if (totalPages <= 5) page = i + 1;
+              else if (currentPage <= 3) page = i + 1;
+              else if (currentPage >= totalPages - 2) page = totalPages - 4 + i;
+              else page = currentPage - 2 + i;
+              return (
+                <button key={page} onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 text-sm rounded-lg ${currentPage === page ? 'bg-orange-500 text-white' : 'border border-gray-300 hover:bg-gray-50'}`}>{page}</button>
+              );
+            })}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">下一页</button>
+            <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg disabled:opacity-40 hover:bg-gray-50">末页</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
