@@ -11,10 +11,23 @@ const tabs = [
   { key: "company", label: "公司总览", icon: "🏢" },
 ];
 
-export default function BICenter() {
-  const [activeTab, setActiveTab] = useState("sku");
+export default function BICenter({ defaultTab }) {
+  // 从外部传入的 key 映射：bi-sku -> sku, bi-shop -> shop, etc.
+  const mapTabKey = (key) => {
+    if (!key) return 'sku';
+    return key.replace('bi-', '');
+  };
+
+  const [activeTab, setActiveTab] = useState(mapTabKey(defaultTab));
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // 当外部 defaultTab 变化时同步
+  useEffect(() => {
+    if (defaultTab) {
+      setActiveTab(mapTabKey(defaultTab));
+    }
+  }, [defaultTab]);
 
   // 点击外部关闭下拉框
   useEffect(() => {
