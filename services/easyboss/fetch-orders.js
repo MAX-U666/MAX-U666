@@ -64,10 +64,20 @@ class EasyBossOrderFetcher {
    * Cookie失效时重新登录
    */
   async refreshLogin() {
-    console.log('[订单抓取] Cookie失效，执行HTTP重新登录...');
+    console.log('[订单抓取] Cookie失效，尝试从文件重新读取...');
     this.cookieString = null;
     this.loginRetried = true;
     
+    // 先尝试从文件读取最新cookie（可能已被daily-sync刷新）
+    const saved = await this.httpAuth.getCookie();
+    if (saved && saved.cookieString && saved.cookieString !== this.cookieString) {
+      this.cookieString = saved.cookieString;
+      console.log(`[订单抓取] 从文件获取到新Cookie (${this.cookieString.length} 字符)`);
+      return true;
+    }
+    
+    // 文件也没有新cookie，执行登录
+    console.log('[订单抓取] 文件无新Cookie，执行HTTP重新登录...');
     await this.autoLogin();
     return true;
   }
