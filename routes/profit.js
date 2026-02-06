@@ -8,7 +8,12 @@ const express = require('express');
 module.exports = function(pool) {
   const router = express.Router();
 
-  function getDateRange(range) {
+  function getDateRange(range, startDate, endDate) {
+    // 支持自定义日期: startDate=2026-01-01&endDate=2026-02-06
+    if (startDate && endDate) {
+      return { start: startDate, end: endDate };
+    }
+
     const now = new Date();
     const today = new Date(now.getTime() + 7 * 3600000);
     const todayStr = today.toISOString().split('T')[0];
@@ -47,8 +52,8 @@ module.exports = function(pool) {
 
   router.get('/sku-list', async (req, res) => {
     try {
-      const { range = 'today', shop, keyword } = req.query;
-      const { start, end } = getDateRange(range);
+      const { range = 'today', shop, keyword, startDate, endDate } = req.query;
+      const { start, end } = getDateRange(range, startDate, endDate);
 
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
@@ -242,8 +247,8 @@ module.exports = function(pool) {
    */
   router.get('/order-list', async (req, res) => {
     try {
-      const { range = 'today', shop, keyword } = req.query;
-      const { start, end } = getDateRange(range);
+      const { range = 'today', shop, keyword, startDate, endDate } = req.query;
+      const { start, end } = getDateRange(range, startDate, endDate);
 
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
