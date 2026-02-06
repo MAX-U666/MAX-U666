@@ -1,83 +1,67 @@
 /**
- * SKU利润表格组件 - 带筛选栏
+ * SKU利润表格组件 - 真实数据版
  */
 import React, { Fragment, useState, useMemo } from 'react';
 import { formatCNY } from '../../../utils/format';
 import { getSkuQuadrant } from '../../../utils/helpers';
-import { skuData } from '../../../data/mock';
 
-// 店铺列表
-const shopList = ['全部', 'B03', '15004', '15007', '15010'];
-
-// 状态列表
 const statusList = [
   { key: 'all', label: '全部' },
   { key: 'profit', label: '盈利' },
   { key: 'loss', label: '亏损' },
 ];
 
-export function SkuTable({ quadrantFilter }) {
+export function SkuTable({ data, shops, loading, quadrantFilter }) {
   const [expandedSku, setExpandedSku] = useState(null);
   const [selectedShop, setSelectedShop] = useState('全部');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchText, setSearchText] = useState('');
 
+  const shopList = ['全部', ...(shops || [])];
+
   // 筛选数据
   const filteredData = useMemo(() => {
-    let result = [...skuData];
+    let result = [...(data || [])];
     
-    // 店铺筛选
     if (selectedShop !== '全部') {
       result = result.filter(s => s.store === selectedShop);
     }
-    
-    // 状态筛选
     if (selectedStatus === 'profit') {
       result = result.filter(s => s.profit > 0);
     } else if (selectedStatus === 'loss') {
       result = result.filter(s => s.profit <= 0);
     }
-    
-    // 搜索筛选
     if (searchText.trim()) {
       const keyword = searchText.toLowerCase();
       result = result.filter(s => 
-        s.name.toLowerCase().includes(keyword) || 
-        s.sku.toLowerCase().includes(keyword)
+        s.sku.toLowerCase().includes(keyword) || 
+        s.name.toLowerCase().includes(keyword)
       );
     }
-    
-    // 象限筛选
     if (quadrantFilter) {
       result = result.filter(s => getSkuQuadrant(s) === quadrantFilter);
     }
     
     return result;
-  }, [selectedShop, selectedStatus, searchText, quadrantFilter]);
+  }, [data, selectedShop, selectedStatus, searchText, quadrantFilter]);
 
   // 计算合计
   const totals = useMemo(() => ({
     orders: filteredData.reduce((s, d) => s + d.orders, 0),
     revenue: filteredData.reduce((s, d) => s + d.revenue, 0),
-    totalCost: filteredData.reduce((s, d) => s + d.cost + d.warehouse + d.packing, 0),
+    totalCost: filteredData.reduce((s, d) => s + d.cost + d.packing, 0),
     ad: filteredData.reduce((s, d) => s + d.ad, 0),
     profit: filteredData.reduce((s, d) => s + d.profit, 0),
   }), [filteredData]);
 
   // 导出Excel
   const handleExport = () => {
-    // 构建CSV内容
-    const headers = ['SKU编码', '商品名称', '店铺', '订单数', '回款(CNY)', '总成本', '广告费', '净利润', 'ROI', '利润率'];
+    const headers = ['SKU编码', '商品名称', '店铺', '订单数', '回款(CNY)', '商品成本', '包材费', '广告费', '净利润', 'ROI', '利润率'];
     const rows = filteredData.map(sku => [
-      sku.sku,
-      sku.name,
-      sku.store,
-      sku.orders,
-      sku.revenue.toFixed(2),
-      (sku.cost + sku.warehouse + sku.packing).toFixed(2),
-      sku.ad.toFixed(2),
-      sku.profit.toFixed(2),
-      sku.roi.toFixed(2),
+      sku.sku, sku.name, sku.store, sku.orders,
+      sku.revenue.toFixed(2), sku.cost.toFixed(2), sku.packing.toFixed(2),
+      sku.ad.toFixed(2), sku.profit.toFixed(2),
+      sku.roi < 900 ? sku.roi.toFixed(2) : '∞',
       sku.rate.toFixed(1) + '%'
     ]);
     
@@ -97,7 +81,6 @@ export function SkuTable({ quadrantFilter }) {
       {/* 筛选栏 */}
       <div className="flex items-center justify-between mb-4 gap-4">
         <div className="flex items-center gap-4">
-          {/* 店铺筛选 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">店铺:</span>
             <select
@@ -111,7 +94,6 @@ export function SkuTable({ quadrantFilter }) {
             </select>
           </div>
           
-          {/* 状态筛选 */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">状态:</span>
             <select
@@ -125,7 +107,6 @@ export function SkuTable({ quadrantFilter }) {
             </select>
           </div>
           
-          {/* 搜索框 */}
           <div className="relative">
             <input
               type="text"
@@ -138,27 +119,16 @@ export function SkuTable({ quadrantFilter }) {
               <button
                 onClick={() => setSearchText('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
+              >✕</button>
             )}
           </div>
         </div>
         
-        {/* 查询和导出按钮 */}
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => {}}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-all"
-          >
-            查询
-          </button>
           <button 
             onClick={handleExport}
             className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-all"
-          >
-            导出Excel
-          </button>
+          >导出Excel</button>
         </div>
       </div>
 
@@ -180,12 +150,10 @@ export function SkuTable({ quadrantFilter }) {
             </tr>
           </thead>
           <tbody>
-            {filteredData.length === 0 ? (
-              <tr>
-                <td colSpan="10" className="px-4 py-12 text-center text-gray-500">
-                  暂无匹配的SKU数据
-                </td>
-              </tr>
+            {loading ? (
+              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-400">加载中...</td></tr>
+            ) : filteredData.length === 0 ? (
+              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-500">暂无匹配的SKU数据</td></tr>
             ) : (
               filteredData.map((sku) => (
                 <Fragment key={sku.sku}>
@@ -209,7 +177,7 @@ export function SkuTable({ quadrantFilter }) {
                     </td>
                     <td className="px-4 py-3 text-right text-gray-700">{sku.orders}</td>
                     <td className="px-4 py-3 text-right font-medium">{formatCNY(sku.revenue)}</td>
-                    <td className="px-4 py-3 text-right text-blue-600">{formatCNY(sku.cost + sku.warehouse + sku.packing)}</td>
+                    <td className="px-4 py-3 text-right text-blue-600">{formatCNY(sku.cost + sku.packing)}</td>
                     <td className="px-4 py-3 text-right text-orange-600">{formatCNY(sku.ad)}</td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-bold ${sku.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -222,7 +190,7 @@ export function SkuTable({ quadrantFilter }) {
                         sku.roi >= 2 ? 'bg-yellow-100 text-yellow-700' :
                         'bg-red-100 text-red-700'
                       }`}>
-                        {sku.roi.toFixed(2)} {sku.roi >= 4 ? '✓' : '!'}
+                        {sku.roi >= 900 ? '∞' : sku.roi.toFixed(2)} {sku.roi >= 4 ? '✓' : '!'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -236,7 +204,7 @@ export function SkuTable({ quadrantFilter }) {
                     </td>
                   </tr>
                   
-                  {/* 展开的SKU详情面板 */}
+                  {/* 展开详情 */}
                   {expandedSku === sku.sku && (
                     <tr>
                       <td colSpan="10" className="bg-gray-50 p-4">
@@ -245,26 +213,17 @@ export function SkuTable({ quadrantFilter }) {
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">💰 成本明细</h4>
                             <div className="space-y-2">
-                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-sm text-gray-600">平台回款</span>
-                                <span className="text-sm font-medium text-blue-600">{formatCNY(sku.revenue)}</span>
-                              </div>
-                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-sm text-gray-600">商品成本</span>
-                                <span className="text-sm font-medium text-orange-500">-{formatCNY(sku.cost)}</span>
-                              </div>
-                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-sm text-gray-600">仓储费</span>
-                                <span className="text-sm font-medium text-cyan-600">-{formatCNY(sku.warehouse)}</span>
-                              </div>
-                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-sm text-gray-600">包材费</span>
-                                <span className="text-sm font-medium text-pink-500">-{formatCNY(sku.packing)}</span>
-                              </div>
-                              <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                                <span className="text-sm text-gray-600">广告费</span>
-                                <span className="text-sm font-medium text-red-500">-{formatCNY(sku.ad)}</span>
-                              </div>
+                              {[
+                                { label: '平台回款', value: sku.revenue, color: 'text-blue-600', prefix: '' },
+                                { label: '商品成本', value: sku.cost, color: 'text-orange-500', prefix: '-' },
+                                { label: '包材费', value: sku.packing, color: 'text-pink-500', prefix: '-' },
+                                { label: '广告费', value: sku.ad, color: 'text-red-500', prefix: '-' },
+                              ].map((item, i) => (
+                                <div key={i} className="flex justify-between items-center py-2 border-b border-gray-100">
+                                  <span className="text-sm text-gray-600">{item.label}</span>
+                                  <span className={`text-sm font-medium ${item.color}`}>{item.prefix}{formatCNY(item.value)}</span>
+                                </div>
+                              ))}
                               <div className="flex justify-between items-center py-2 mt-2 bg-gray-50 rounded px-2">
                                 <span className="text-sm font-semibold text-gray-700">净利润</span>
                                 <span className={`text-base font-bold ${sku.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -278,30 +237,17 @@ export function SkuTable({ quadrantFilter }) {
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">📊 效率指标</h4>
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="bg-gray-50 rounded-lg p-3">
-                                <div className="text-xs text-gray-500 mb-1">单品利润</div>
-                                <div className={`text-xl font-bold ${sku.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  {formatCNY(sku.profit / sku.orders)}
+                              {[
+                                { label: '单品利润', value: formatCNY(sku.orders > 0 ? sku.profit / sku.orders : 0), color: sku.profit >= 0 ? 'text-green-600' : 'text-red-600' },
+                                { label: '客单价', value: formatCNY(sku.orders > 0 ? sku.revenue / sku.orders : 0), color: 'text-blue-600' },
+                                { label: '成本占比', value: sku.revenue > 0 ? `${((sku.cost + sku.packing) / sku.revenue * 100).toFixed(1)}%` : '0%', color: 'text-orange-600' },
+                                { label: '广告占比', value: sku.revenue > 0 ? `${(sku.ad / sku.revenue * 100).toFixed(1)}%` : '0%', color: 'text-red-500' },
+                              ].map((item, i) => (
+                                <div key={i} className="bg-gray-50 rounded-lg p-3">
+                                  <div className="text-xs text-gray-500 mb-1">{item.label}</div>
+                                  <div className={`text-xl font-bold ${item.color}`}>{item.value}</div>
                                 </div>
-                              </div>
-                              <div className="bg-gray-50 rounded-lg p-3">
-                                <div className="text-xs text-gray-500 mb-1">客单价</div>
-                                <div className="text-xl font-bold text-blue-600">
-                                  {formatCNY(sku.revenue / sku.orders)}
-                                </div>
-                              </div>
-                              <div className="bg-gray-50 rounded-lg p-3">
-                                <div className="text-xs text-gray-500 mb-1">成本占比</div>
-                                <div className="text-xl font-bold text-orange-600">
-                                  {((sku.cost + sku.warehouse + sku.packing) / sku.revenue * 100).toFixed(1)}%
-                                </div>
-                              </div>
-                              <div className="bg-gray-50 rounded-lg p-3">
-                                <div className="text-xs text-gray-500 mb-1">广告占比</div>
-                                <div className="text-xl font-bold text-red-500">
-                                  {(sku.ad / sku.revenue * 100).toFixed(1)}%
-                                </div>
-                              </div>
+                              ))}
                             </div>
                           </div>
 
@@ -310,40 +256,46 @@ export function SkuTable({ quadrantFilter }) {
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">🤖 AI 诊断</h4>
                             <div className="space-y-3">
                               {sku.profit < 0 ? (
-                                <Fragment>
+                                <>
                                   <div className="p-3 bg-red-50 rounded-lg border border-red-200">
                                     <div className="text-red-600 font-medium text-sm">⚠️ 亏损预警</div>
-                                    <div className="text-xs text-gray-600 mt-1">此SKU净利润为负，建议立即评估是否下架</div>
+                                    <div className="text-xs text-gray-600 mt-1">此SKU净利润为负，建议评估是否调整价格或下架</div>
                                   </div>
-                                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                                    <div className="text-orange-600 font-medium text-sm">💡 优化建议</div>
-                                    <div className="text-xs text-gray-600 mt-1">
-                                      广告费占比 {(sku.ad / sku.revenue * 100).toFixed(1)}% 过高，建议降低广告投放
+                                  {sku.ad > 0 && sku.revenue > 0 && (sku.ad / sku.revenue) > 0.3 && (
+                                    <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                      <div className="text-orange-600 font-medium text-sm">💡 广告费过高</div>
+                                      <div className="text-xs text-gray-600 mt-1">
+                                        广告占比 {(sku.ad / sku.revenue * 100).toFixed(1)}%，建议降低投放
+                                      </div>
                                     </div>
-                                  </div>
-                                </Fragment>
-                              ) : sku.roi < 4 ? (
-                                <Fragment>
+                                  )}
+                                </>
+                              ) : sku.roi < 4 && sku.ad > 0 ? (
+                                <>
                                   <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                                     <div className="text-yellow-600 font-medium text-sm">⚡ ROI未达标</div>
-                                    <div className="text-xs text-gray-600 mt-1">当前ROI={sku.roi.toFixed(2)}，低于目标值4，需优化</div>
+                                    <div className="text-xs text-gray-600 mt-1">当前ROI={sku.roi.toFixed(2)}，低于目标值4</div>
                                   </div>
                                   <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    <div className="text-blue-600 font-medium text-sm">📈 提升空间</div>
+                                    <div className="text-blue-600 font-medium text-sm">📈 优化建议</div>
                                     <div className="text-xs text-gray-600 mt-1">建议优化广告投放策略，提升转化率</div>
                                   </div>
-                                </Fragment>
+                                </>
                               ) : (
-                                <Fragment>
+                                <>
                                   <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                                     <div className="text-green-600 font-medium text-sm">✅ 表现优秀</div>
-                                    <div className="text-xs text-gray-600 mt-1">ROI={sku.roi.toFixed(2)} 达标，利润率 {sku.rate.toFixed(1)}% 健康</div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      {sku.roi >= 900 ? '无广告投入' : `ROI=${sku.roi.toFixed(2)}`}，利润率 {sku.rate.toFixed(1)}%
+                                    </div>
                                   </div>
-                                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    <div className="text-blue-600 font-medium text-sm">🚀 增长建议</div>
-                                    <div className="text-xs text-gray-600 mt-1">可适当加大广告投放，扩大销量</div>
-                                  </div>
-                                </Fragment>
+                                  {sku.orders < 10 && (
+                                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                      <div className="text-blue-600 font-medium text-sm">🚀 增长潜力</div>
+                                      <div className="text-xs text-gray-600 mt-1">利润率健康，可适当加大推广扩大销量</div>
+                                    </div>
+                                  )}
+                                </>
                               )}
                             </div>
                           </div>
