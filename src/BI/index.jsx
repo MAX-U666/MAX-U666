@@ -3,12 +3,14 @@ import { ShopProfitModule } from "./components/modules/ShopProfit";
 import { OrderProfitModule } from "./components/modules/OrderProfit";
 import { SkuProfitModule } from "./components/modules/SkuProfit";
 import { CompanyOverviewModule } from "./components/modules/CompanyOverview";
+import { ProductManagementModule } from "./components/modules/ProductManagement";
 
 const tabs = [
   { key: "sku", label: "SKU利润", icon: "📦" },
   { key: "shop", label: "店铺利润", icon: "🏪" },
   { key: "order", label: "订单利润", icon: "📋" },
   { key: "company", label: "公司总览", icon: "🏢" },
+  { key: "products", label: "产品管理", icon: "🏷️" },
 ];
 
 export default function BICenter({ defaultTab }) {
@@ -55,6 +57,8 @@ export default function BICenter({ defaultTab }) {
         return <SkuProfitModule />;
       case "company":
         return <CompanyOverviewModule />;
+      case "products":
+        return <ProductManagementModule />;
       default:
         return <SkuProfitModule />;
     }
