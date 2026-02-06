@@ -8,8 +8,10 @@ export function SkuRanking({ data }) {
   // 利润TOP5
   const profitTop = [...skuData].sort((a, b) => b.profit - a.profit).slice(0, 5);
   // ROI TOP5 (有广告的)
-  const roiTop = [...skuData].filter(s => s.ad > 0).sort((a, b) => b.roi - a.roi).slice(0, 5);
+  const roiTop = [...skuData].filter(s => s.ad > 0 && s.orders >= 10).sort((a, b) => b.roi - a.roi).slice(0, 5);
   // 利润区间分布
+  // 单笔利润分布（出单>=20才参与）
+  const qualifiedData = skuData.filter(s => s.orders >= 20);
   const ranges = [
     { label: '亏损 (<¥0)', min: -Infinity, max: 0, color: 'bg-red-500' },
     { label: '¥0~¥4', min: 0, max: 4, color: 'bg-orange-400' },
@@ -19,10 +21,13 @@ export function SkuRanking({ data }) {
     { label: '¥18~¥25', min: 17, max: 25, color: 'bg-emerald-500' },
     { label: '≥¥25', min: 25, max: Infinity, color: 'bg-teal-500' },
   ];
-  const distribution = ranges.map(r => ({
-    ...r,
-    count: skuData.filter(s => s.profit >= r.min && s.profit < r.max).length
-  }));
+  const distribution = ranges.map(r => {
+    const avgProfitFilter = s => {
+      const avg = s.orders > 0 ? s.profit / s.orders : 0;
+      return avg >= r.min && avg < r.max;
+    };
+    return { ...r, count: qualifiedData.filter(avgProfitFilter).length };
+  });
   const maxCount = Math.max(...distribution.map(d => d.count), 1);
 
   return (
@@ -87,7 +92,7 @@ export function SkuRanking({ data }) {
 
       {/* 利润区间分布 */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-gray-700 text-sm font-semibold mb-4">📊 利润区间分布</h3>
+        <h3 className="text-gray-700 text-sm font-semibold mb-4">📊 单笔利润分布 <span className="text-xs text-gray-400 font-normal">(≥20单)</span></h3>
         <div className="space-y-3">
           {distribution.map((item, i) => (
             <div key={i} className="flex items-center gap-3">
