@@ -136,13 +136,14 @@ module.exports = function(pool) {
         if (!skuMap[skuId]) {
           skuMap[skuId] = {
             sku: skuId, name: item.sku_name || '', store: item.shop_name || '',
-            orders: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
-            profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set()
+            orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
+            profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), pkgIds: new Set()
           };
         }
 
         const s = skuMap[skuId];
-        s.orders += item.quantity || 1;
+        s.qty += item.quantity || 1;
+        s.pkgIds.add(item.op_order_package_id);
         
         // 回款按售价比例分摊
         const xrate = parseFloat(item.exchange_rate) || 2450;
@@ -168,6 +169,12 @@ module.exports = function(pool) {
         if (item.platform_item_id) {
           s.itemIds.add(String(item.platform_item_id));
         }
+      }
+
+      // 把包裹去重数转为订单数
+      for (const sku of Object.values(skuMap)) {
+        sku.orders = sku.pkgIds.size;
+        delete sku.pkgIds;
       }
 
       // 统计每个platform_item_id下各SKU的订单量（用于按订单量占比分摊广告费）
@@ -205,6 +212,7 @@ module.exports = function(pool) {
       const overview = {
         totalSku: result.length,
         totalOrders: result.reduce((s, d) => s + d.orders, 0),
+        totalQty: result.reduce((s, d) => s + d.qty, 0),
         profitSku: result.filter(s => s.profit > 0).length,
         lossSku: result.filter(s => s.profit <= 0).length,
         roiReached: result.filter(s => s.roi >= 4).length,
