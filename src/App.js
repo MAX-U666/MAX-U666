@@ -380,8 +380,10 @@ const App = () => {
           padding: '10px 20px',
           background: '#FFFFFF',
           borderBottom: '1px solid #E8E8ED',
-          overflowX: 'auto',
-          position: 'relative'
+          overflowX: 'visible',
+          overflow: 'visible',
+          position: 'relative',
+          zIndex: 100
         }}>
           {navGroups.map(group => {
             const active = isGroupActive(group);
