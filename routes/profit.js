@@ -209,10 +209,12 @@ module.exports = function(pool) {
       }
       result.sort((a, b) => b.profit - a.profit);
 
+      // 概览：出单量=包裹去重数，件数=quantity总和
+      const allPkgIds = new Set(orderItems.map(i => i.op_order_package_id));
       const overview = {
         totalSku: result.length,
-        totalOrders: result.reduce((s, d) => s + d.orders, 0),
-        totalQty: result.reduce((s, d) => s + d.qty, 0),
+        totalOrders: allPkgIds.size,
+        totalQty: orderItems.reduce((s, i) => s + (i.quantity || 1), 0),
         profitSku: result.filter(s => s.profit > 0).length,
         lossSku: result.filter(s => s.profit <= 0).length,
         roiReached: result.filter(s => s.roi >= 4).length,
