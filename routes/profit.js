@@ -235,6 +235,235 @@ module.exports = function(pool) {
     }
   });
 
+  /**
+   * 订单利润列表（按包裹粒度）
+   * GET /api/profit/order-list?range=today&shop=&keyword=
+   */
+  router.get('/order-list', async (req, res) => {
+    try {
+      const { range = 'today', shop, keyword } = req.query;
+      const { start, end } = getDateRange(range);
+
+      let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
+      let orderParams = [start, end];
+      orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'refunded')`;
+      if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+
+      // 获取订单+明细
+      const [rows] = await pool.query(`
+        SELECT 
+          o.platform_order_sn as order_sn,
+          o.op_order_package_id as pkg_id,
+          o.shop_name, o.escrow_amount, o.exchange_rate,
+          o.gmt_order_start as order_time,
+          o.app_package_status_text as status,
+          o.buyer_username,
+          oi.goods_sku_outer_id as sku_id,
+          oi.goods_name as sku_name,
+          oi.goods_mode,
+          oi.warehouse_name,
+          oi.platform_item_id,
+          oi.quantity,
+          oi.discounted_price
+        FROM eb_order_items oi
+        JOIN eb_orders o ON oi.op_order_package_id = o.op_order_package_id
+        ${orderWhere}
+        ORDER BY o.gmt_order_start DESC
+      `, orderParams);
+
+      if (rows.length === 0) {
+        return res.json({ success: true, data: [], overview: getEmptyOrderOverview(), shops: [] });
+      }
+
+      // 包裹售价总和
+      const packageTotals = {};
+      for (const r of rows) {
+        if (!packageTotals[r.pkg_id]) packageTotals[r.pkg_id] = 0;
+        packageTotals[r.pkg_id] += parseFloat(r.discounted_price) || 0;
+      }
+
+      // SKU成本
+      const allSkus = [...new Set(rows.map(r => r.sku_id).filter(Boolean))];
+      const ph = allSkus.length > 0 ? allSkus.map(() => '?').join(',') : "''";
+      
+      const [singleCosts] = allSkus.length > 0 ? await pool.query(
+        `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${ph})`, allSkus
+      ) : [[]];
+      const singleCostMap = {};
+      singleCosts.forEach(r => { singleCostMap[r.sku] = parseFloat(r.purchase_price) || 0; });
+
+      const [comboCosts] = allSkus.length > 0 ? await pool.query(
+        `SELECT c.combo_sku, c.item_sku, c.quantity, s.purchase_price
+         FROM eb_sku_combos c LEFT JOIN eb_sku_costs s ON c.item_sku = s.sku
+         WHERE c.combo_sku IN (${ph})`, allSkus
+      ) : [[]];
+      const comboCostMap = {};
+      comboCosts.forEach(r => {
+        if (!comboCostMap[r.combo_sku]) comboCostMap[r.combo_sku] = 0;
+        comboCostMap[r.combo_sku] += (parseFloat(r.purchase_price) || 0) * (r.quantity || 1);
+      });
+
+      // 广告(按item_id, 统计SKU数用于均摊)
+      const [adData] = await pool.query(`
+        SELECT platform_item_id, SUM(expense_cny) as total_ad_cny
+        FROM eb_ad_daily WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
+        GROUP BY platform_item_id
+      `, [start, end]);
+      const adMap = {};
+      adData.forEach(r => { adMap[r.platform_item_id] = parseFloat(r.total_ad_cny) || 0; });
+
+      // 统计每个item_id被多少SKU引用
+      const itemIdSkuCount = {};
+      const skuItemIds = {};
+      for (const r of rows) {
+        const itemId = String(r.platform_item_id);
+        if (r.platform_item_id) {
+          if (!skuItemIds[r.sku_id]) skuItemIds[r.sku_id] = new Set();
+          skuItemIds[r.sku_id].add(itemId);
+        }
+      }
+      for (const ids of Object.values(skuItemIds)) {
+        for (const id of ids) {
+          if (!itemIdSkuCount[id]) itemIdSkuCount[id] = 0;
+          itemIdSkuCount[id]++;
+        }
+      }
+
+      // 按包裹聚合订单
+      const orderMap = {};
+      for (const r of rows) {
+        const key = r.pkg_id;
+        if (!orderMap[key]) {
+          orderMap[key] = {
+            id: r.order_sn,
+            store: r.shop_name,
+            date: r.order_time ? new Date(r.order_time).toISOString().split('T')[0] : '',
+            status: r.status,
+            buyer: r.buyer_username,
+            items: [],
+            revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
+          };
+        }
+        const ord = orderMap[key];
+        const xrate = parseFloat(r.exchange_rate) || 2450;
+        const escrow = parseFloat(r.escrow_amount) || 0;
+        const myPrice = parseFloat(r.discounted_price) || 0;
+        const pkgTotal = packageTotals[r.pkg_id] || myPrice || 1;
+        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
+        const revenueCNY = (escrow * ratio) / xrate;
+
+        let unitCost = 0;
+        if (r.goods_mode === 'bundle' && comboCostMap[r.sku_id] !== undefined) {
+          unitCost = comboCostMap[r.sku_id];
+        } else if (singleCostMap[r.sku_id] !== undefined) {
+          unitCost = singleCostMap[r.sku_id];
+        }
+        const itemCost = unitCost * (r.quantity || 1);
+        const packCost = getPackingCost(r.warehouse_name, xrate);
+        
+        // 广告费(按SKU均摊)
+        let itemAd = 0;
+        if (r.platform_item_id && adMap[String(r.platform_item_id)]) {
+          const cnt = itemIdSkuCount[String(r.platform_item_id)] || 1;
+          itemAd = adMap[String(r.platform_item_id)] / cnt;
+        }
+
+        ord.items.push({
+          sku: r.sku_id, name: r.sku_name || '', qty: r.quantity || 1,
+          revenue: revenueCNY, cost: itemCost, packing: packCost, ad: itemAd,
+          profit: revenueCNY - itemCost - packCost - itemAd
+        });
+
+        ord.revenue += revenueCNY;
+        ord.cost += itemCost;
+        ord.packing += packCost;
+        ord.ad += itemAd;
+        ord.qty += r.quantity || 1;
+      }
+
+      // 计算订单利润
+      let result = Object.values(orderMap);
+      result.forEach(o => { o.profit = o.revenue - o.cost - o.packing - o.ad; });
+
+      // 搜索
+      if (keyword) {
+        const kw = keyword.toLowerCase();
+        result = result.filter(o =>
+          o.id.toLowerCase().includes(kw) ||
+          o.items.some(i => i.sku.toLowerCase().includes(kw) || i.name.toLowerCase().includes(kw))
+        );
+      }
+
+      // 概览
+      const overview = {
+        totalOrders: result.length,
+        profitOrders: result.filter(o => o.profit > 0).length,
+        lossOrders: result.filter(o => o.profit <= 0).length,
+        avgProfit: result.length > 0 ? result.reduce((s, o) => s + o.profit, 0) / result.length : 0,
+        totalProfit: result.reduce((s, o) => s + o.profit, 0),
+        totalRevenue: result.reduce((s, o) => s + o.revenue, 0),
+      };
+
+      // 按店铺汇总
+      const shopMap = {};
+      result.forEach(o => {
+        if (!shopMap[o.store]) {
+          shopMap[o.store] = { store: o.store, orders: 0, lossOrders: 0, totalProfit: 0, totalRevenue: 0 };
+        }
+        shopMap[o.store].orders++;
+        if (o.profit <= 0) shopMap[o.store].lossOrders++;
+        shopMap[o.store].totalProfit += o.profit;
+        shopMap[o.store].totalRevenue += o.revenue;
+      });
+      const shopStats = Object.values(shopMap).map(s => ({
+        ...s,
+        avgProfit: s.orders > 0 ? s.totalProfit / s.orders : 0,
+        lossRate: s.orders > 0 ? (s.lossOrders / s.orders) * 100 : 0,
+        avgPrice: s.orders > 0 ? s.totalRevenue / s.orders : 0,
+      })).sort((a, b) => b.totalProfit - a.totalProfit);
+
+      // 亏损TOP10 + 低利润TOP10
+      const lossTop = [...result].filter(o => o.profit < 0).sort((a, b) => a.profit - b.profit).slice(0, 10);
+      const lowProfitTop = [...result].filter(o => o.profit >= 0 && o.profit < 5).sort((a, b) => a.profit - b.profit).slice(0, 10);
+
+      // 利润区间分布
+      const ranges = [
+        { label: '< ¥0（亏损）', min: -Infinity, max: 0 },
+        { label: '¥0 - ¥2', min: 0, max: 2 },
+        { label: '¥2 - ¥5', min: 2, max: 5 },
+        { label: '¥5 - ¥10', min: 5, max: 10 },
+        { label: '¥10 - ¥20', min: 10, max: 20 },
+        { label: '¥20 - ¥50', min: 20, max: 50 },
+        { label: '≥ ¥50', min: 50, max: Infinity },
+      ];
+      const distribution = ranges.map(r => ({
+        ...r,
+        count: result.filter(o => o.profit >= r.min && o.profit < r.max).length
+      }));
+
+      const shops = [...new Set(rows.map(r => r.shop_name).filter(Boolean))];
+
+      res.json({
+        success: true,
+        data: result,
+        overview,
+        shopStats,
+        lossTop,
+        lowProfitTop,
+        distribution,
+        shops,
+        dateRange: { start, end }
+      });
+    } catch (err) {
+      console.error('[订单利润] 查询失败:', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+    function getEmptyOrderOverview() {
+    return { totalOrders: 0, profitOrders: 0, lossOrders: 0, avgProfit: 0, totalProfit: 0, totalRevenue: 0 };
+  }
+
   function getEmptyOverview() {
     return { totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0,
       totalProfit: 0, totalRevenue: 0, totalCost: 0, totalAd: 0, totalPacking: 0 };
