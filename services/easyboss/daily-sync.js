@@ -7,6 +7,8 @@
  * 3. 拉取商品数据 + 广告匹配
  * 4. 企业微信通知（成功/失败/Cookie失效）
  * 
+ * [2026-02-06] 修复：登录刷新后同时写入Cookie文件，确保API端读到最新Cookie
+ * 
  * 用法：
  *   node daily-sync.js          # 手动执行
  *   crontab: 0 21 * * * ...     # UTC 21:00 = 北京 05:00
@@ -16,6 +18,9 @@ const mysql = require('mysql2/promise');
 const https = require('https');
 const http = require('http');
 const CryptoJS = require('crypto-js');
+const fs = require('fs');
+const path = require('path');
+const COOKIE_FILE = path.join(__dirname, '.easyboss_cookie');
 
 // ========== 配置 ==========
 const DB_CONFIG = {
@@ -183,10 +188,18 @@ async function autoRefreshCookie(pool) {
 
     if (r.data && r.data.result === 'success' && r.setCookies.length > 0) {
       const cookieStr = r.setCookies.map(c => c.split(';')[0]).join('; ');
+      // 写入数据库
       await pool.query(
         "INSERT INTO eb_config(config_key, config_value) VALUES('easyboss_cookie', ?) ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)",
         [cookieStr]
       );
+      // 同时写入文件，确保API端能读到最新Cookie
+      try {
+        fs.writeFileSync(COOKIE_FILE, cookieStr, 'utf-8');
+        console.log('[Cookie] ✅ Cookie已写入文件:', COOKIE_FILE);
+      } catch (e) {
+        console.error('[Cookie] 写文件失败:', e.message);
+      }
       console.log('[Cookie] ✅ 自动刷新成功');
       return { success: true };
     } else if (r.data && r.data.needSmsVerify) {
