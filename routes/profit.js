@@ -1,6 +1,6 @@
 /**
  * SKU利润计算路由
- * 基于 eb_orders + eb_order_items + eb_sku_costs + eb_sku_combos + eb_ad_daily
+ * 回款按包裹内SKU售价比例分摊
  */
 
 const express = require('express');
@@ -8,12 +8,8 @@ const express = require('express');
 module.exports = function(pool) {
   const router = express.Router();
 
-  /**
-   * 日期范围辅助函数
-   */
   function getDateRange(range) {
     const now = new Date();
-    // 用UTC+7（印尼时间）计算
     const today = new Date(now.getTime() + 7 * 3600000);
     const todayStr = today.toISOString().split('T')[0];
     
@@ -41,31 +37,21 @@ module.exports = function(pool) {
     }
   }
 
-  /**
-   * 包材费计算（按仓库）
-   */
   function getPackingCost(warehouseName, exchangeRate) {
     if (!warehouseName) return 1.5;
     const name = warehouseName.toUpperCase();
-    if (name.includes('MOMO')) return 2000 / (exchangeRate || 2414.68); // 2000 IDR 转 CNY
+    if (name.includes('MOMO')) return 2000 / (exchangeRate || 2450);
     if (name.includes('BBT')) return 3;
     return 1.5;
   }
 
-  /**
-   * 核心接口：SKU利润列表
-   * GET /api/profit/sku-list?range=today&shop=&keyword=
-   */
   router.get('/sku-list', async (req, res) => {
     try {
       const { range = 'today', shop, keyword } = req.query;
       const { start, end } = getDateRange(range);
 
-      // 1. 查询订单+明细数据
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
-      
-      // 排除取消/退款的订单
       orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'refunded')`;
       
       if (shop) {
@@ -81,39 +67,47 @@ module.exports = function(pool) {
           oi.warehouse_name,
           oi.platform_item_id,
           oi.quantity,
+          oi.discounted_price,
+          oi.op_order_package_id,
           o.escrow_amount,
           o.exchange_rate,
           o.shop_name,
-          o.platform_order_sn,
-          o.op_order_package_id
+          o.currency
         FROM eb_order_items oi
         JOIN eb_orders o ON oi.op_order_package_id = o.op_order_package_id
         ${orderWhere}
       `, orderParams);
 
       if (orderItems.length === 0) {
-        return res.json({ success: true, data: [], overview: getEmptyOverview() });
+        return res.json({ success: true, data: [], overview: getEmptyOverview(), shops: [] });
       }
 
-      // 2. 获取所有涉及的SKU成本
-      const allSkus = [...new Set(orderItems.map(i => i.sku_id))];
-      const skuPlaceholders = allSkus.map(() => '?').join(',');
+      // 计算每个包裹的SKU售价总和（用于分摊回款）
+      const packageTotals = {};
+      for (const item of orderItems) {
+        const pkgId = item.op_order_package_id;
+        if (!packageTotals[pkgId]) packageTotals[pkgId] = 0;
+        packageTotals[pkgId] += parseFloat(item.discounted_price) || 0;
+      }
+
+      // 获取SKU成本
+      const allSkus = [...new Set(orderItems.map(i => i.sku_id).filter(Boolean))];
+      if (allSkus.length === 0) {
+        return res.json({ success: true, data: [], overview: getEmptyOverview(), shops: [] });
+      }
+      const ph = allSkus.map(() => '?').join(',');
       
-      // 查单品成本
       const [singleCosts] = await pool.query(
-        `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${skuPlaceholders})`,
-        allSkus
+        `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${ph})`, allSkus
       );
       const singleCostMap = {};
       singleCosts.forEach(r => { singleCostMap[r.sku] = parseFloat(r.purchase_price) || 0; });
 
-      // 查组合成本
       const [comboCosts] = await pool.query(
         `SELECT c.combo_sku, c.item_sku, c.quantity, s.purchase_price
          FROM eb_sku_combos c
          LEFT JOIN eb_sku_costs s ON c.item_sku = s.sku
-         WHERE c.combo_sku IN (${skuPlaceholders})`,
-        allSkus
+         WHERE c.combo_sku IN (${ph})`, allSkus
       );
       const comboCostMap = {};
       comboCosts.forEach(r => {
@@ -121,7 +115,7 @@ module.exports = function(pool) {
         comboCostMap[r.combo_sku] += (parseFloat(r.purchase_price) || 0) * (r.quantity || 1);
       });
 
-      // 3. 获取广告数据（有platform_item_id的）
+      // 广告数据
       const [adData] = await pool.query(`
         SELECT platform_item_id, SUM(expense_cny) as total_ad_cny
         FROM eb_ad_daily
@@ -131,7 +125,7 @@ module.exports = function(pool) {
       const adMap = {};
       adData.forEach(r => { adMap[r.platform_item_id] = parseFloat(r.total_ad_cny) || 0; });
 
-      // 4. 聚合SKU利润
+      // 聚合SKU利润
       const skuMap = {};
       
       for (const item of orderItems) {
@@ -140,31 +134,25 @@ module.exports = function(pool) {
         
         if (!skuMap[skuId]) {
           skuMap[skuId] = {
-            sku: skuId,
-            name: item.sku_name || '',
-            store: item.shop_name || '',
-            orders: 0,
-            revenue: 0,      // 回款(CNY)
-            cost: 0,          // 商品成本(CNY)
-            packing: 0,       // 包材费(CNY)
-            ad: 0,            // 广告费(CNY)
-            profit: 0,
-            roi: 0,
-            rate: 0,
-            warehouse: 0,     // 预留字段
-            itemIds: new Set() // 用于匹配广告
+            sku: skuId, name: item.sku_name || '', store: item.shop_name || '',
+            orders: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
+            profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set()
           };
         }
 
         const s = skuMap[skuId];
         s.orders += item.quantity || 1;
         
-        // 回款(CNY) = escrow_amount / exchange_rate
-        const rate = parseFloat(item.exchange_rate) || 2414.68;
-        const revenueCNY = parseFloat(item.escrow_amount) / rate;
-        s.revenue += revenueCNY;
+        // 回款按售价比例分摊
+        const xrate = parseFloat(item.exchange_rate) || 2450;
+        const escrow = parseFloat(item.escrow_amount) || 0;
+        const myPrice = parseFloat(item.discounted_price) || 0;
+        const pkgTotal = packageTotals[item.op_order_package_id] || myPrice || 1;
+        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
+        const myEscrowCNY = (escrow * ratio) / xrate;
+        s.revenue += myEscrowCNY;
 
-        // 商品成本(CNY)
+        // 商品成本
         let unitCost = 0;
         if (item.goods_mode === 'bundle' && comboCostMap[skuId] !== undefined) {
           unitCost = comboCostMap[skuId];
@@ -173,45 +161,32 @@ module.exports = function(pool) {
         }
         s.cost += unitCost * (item.quantity || 1);
 
-        // 包材费(按仓库，每个包裹一次)
-        s.packing += getPackingCost(item.warehouse_name, rate);
+        // 包材费
+        s.packing += getPackingCost(item.warehouse_name, xrate);
 
-        // 记录platform_item_id用于匹配广告
         if (item.platform_item_id) {
           s.itemIds.add(String(item.platform_item_id));
         }
       }
 
-      // 5. 分配广告费
+      // 广告费 + 利润
       for (const sku of Object.values(skuMap)) {
         for (const itemId of sku.itemIds) {
-          if (adMap[itemId]) {
-            sku.ad += adMap[itemId];
-          }
+          if (adMap[itemId]) sku.ad += adMap[itemId];
         }
-        delete sku.itemIds; // 清理
-
-        // 计算利润
+        delete sku.itemIds;
         sku.profit = sku.revenue - sku.cost - sku.packing - sku.ad;
         sku.roi = sku.ad > 0 ? sku.revenue / sku.ad : (sku.revenue > 0 ? 999 : 0);
         sku.rate = sku.revenue > 0 ? (sku.profit / sku.revenue) * 100 : 0;
       }
 
-      // 6. 转数组 + 搜索过滤
       let result = Object.values(skuMap);
-      
       if (keyword) {
         const kw = keyword.toLowerCase();
-        result = result.filter(s => 
-          s.sku.toLowerCase().includes(kw) || 
-          s.name.toLowerCase().includes(kw)
-        );
+        result = result.filter(s => s.sku.toLowerCase().includes(kw) || s.name.toLowerCase().includes(kw));
       }
-
-      // 按利润排序
       result.sort((a, b) => b.profit - a.profit);
 
-      // 7. 计算概览
       const overview = {
         totalSku: result.length,
         profitSku: result.filter(s => s.profit > 0).length,
@@ -223,8 +198,6 @@ module.exports = function(pool) {
         totalAd: result.reduce((s, d) => s + d.ad, 0),
         totalPacking: result.reduce((s, d) => s + d.packing, 0),
       };
-
-      // 8. 店铺列表（用于前端筛选）
       const shops = [...new Set(orderItems.map(i => i.shop_name).filter(Boolean))];
 
       res.json({ success: true, data: result, overview, shops, dateRange: { start, end } });
@@ -234,22 +207,16 @@ module.exports = function(pool) {
     }
   });
 
-  /**
-   * 店铺广告费（无item_id的）
-   * GET /api/profit/shop-ad?range=today
-   */
   router.get('/shop-ad', async (req, res) => {
     try {
       const { range = 'today' } = req.query;
       const { start, end } = getDateRange(range);
-
       const [rows] = await pool.query(`
         SELECT shop_id, SUM(expense_cny) as shop_ad_cny
         FROM eb_ad_daily
         WHERE date >= ? AND date <= ? AND platform_item_id IS NULL
         GROUP BY shop_id
       `, [start, end]);
-
       res.json({ success: true, data: rows });
     } catch (err) {
       res.status(500).json({ success: false, error: err.message });
@@ -257,10 +224,8 @@ module.exports = function(pool) {
   });
 
   function getEmptyOverview() {
-    return {
-      totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0,
-      totalProfit: 0, totalRevenue: 0, totalCost: 0, totalAd: 0, totalPacking: 0
-    };
+    return { totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0,
+      totalProfit: 0, totalRevenue: 0, totalCost: 0, totalAd: 0, totalPacking: 0 };
   }
 
   return router;
