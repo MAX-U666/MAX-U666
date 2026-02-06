@@ -307,15 +307,57 @@ const App = () => {
   const currentDayData = selectedProduct?.daily_data?.find(d => d.day_number === currentDayNumber);
   const dayStatus = getDayStatus(currentDayData);
 
-  // 模块按钮配置
-  const moduleButtons = [
-    { key: 'decision', label: '📊 决策工作台' },
-    { key: 'execute', label: '🤖 执行中心' },
-    { key: 'orders', label: '📦 订单中心' },
-    { key: 'products', label: '🏪 商品中心' },
-    { key: 'ads', label: '📢 广告中心' },
-    { key: 'bi', label: '📈 BI 中心' },
+  // 导航分组配置
+  const [openDropdown, setOpenDropdown] = useState(null);
+
+  const navGroups = [
+    { 
+      key: 'decisionHub', 
+      label: '🧠 决策中枢', 
+      children: [
+        { key: 'decision', label: '决策工作台', icon: '📊' },
+      ]
+    },
+    { 
+      key: 'execute', 
+      label: '🤖 执行编排', 
+      children: null  // 无下拉，直接跳转
+    },
+    { 
+      key: 'engineHub', 
+      label: '⚙️ 决策引擎', 
+      children: [
+        { key: 'bi-sku', label: 'SKU利润', icon: '📦' },
+        { key: 'bi-shop', label: '店铺利润', icon: '🏪' },
+        { key: 'bi-order', label: '订单利润', icon: '🧾' },
+        { key: 'bi-overview', label: '公司总览', icon: '🏢' },
+      ]
+    },
+    { 
+      key: 'dataHub', 
+      label: '📦 运营数据', 
+      children: [
+        { key: 'orders', label: '订单中心', icon: '📋' },
+        { key: 'products', label: '商品中心', icon: '🏪' },
+        { key: 'ads', label: '广告中心', icon: '📢' },
+      ]
+    },
   ];
+
+  // 判断某个分组是否处于激活状态
+  const isGroupActive = (group) => {
+    if (group.children) {
+      return group.children.some(c => currentModule === c.key);
+    }
+    return currentModule === group.key;
+  };
+
+  // 获取当前激活的分组子项标签（用于显示）
+  const getActiveChildLabel = (group) => {
+    if (!group.children) return null;
+    const active = group.children.find(c => currentModule === c.key);
+    return active ? active.label : null;
+  };
 
   return (
     <div style={styles.container}>
@@ -330,48 +372,141 @@ const App = () => {
         onShopAuth={() => setCurrentModule('shopAuth')}
       />
 
-      {/* 模块切换栏 */}
+      {/* 模块切换栏 - 下拉分组导航 */}
       {isLoggedIn && (
         <div style={{ 
           display: 'flex', 
-          gap: '8px', 
-          padding: '12px 20px',
+          gap: '6px', 
+          padding: '10px 20px',
           background: '#FFFFFF',
           borderBottom: '1px solid #E8E8ED',
-          overflowX: 'auto'
+          overflowX: 'auto',
+          position: 'relative'
         }}>
-          {moduleButtons.map(btn => (
-            <button 
-              key={btn.key}
-              onClick={() => switchModule(btn.key)}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                background: currentModule === btn.key 
-                  ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)' 
-                  : '#F5F5F7',
-                color: currentModule === btn.key ? '#fff' : '#333',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {btn.label}
-            </button>
-          ))}
+          {navGroups.map(group => {
+            const active = isGroupActive(group);
+            const isOpen = openDropdown === group.key;
+
+            return (
+              <div key={group.key} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => {
+                    if (!group.children) {
+                      // 无下拉，直接跳转
+                      switchModule(group.key);
+                      setOpenDropdown(null);
+                    } else {
+                      // 有下拉，切换展开
+                      setOpenDropdown(isOpen ? null : group.key);
+                    }
+                  }}
+                  style={{
+                    padding: '9px 18px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: active
+                      ? 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)'
+                      : '#F5F5F7',
+                    color: active ? '#fff' : '#333',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {group.label}
+                  {group.children && (
+                    <span style={{ 
+                      fontSize: '10px', 
+                      opacity: 0.7,
+                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s'
+                    }}>▼</span>
+                  )}
+                </button>
+
+                {/* 下拉菜单 */}
+                {group.children && isOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '6px',
+                    background: '#fff',
+                    borderRadius: '12px',
+                    border: '1px solid #E8E8ED',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    padding: '6px',
+                    minWidth: '160px',
+                    zIndex: 100
+                  }}>
+                    {group.children.map(child => (
+                      <button
+                        key={child.key}
+                        onClick={() => {
+                          switchModule(child.key);
+                          setOpenDropdown(null);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          width: '100%',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: currentModule === child.key 
+                            ? 'rgba(255,107,53,0.08)' 
+                            : 'transparent',
+                          color: currentModule === child.key ? '#FF6B35' : '#333',
+                          fontSize: '13px',
+                          fontWeight: currentModule === child.key ? '600' : '500',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s'
+                        }}
+                        onMouseEnter={e => {
+                          if (currentModule !== child.key) {
+                            e.target.style.background = '#F5F5F7';
+                          }
+                        }}
+                        onMouseLeave={e => {
+                          if (currentModule !== child.key) {
+                            e.target.style.background = 'transparent';
+                          }
+                        }}
+                      >
+                        <span>{child.icon}</span>
+                        <span>{child.label}</span>
+                        {currentModule === child.key && (
+                          <span style={{ marginLeft: 'auto', color: '#FF6B35', fontSize: '12px' }}>✓</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      )}
+
+      {/* 点击空白关闭下拉 */}
+      {openDropdown && (
+        <div 
+          onClick={() => setOpenDropdown(null)} 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} 
+        />
       )}
       
       <div style={styles.content}>
         {/* 根据模块切换显示不同内容 */}
-        {currentModule === 'bi' ? (
-          <BICenter />
+        {currentModule === 'bi-sku' || currentModule === 'bi-shop' || currentModule === 'bi-order' || currentModule === 'bi-overview' ? (
+          <BICenter defaultTab={currentModule} />
         ) : currentModule === 'execute' ? (
           <ExecuteCenter />
         ) : currentModule === 'orders' ? (
