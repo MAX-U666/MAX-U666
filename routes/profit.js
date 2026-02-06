@@ -57,7 +57,7 @@ module.exports = function(pool) {
 
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
-      orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'refunded')`;
+      orderWhere += ` AND o.app_package_status = 'finished'`;
       
       if (shop) {
         orderWhere += ` AND o.shop_name = ?`;
@@ -128,7 +128,7 @@ module.exports = function(pool) {
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = parseFloat(r.total_ad_cny) || 0; });
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; }); // 含11%增值税
 
       // 聚合SKU利润
       const skuMap = {};
@@ -254,7 +254,7 @@ module.exports = function(pool) {
 
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
-      orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'refunded')`;
+      // 不过滤状态，展示所有订单
       if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
 
       // 获取订单+明细
@@ -264,7 +264,7 @@ module.exports = function(pool) {
           o.op_order_package_id as pkg_id,
           o.shop_name, o.escrow_amount, o.exchange_rate,
           o.gmt_order_start as order_time,
-          o.app_package_status_text as status,
+          o.app_package_status_text as status, o.app_package_status as status_raw,
           o.buyer_username,
           oi.goods_sku_outer_id as sku_id,
           oi.goods_name as sku_name,
@@ -318,7 +318,7 @@ module.exports = function(pool) {
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = parseFloat(r.total_ad_cny) || 0; });
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; }); // 含11%增值税
 
       // 统计每个item_id下各SKU的订单量（用于按订单量占比分摊广告费）
       const itemIdSkuOrders = {}; // { itemId: { skuId: totalQty } }
@@ -339,7 +339,7 @@ module.exports = function(pool) {
             id: r.order_sn,
             store: r.shop_name,
             date: r.order_time ? new Date(r.order_time).toISOString().split('T')[0] : '',
-            status: r.status,
+            status: r.status, statusRaw: r.status_raw,
             buyer: r.buyer_username,
             items: [],
             revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
@@ -399,14 +399,25 @@ module.exports = function(pool) {
         );
       }
 
-      // 概览
+      // 概览(利润只统计已完成订单)
+      const finished = result.filter(o => o.statusRaw === 'finished');
       const overview = {
         totalOrders: result.length,
-        profitOrders: result.filter(o => o.profit > 0).length,
-        lossOrders: result.filter(o => o.profit <= 0).length,
-        avgProfit: result.length > 0 ? result.reduce((s, o) => s + o.profit, 0) / result.length : 0,
-        totalProfit: result.reduce((s, o) => s + o.profit, 0),
-        totalRevenue: result.reduce((s, o) => s + o.revenue, 0),
+        finishedOrders: finished.length,
+        profitOrders: finished.filter(o => o.profit > 0).length,
+        lossOrders: finished.filter(o => o.profit <= 0).length,
+        avgProfit: finished.length > 0 ? finished.reduce((s, o) => s + o.profit, 0) / finished.length : 0,
+        totalProfit: finished.reduce((s, o) => s + o.profit, 0),
+        totalRevenue: finished.reduce((s, o) => s + o.revenue, 0),
+        statusCounts: {
+          finished: result.filter(o => o.statusRaw === 'finished').length,
+          wait_receiver_confirm: result.filter(o => o.statusRaw === 'wait_receiver_confirm').length,
+          wait_seller_send: result.filter(o => o.statusRaw === 'wait_seller_send').length,
+          cancelled: result.filter(o => o.statusRaw === 'cancelled').length,
+          returned: result.filter(o => o.statusRaw === 'returned').length,
+          refunding: result.filter(o => o.statusRaw === 'refunding').length,
+          unpaid: result.filter(o => o.statusRaw === 'unpaid').length,
+        }
       };
 
       // 按店铺汇总
