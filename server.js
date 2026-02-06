@@ -23,6 +23,10 @@ const pool = mysql.createPool({
 const easybossRoutes = require('./routes/easyboss')(pool);
 app.use('/api/easyboss', easybossRoutes);
 
+// 产品管理路由（单品/组合SKU成本管理）
+const productsRoutes = require('./routes/products')(pool);
+app.use('/api/products', productsRoutes);
+
 // 通用API路由
 const apiRoutes = require('./routes/api')(pool);
 app.use('/api', apiRoutes);
@@ -37,7 +41,8 @@ app.use((req, res) => {
 
 // 启动服务器
 app.listen(3001, () => {
-  console.log('GMV MAX API v3.2 running on http://localhost:3001');
+  console.log('GMV MAX API v3.3 running on http://localhost:3001');
   console.log('集成千问 qwen-turbo AI 决策引擎');
   console.log('EasyBoss 数据采集+订单模块已加载');
+  console.log('产品管理模块已加载');
 });
