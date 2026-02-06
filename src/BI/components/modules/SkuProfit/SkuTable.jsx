@@ -1,7 +1,7 @@
 /**
- * SKU利润表格组件 - 支持独立自定义日期查询
+ * SKU利润表格组件 - 筛选栏旁合计摘要
  */
-import React, { Fragment, useState, useMemo, useCallback, useEffect } from 'react';
+import React, { Fragment, useState, useMemo } from 'react';
 import { formatCNY } from '../../../utils/format';
 import { getSkuQuadrant } from '../../../utils/helpers';
 
@@ -11,57 +11,16 @@ const statusList = [
   { key: 'loss', label: '亏损' },
 ];
 
-export function SkuTable({ data: parentData, shops: parentShops, loading: parentLoading, quadrantFilter }) {
+export function SkuTable({ data, shops, loading, quadrantFilter }) {
   const [expandedSku, setExpandedSku] = useState(null);
   const [selectedShop, setSelectedShop] = useState('全部');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [searchText, setSearchText] = useState('');
 
-  // 独立日期查询
-  const [useCustomDate, setUseCustomDate] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [customData, setCustomData] = useState(null);
-  const [customLoading, setCustomLoading] = useState(false);
-
-  // 初始化日期为今天
-  useEffect(() => {
-    const now = new Date(Date.now() + 7 * 3600000);
-    const todayStr = now.toISOString().split('T')[0];
-    setStartDate(todayStr);
-    setEndDate(todayStr);
-  }, []);
-
-  const fetchCustomData = useCallback(async () => {
-    if (!startDate || !endDate) return;
-    setCustomLoading(true);
-    try {
-      const res = await fetch(`/api/profit/sku-list?startDate=${startDate}&endDate=${endDate}`);
-      const json = await res.json();
-      if (json.success) {
-        setCustomData({ data: json.data || [], shops: json.shops || [] });
-        setUseCustomDate(true);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setCustomLoading(false);
-  }, [startDate, endDate]);
-
-  const clearCustomDate = () => {
-    setUseCustomDate(false);
-    setCustomData(null);
-  };
-
-  // 使用自定义数据或父级数据
-  const activeData = useCustomDate && customData ? customData.data : (parentData || []);
-  const activeShops = useCustomDate && customData ? customData.shops : (parentShops || []);
-  const isLoading = useCustomDate ? customLoading : parentLoading;
-
-  const shopList = ['全部', ...activeShops];
+  const shopList = ['全部', ...(shops || [])];
 
   const filteredData = useMemo(() => {
-    let result = [...activeData];
+    let result = [...(data || [])];
     if (selectedShop !== '全部') result = result.filter(s => s.store === selectedShop);
     if (selectedStatus === 'profit') result = result.filter(s => s.profit > 0);
     else if (selectedStatus === 'loss') result = result.filter(s => s.profit <= 0);
@@ -71,9 +30,10 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
     }
     if (quadrantFilter) result = result.filter(s => getSkuQuadrant(s) === quadrantFilter);
     return result;
-  }, [activeData, selectedShop, selectedStatus, searchText, quadrantFilter]);
+  }, [data, selectedShop, selectedStatus, searchText, quadrantFilter]);
 
   const totals = useMemo(() => ({
+    skus: filteredData.length,
     orders: filteredData.reduce((s, d) => s + d.orders, 0),
     revenue: filteredData.reduce((s, d) => s + d.revenue, 0),
     totalCost: filteredData.reduce((s, d) => s + d.cost + d.packing, 0),
@@ -95,45 +55,20 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `SKU利润数据_${startDate}_${endDate}.csv`;
+    link.download = `SKU利润数据_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
   return (
     <div>
-      {/* 自定义日期查询栏 */}
-      <div className="flex items-center gap-3 mb-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
-        <span className="text-sm font-medium text-gray-600">📅 自定义日期:</span>
-        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
-        <span className="text-gray-400">至</span>
-        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)}
-          className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm bg-white" />
-        <button onClick={fetchCustomData} disabled={customLoading}
-          className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
-          {customLoading ? '查询中...' : '查询'}
-        </button>
-        {useCustomDate && (
-          <button onClick={clearCustomDate}
-            className="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-lg text-sm hover:bg-gray-300">
-            恢复默认
-          </button>
-        )}
-        {useCustomDate && (
-          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-            当前: {startDate} 至 {endDate}
-          </span>
-        )}
-      </div>
-
-      {/* 筛选栏 */}
-      <div className="flex items-center justify-between mb-4 gap-4">
-        <div className="flex items-center gap-4">
+      {/* 筛选栏 + 合计摘要 */}
+      <div className="flex items-start justify-between mb-4 gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">店铺:</span>
             <select value={selectedShop} onChange={e => setSelectedShop(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white">
               {shopList.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
@@ -147,21 +82,38 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
           <div className="relative">
             <input type="text" value={searchText} onChange={e => setSearchText(e.target.value)}
               placeholder="搜索SKU名称或编码..."
-              className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500" />
+              className="pl-3 pr-10 py-2 border border-gray-300 rounded-lg text-sm w-56" />
             {searchText && (
               <button onClick={() => setSearchText('')}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">✕</button>
             )}
           </div>
         </div>
-        <button onClick={handleExport}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2">
-          导出Excel
-        </button>
+
+        {/* 合计摘要 + 导出 */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+            <span className="text-gray-500">{totals.skus}个SKU</span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">出单<span className="font-bold text-gray-700 ml-0.5">{totals.orders}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">回款<span className="font-bold text-blue-600 ml-0.5">{formatCNY(totals.revenue)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">成本<span className="font-bold text-orange-600 ml-0.5">{formatCNY(totals.totalCost)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">广告<span className="font-bold text-pink-600 ml-0.5">{formatCNY(totals.ad)}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">利润<span className={`font-bold ml-0.5 ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCNY(totals.profit)}</span></span>
+          </div>
+          <button onClick={handleExport}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors whitespace-nowrap">
+            导出Excel
+          </button>
+        </div>
       </div>
 
       {/* 表格 */}
-      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${isLoading ? 'animate-pulse' : ''}`}>
+      <div className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${loading ? 'animate-pulse' : ''}`}>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
@@ -181,7 +133,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
             {filteredData.length === 0 ? (
               <tr>
                 <td colSpan="10" className="px-4 py-12 text-center text-gray-500">
-                  {isLoading ? '加载中...' : '暂无数据'}
+                  {loading ? '加载中...' : '暂无数据'}
                 </td>
               </tr>
             ) : filteredData.map((sku) => {
@@ -232,7 +184,6 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                     <tr>
                       <td colSpan="10" className="bg-gray-50 p-4">
                         <div className="grid grid-cols-3 gap-4">
-                          {/* 成本明细 */}
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">💰 成本明细</h4>
                             <div className="space-y-2">
@@ -252,8 +203,6 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                               </div>
                             </div>
                           </div>
-
-                          {/* 效率指标 */}
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">📊 效率指标</h4>
                             <div className="space-y-2">
@@ -270,8 +219,6 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                               ))}
                             </div>
                           </div>
-
-                          {/* AI诊断 */}
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">🤖 SKU诊断</h4>
                             <div className="space-y-2">
