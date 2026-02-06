@@ -12,11 +12,12 @@ export function SkuRanking({ data }) {
   // 利润区间分布
   const ranges = [
     { label: '亏损 (<¥0)', min: -Infinity, max: 0, color: 'bg-red-500' },
-    { label: '¥0~¥50', min: 0, max: 50, color: 'bg-orange-400' },
-    { label: '¥50~¥100', min: 50, max: 100, color: 'bg-yellow-400' },
-    { label: '¥100~¥200', min: 100, max: 200, color: 'bg-lime-400' },
-    { label: '¥200~¥500', min: 200, max: 500, color: 'bg-green-400' },
-    { label: '≥¥500', min: 500, max: Infinity, color: 'bg-emerald-500' },
+    { label: '¥0~¥4', min: 0, max: 4, color: 'bg-orange-400' },
+    { label: '¥4~¥8', min: 4, max: 8, color: 'bg-yellow-400' },
+    { label: '¥8~¥12', min: 8, max: 12, color: 'bg-lime-400' },
+    { label: '¥12~¥17', min: 12, max: 17, color: 'bg-green-400' },
+    { label: '¥18~¥25', min: 17, max: 25, color: 'bg-emerald-500' },
+    { label: '≥¥25', min: 25, max: Infinity, color: 'bg-teal-500' },
   ];
   const distribution = ranges.map(r => ({
     ...r,
