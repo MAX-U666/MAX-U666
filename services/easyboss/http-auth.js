@@ -3,9 +3,14 @@
  * 纯 HTTP 请求，无需浏览器，避免异地验证
  * 
  * 登录流程：AES加密账号密码 → POST登录接口 → 获取Cookie
+ * 
+ * [2026-02-06] 修复：Cookie同时写入文件，getCookie优先读文件，解决API进程内存缓存导致cookie过期问题
  */
 
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const COOKIE_FILE = path.join(__dirname, '.easyboss_cookie');
 
 class EasyBossHttpAuth {
   constructor(pool, config = {}) {
@@ -104,7 +109,7 @@ class EasyBossHttpAuth {
   }
 
   /**
-   * 登录并保存 Cookie 到数据库
+   * 登录并保存 Cookie 到数据库+文件
    */
   async loginAndSave() {
     const result = await this.login();
@@ -117,9 +122,17 @@ class EasyBossHttpAuth {
   }
 
   /**
-   * 保存 Cookie 到数据库
+   * 保存 Cookie 到数据库 + 文件
    */
   async saveCookie(cookieString) {
+    // 写入文件（最可靠，不受进程缓存影响）
+    try {
+      fs.writeFileSync(COOKIE_FILE, cookieString, 'utf-8');
+      console.log('[HttpAuth] Cookie 已写入文件:', COOKIE_FILE);
+    } catch (e) {
+      console.error('[HttpAuth] 写入文件失败:', e.message);
+    }
+    // 写入数据库（备份）
     try {
       await this.pool.query(
         `INSERT INTO eb_config (config_key, config_value, updated_at) 
@@ -129,19 +142,32 @@ class EasyBossHttpAuth {
       );
       console.log('[HttpAuth] Cookie 已保存到数据库');
     } catch (err) {
-      console.error('[HttpAuth] 保存 Cookie 失败:', err.message);
+      console.error('[HttpAuth] 保存 Cookie 到数据库失败:', err.message);
     }
   }
 
   /**
-   * 从数据库获取 Cookie
+   * 获取 Cookie（优先读文件，fallback数据库）
    */
   async getCookie() {
+    // 优先从文件读取（最新，不受进程缓存影响）
+    try {
+      if (fs.existsSync(COOKIE_FILE)) {
+        const cookieStr = fs.readFileSync(COOKIE_FILE, 'utf-8').trim();
+        if (cookieStr.length > 10) {
+          const stat = fs.statSync(COOKIE_FILE);
+          console.log('[HttpAuth] 从文件读取Cookie (' + cookieStr.length + '字符)');
+          return { cookieString: cookieStr, updatedAt: stat.mtime };
+        }
+      }
+    } catch (e) {
+      console.error('[HttpAuth] 读取Cookie文件失败:', e.message);
+    }
+    // fallback: 从数据库读取
     try {
       const [rows] = await this.pool.query(
         "SELECT config_value, updated_at FROM eb_config WHERE config_key = 'easyboss_cookie' LIMIT 1"
       );
-      
       if (rows.length && rows[0].config_value) {
         return {
           cookieString: rows[0].config_value,
