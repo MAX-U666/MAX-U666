@@ -201,6 +201,7 @@ module.exports = function(pool) {
 
       const overview = {
         totalSku: result.length,
+        totalOrders: result.reduce((s, d) => s + d.orders, 0),
         profitSku: result.filter(s => s.profit > 0).length,
         lossSku: result.filter(s => s.profit <= 0).length,
         roiReached: result.filter(s => s.roi >= 4).length,
