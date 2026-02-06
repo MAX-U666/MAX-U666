@@ -43,11 +43,7 @@ module.exports = function(pool) {
   }
 
   function getPackingCost(warehouseName, exchangeRate) {
-    if (!warehouseName) return 1.5;
-    const name = warehouseName.toUpperCase();
-    if (name.includes('MOMO')) return 2000 / (exchangeRate || 2450);
-    if (name.includes('BBT')) return 3;
-    return 1.5;
+    return 2.8; // 统一仓储费
   }
 
   router.get('/sku-list', async (req, res) => {
