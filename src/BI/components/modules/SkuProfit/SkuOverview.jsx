@@ -1,27 +1,21 @@
 import React from "react";
 import { formatCNY } from "../../../utils/format";
 
-const mockData = {
-  totalSku: 10,
-  profitSku: 7,
-  lossSku: 3,
-  roiReached: 2,
-  totalProfit: 22932.82
-};
+export function SkuOverview({ data, loading }) {
+  const d = data || { totalSku: 0, profitSku: 0, lossSku: 0, roiReached: 0, totalProfit: 0 };
 
-export function SkuOverview() {
   const metrics = [
     { 
       label: "SKU总数", 
-      value: mockData.totalSku, 
+      value: d.totalSku, 
       icon: "📦",
       bgColor: "bg-blue-50",
       iconBg: "bg-blue-100"
     },
     { 
       label: "盈利SKU", 
-      value: mockData.profitSku, 
-      sub: `${(mockData.profitSku/mockData.totalSku*100).toFixed(1)}%`, 
+      value: d.profitSku, 
+      sub: d.totalSku > 0 ? `${(d.profitSku/d.totalSku*100).toFixed(1)}%` : '0%', 
       subColor: "text-green-600",
       icon: "✅",
       bgColor: "bg-green-50",
@@ -29,8 +23,8 @@ export function SkuOverview() {
     },
     { 
       label: "亏损SKU", 
-      value: mockData.lossSku, 
-      sub: `${(mockData.lossSku/mockData.totalSku*100).toFixed(1)}%`, 
+      value: d.lossSku, 
+      sub: d.totalSku > 0 ? `${(d.lossSku/d.totalSku*100).toFixed(1)}%` : '0%', 
       subColor: "text-red-600",
       icon: "⚠️",
       bgColor: "bg-red-50",
@@ -38,7 +32,7 @@ export function SkuOverview() {
     },
     { 
       label: "ROI达标", 
-      value: mockData.roiReached, 
+      value: d.roiReached, 
       sub: "ROI≥4", 
       subColor: "text-blue-600",
       icon: "🎯",
@@ -47,7 +41,7 @@ export function SkuOverview() {
     },
     { 
       label: "SKU总利润", 
-      value: formatCNY(mockData.totalProfit),
+      value: formatCNY(d.totalProfit || 0),
       icon: "💰",
       bgColor: "bg-orange-50",
       iconBg: "bg-orange-100"
@@ -57,7 +51,7 @@ export function SkuOverview() {
   return (
     <div className="grid grid-cols-5 gap-4">
       {metrics.map((item, idx) => (
-        <div key={idx} className={`${item.bgColor} rounded-xl p-4 border border-gray-100`}>
+        <div key={idx} className={`${item.bgColor} rounded-xl p-4 border border-gray-100 ${loading ? 'animate-pulse' : ''}`}>
           <div className="flex items-start justify-between">
             <div>
               <div className="text-sm text-gray-500 mb-2">{item.label}</div>
