@@ -57,7 +57,7 @@ module.exports = function(pool) {
 
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
-      orderWhere += ` AND o.app_package_status = 'finished'`;
+      orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'returned', 'unpaid', 'refunding')`;
       
       if (shop) {
         orderWhere += ` AND o.shop_name = ?`;
