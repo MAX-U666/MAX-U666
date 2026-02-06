@@ -66,7 +66,16 @@ class EasyBossHttpAuth {
       });
 
       // 提取 Set-Cookie
-      const setCookies = response.headers.raw()['set-cookie'] || [];
+      // Node 22 fetch 兼容：getSetCookie() 或 fallback
+      let setCookies = [];
+      if (typeof response.headers.getSetCookie === 'function') {
+        setCookies = response.headers.getSetCookie();
+      } else if (typeof response.headers.raw === 'function') {
+        setCookies = response.headers.raw()['set-cookie'] || [];
+      } else {
+        const raw = response.headers.get('set-cookie');
+        if (raw) setCookies = raw.split(', ');
+      }
       const data = await response.json();
 
       console.log('[HttpAuth] 响应状态:', response.status);
