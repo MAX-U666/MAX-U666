@@ -125,7 +125,7 @@ export function SkuCostTable() {
             { label: "单品总数", value: stats.total, icon: "📦" },
             { label: "已启用", value: stats.active, icon: "✅" },
             { label: "有采购价", value: stats.has_price, icon: "💰" },
-            { label: "平均单价", value: `¥${(stats.avg_price || 0).toFixed(2)}`, icon: "📊" },
+            { label: "平均单价", value: `¥${Number(stats.avg_price || 0).toFixed(2)}`, icon: "📊" },
           ].map((card, i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
               <div className="flex items-center justify-between">
