@@ -331,6 +331,7 @@ const App = () => {
         { key: 'bi-shop', label: '店铺利润', icon: '🏪' },
         { key: 'bi-order', label: '订单利润', icon: '🧾' },
         { key: 'bi-overview', label: '公司总览', icon: '🏢' },
+        { key: 'bi-products', label: '产品管理', icon: '🏷️' },
       ]
     },
     { 
@@ -507,7 +508,7 @@ const App = () => {
       
       <div style={styles.content}>
         {/* 根据模块切换显示不同内容 */}
-        {currentModule === 'bi-sku' || currentModule === 'bi-shop' || currentModule === 'bi-order' || currentModule === 'bi-overview' ? (
+        {currentModule === 'bi-sku' || currentModule === 'bi-shop' || currentModule === 'bi-order' || currentModule === 'bi-overview' || currentModule === 'bi-products' ? (
           <BICenter defaultTab={currentModule} />
         ) : currentModule === 'execute' ? (
           <ExecuteCenter />
