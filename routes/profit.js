@@ -482,7 +482,147 @@ module.exports = function(pool) {
     }
   });
 
-    function getEmptyOrderOverview() {
+  
+  /**
+   * 订单明细下载（CSV完整字段）
+   * GET /api/profit/order-download?startDate=&endDate=&shop=
+   */
+  router.get('/order-download', async (req, res) => {
+    try {
+      const { range = 'today', shop, startDate, endDate } = req.query;
+      const { start, end } = getDateRange(range, startDate, endDate);
+
+      let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
+      let orderParams = [start, end];
+      if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+
+      const [rows] = await pool.query(`
+        SELECT 
+          o.platform_order_sn as order_sn,
+          o.op_order_package_id as pkg_id,
+          o.shop_name, o.escrow_amount, o.exchange_rate, o.currency,
+          o.gmt_order_start as order_time,
+          o.app_package_status as status_raw,
+          o.app_package_status_text as status_text,
+          o.buyer_username,
+          oi.goods_sku_outer_id as sku_id,
+          oi.goods_name as sku_name,
+          oi.goods_mode,
+          oi.warehouse_name,
+          oi.platform_item_id,
+          oi.quantity,
+          oi.discounted_price
+        FROM eb_order_items oi
+        JOIN eb_orders o ON oi.op_order_package_id = o.op_order_package_id
+        ${orderWhere}
+        ORDER BY o.gmt_order_start DESC
+      `, orderParams);
+
+      // 包裹售价总和
+      const packageTotals = {};
+      for (const r of rows) {
+        if (!packageTotals[r.pkg_id]) packageTotals[r.pkg_id] = 0;
+        packageTotals[r.pkg_id] += parseFloat(r.discounted_price) || 0;
+      }
+
+      // SKU成本
+      const allSkus = [...new Set(rows.map(r => r.sku_id).filter(Boolean))];
+      const ph = allSkus.length > 0 ? allSkus.map(() => '?').join(',') : "'__NONE__'";
+      const [singleCosts] = allSkus.length > 0 ? await pool.query(
+        `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${ph})`, allSkus
+      ) : [[]];
+      const singleCostMap = {};
+      singleCosts.forEach(r => { singleCostMap[r.sku] = parseFloat(r.purchase_price) || 0; });
+
+      const [comboCosts] = allSkus.length > 0 ? await pool.query(
+        `SELECT c.combo_sku, c.item_sku, c.quantity, s.purchase_price
+         FROM eb_sku_combos c LEFT JOIN eb_sku_costs s ON c.item_sku = s.sku
+         WHERE c.combo_sku IN (${ph})`, allSkus
+      ) : [[]];
+      const comboCostMap = {};
+      comboCosts.forEach(r => {
+        if (!comboCostMap[r.combo_sku]) comboCostMap[r.combo_sku] = 0;
+        comboCostMap[r.combo_sku] += (parseFloat(r.purchase_price) || 0) * (r.quantity || 1);
+      });
+
+      // 广告
+      const [adData] = await pool.query(`
+        SELECT platform_item_id, SUM(expense_cny) as total_ad_cny
+        FROM eb_ad_daily WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
+        GROUP BY platform_item_id
+      `, [start, end]);
+      const adMap = {};
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; });
+
+      // 统计每个item_id下各SKU的订单量
+      const itemIdSkuOrders = {};
+      for (const r of rows) {
+        const itemId = String(r.platform_item_id);
+        if (r.platform_item_id) {
+          if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
+          itemIdSkuOrders[itemId][r.sku_id] = (itemIdSkuOrders[itemId][r.sku_id] || 0) + (r.quantity || 1);
+        }
+      }
+
+      // 生成CSV
+      const csvRows = [
+        ['订单号','包裹ID','店铺','日期','状态','买家','SKU编码','商品名称','数量','售价(原币)',
+         '回款(原币)','汇率','回款(CNY)','商品成本(CNY)','仓储费(CNY)','广告费(CNY)',
+         '利润(CNY)','利润率','仓库','商品ID'].join(',')
+      ];
+
+      for (const r of rows) {
+        const xrate = parseFloat(r.exchange_rate) || 2450;
+        const escrow = parseFloat(r.escrow_amount) || 0;
+        const myPrice = parseFloat(r.discounted_price) || 0;
+        const pkgTotal = packageTotals[r.pkg_id] || myPrice || 1;
+        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
+        const revenueCNY = (escrow * ratio) / xrate;
+
+        let unitCost = 0;
+        if (r.goods_mode === 'bundle' && comboCostMap[r.sku_id] !== undefined) {
+          unitCost = comboCostMap[r.sku_id];
+        } else if (singleCostMap[r.sku_id] !== undefined) {
+          unitCost = singleCostMap[r.sku_id];
+        }
+        const itemCost = unitCost * (r.quantity || 1);
+        const packCost = 2.8;
+
+        let itemAd = 0;
+        if (r.platform_item_id && adMap[String(r.platform_item_id)]) {
+          const itemId = String(r.platform_item_id);
+          const skuOrders = itemIdSkuOrders[itemId] || {};
+          const totalOrders = Object.values(skuOrders).reduce((a, b) => a + b, 0);
+          const myOrders = skuOrders[r.sku_id] || 0;
+          const adRatio = totalOrders > 0 ? myOrders / totalOrders : 0;
+          itemAd = adMap[itemId] * adRatio;
+        }
+
+        const profit = revenueCNY - itemCost - packCost - itemAd;
+        const profitRate = revenueCNY > 0 ? (profit / revenueCNY * 100).toFixed(1) + '%' : '0%';
+        const orderDate = r.order_time ? new Date(r.order_time).toISOString().replace('T',' ').substr(0,19) : '';
+
+        const fields = [
+          r.order_sn, r.pkg_id, r.shop_name, orderDate, r.status_text || r.status_raw,
+          r.buyer_username || '', r.sku_id, `"${(r.sku_name||'').replace(/"/g,'""')}"`,
+          r.quantity || 1, myPrice, escrow, xrate, revenueCNY.toFixed(2),
+          itemCost.toFixed(2), packCost.toFixed(2), itemAd.toFixed(2),
+          profit.toFixed(2), profitRate, r.warehouse_name || '', r.platform_item_id || ''
+        ];
+        csvRows.push(fields.join(','));
+      }
+
+      const csv = '\uFEFF' + csvRows.join('\n');
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=orders_${start}_${end}.csv`);
+      res.send(csv);
+    } catch (err) {
+      console.error('[订单下载] 失败:', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  function getEmptyOrderOverview() {
     return { totalOrders: 0, profitOrders: 0, lossOrders: 0, avgProfit: 0, totalProfit: 0, totalRevenue: 0 };
   }
 
