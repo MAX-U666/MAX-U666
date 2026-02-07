@@ -205,18 +205,21 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
   };
 
   return (
-    <div style={{ ...styles.card, background: '#F9FAFB' }}>
+    <div style={{ ...styles.card, background: '#FFFFFF' }}>
       {/* 表头统计 */}
       <div style={{ 
         padding: '16px 20px', 
         borderBottom: '1px solid #E5E7EB', 
         display: 'flex', 
         justifyContent: 'space-between', 
-        alignItems: 'center' 
+        alignItems: 'center',
+        background: '#FFF7ED'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <MiniLogo size={20} color="#FF6B35" />
-          <span style={{ fontSize: '14px', fontWeight: '700', color: '#333' }}>7天数据追踪</span>
+          <div style={{ width: '28px', height: '28px', background: '#FFEDD5', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MiniLogo size={16} color="#EA580C" />
+          </div>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: '#9A3412' }}>7天数据追踪</span>
           
           {/* 视图切换 */}
           <div style={{ display: 'flex', gap: '4px', marginLeft: '16px' }}>
@@ -225,10 +228,11 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
               style={{
                 padding: '4px 12px',
                 borderRadius: '6px',
-                border: 'none',
-                background: viewMode === 'compact' ? 'rgba(255,107,53,0.2)' : 'transparent',
-                color: viewMode === 'compact' ? '#FF6B35' : '#64748B',
+                border: viewMode === 'compact' ? '1px solid #FED7AA' : '1px solid transparent',
+                background: viewMode === 'compact' ? '#FFEDD5' : 'transparent',
+                color: viewMode === 'compact' ? '#C2410C' : '#78716C',
                 fontSize: '11px',
+                fontWeight: '500',
                 cursor: 'pointer'
               }}
             >
@@ -239,10 +243,11 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
               style={{
                 padding: '4px 12px',
                 borderRadius: '6px',
-                border: 'none',
-                background: viewMode === 'full' ? 'rgba(255,107,53,0.2)' : 'transparent',
-                color: viewMode === 'full' ? '#FF6B35' : '#64748B',
+                border: viewMode === 'full' ? '1px solid #FED7AA' : '1px solid transparent',
+                background: viewMode === 'full' ? '#FFEDD5' : 'transparent',
+                color: viewMode === 'full' ? '#C2410C' : '#78716C',
                 fontSize: '11px',
+                fontWeight: '500',
                 cursor: 'pointer'
               }}
             >
@@ -251,7 +256,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
           </div>
         </div>
         
-        <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: '#4B5563' }}>
+        <div style={{ display: 'flex', gap: '20px', fontSize: '12px', color: '#57534E' }}>
           <span>总单 <strong style={{ color: '#10B981' }}>{summary.totalOrdersCreated}</strong></span>
           <span>发货 <strong style={{ color: '#3B82F6' }}>{summary.totalOrdersReady}</strong></span>
           <span>花费 <strong style={{ color: '#EF4444' }}>Rp {(summary.totalAdSpend/1000).toFixed(0)}k</strong></span>
@@ -279,11 +284,11 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                     textAlign: 'center', 
                     fontWeight: '600', 
                     color: '#374151', 
-                    fontSize: '10px', 
-                    textTransform: 'uppercase', 
-                    letterSpacing: '0.5px', 
+                    fontSize: '11px', 
+                    textTransform: 'none', 
+                    letterSpacing: '0', 
                     borderBottom: '1px solid #E5E7EB', 
-                    background: '#F9FAFB',
+                    background: '#FAFAF9',
                     minWidth: h.width,
                     whiteSpace: 'nowrap'
                   }}
