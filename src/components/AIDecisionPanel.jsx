@@ -218,7 +218,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         const isSuccess = content.startsWith('✅') || content.startsWith('✓');
         result.push(
           <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', margin: '6px 0', color: isError ? '#F87171' : isSuccess ? '#10B981' : '#4B5563' }}>
-            <span style={{ color: isError ? '#EF4444' : isSuccess ? '#10B981' : '#9CA3AF' }}>•</span>
+            <span style={{ color: isError ? '#EF4444' : isSuccess ? '#10B981' : '#6B7280' }}>•</span>
             <span>{content}</span>
           </div>
         );
@@ -295,9 +295,9 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
       onClick={() => setActiveTab(id)}
       style={{
         flex: 1, padding: '10px 8px', borderRadius: '8px',
-        border: activeTab === id ? `1px solid ${color}` : '1px solid #E5E7EB',
-        background: activeTab === id ? `${color}10` : '#F5F5F7',
-        color: activeTab === id ? color : '#9CA3AF',
+        border: activeTab === id ? `1px solid ${color}` : '1px solid #D1D5DB',
+        background: activeTab === id ? `${color}10` : '#F3F4F6',
+        color: activeTab === id ? color : '#6B7280',
         fontSize: '12px', fontWeight: '600', cursor: 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
       }}
