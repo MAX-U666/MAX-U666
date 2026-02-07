@@ -3,7 +3,7 @@ import { apiGet, apiPost } from '../utils/apiFetch';
 
 // ========== API ==========
 const fetchCampaigns = async (params = {}) => apiGet('/api/easyboss/ads/campaigns', params);
-const fetchAdStats = async () => apiGet('/api/easyboss/ads/stats');
+const fetchAdStats = async (params = {}) => apiGet('/api/easyboss/ads/stats', params);
 const fetchDaily = async (params = {}) => apiGet('/api/easyboss/ads/daily', params);
 const triggerAdFetch = async (status = 'ongoing', fetchDailyFlag = false, dailyDays = 30) =>
   apiPost('/api/easyboss/ads/fetch', { status, fetchDaily: fetchDailyFlag, dailyDays });
@@ -30,6 +30,20 @@ const formatPct = (n) => {
   if (!n && n !== 0) return '-';
   return parseFloat(n).toFixed(2) + '%';
 };
+
+// ========== 日期工具 ==========
+const getDateStr = (daysAgo = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
+};
+
+const DATE_PRESETS = [
+  { label: '今天', from: () => getDateStr(0), to: () => getDateStr(0) },
+  { label: '近3天', from: () => getDateStr(2), to: () => getDateStr(0) },
+  { label: '近7天', from: () => getDateStr(6), to: () => getDateStr(0) },
+  { label: '近30天', from: () => getDateStr(29), to: () => getDateStr(0) },
+];
 
 // ========== ROI 颜色 ==========
 const roiColor = (roi) => {
@@ -206,6 +220,20 @@ const AdDetail = ({ ad, daily, onClose }) => {
   );
 };
 
+// ========== 快捷按钮样式 ==========
+const presetBtnStyle = (active) => ({
+  padding: '5px 12px',
+  borderRadius: '6px',
+  border: active ? '1px solid #FF6B35' : '1px solid #E0E0E5',
+  background: active ? 'rgba(255,107,53,0.1)' : '#FFFFFF',
+  color: active ? '#FF6B35' : '#666',
+  fontSize: '11px',
+  fontWeight: active ? '600' : '400',
+  cursor: 'pointer',
+  transition: 'all 0.15s',
+  whiteSpace: 'nowrap',
+});
+
 // ========== 主组件 ==========
 const AdCenter = () => {
   const [stats, setStats] = useState(null);
@@ -221,15 +249,20 @@ const AdCenter = () => {
   const [dateTo, setDateTo] = useState('');
   const [detail, setDetail] = useState(null);
   const [dailyData, setDailyData] = useState([]);
+  const [activePreset, setActivePreset] = useState(-1);
 
   const pageSize = 30;
 
+  // 统计跟随筛选联动
   const loadStats = useCallback(async () => {
     try {
-      const data = await fetchAdStats();
+      const params = {};
+      if (statusFilter) params.status = statusFilter;
+      if (shopFilter) params.shopId = shopFilter;
+      const data = await fetchAdStats(params);
       if (data.success) setStats(data);
     } catch (e) { console.error(e); }
-  }, []);
+  }, [statusFilter, shopFilter]);
 
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
@@ -276,6 +309,43 @@ const AdCenter = () => {
     } catch (e) { setDailyData([]); }
   };
 
+  // 快捷日期选择
+  const handlePreset = (idx) => {
+    if (activePreset === idx) {
+      setActivePreset(-1);
+      setDateFrom('');
+      setDateTo('');
+    } else {
+      setActivePreset(idx);
+      setDateFrom(DATE_PRESETS[idx].from());
+      setDateTo(DATE_PRESETS[idx].to());
+    }
+    setPage(1);
+  };
+
+  const handleDateFromChange = (val) => {
+    setDateFrom(val);
+    setActivePreset(-1);
+    setPage(1);
+  };
+  const handleDateToChange = (val) => {
+    setDateTo(val);
+    setActivePreset(-1);
+    setPage(1);
+  };
+
+  // 重置筛选
+  const handleReset = () => {
+    setStatusFilter('');
+    setShopFilter('');
+    setMatchedFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setActivePreset(-1);
+    setPage(1);
+  };
+
+  const hasFilters = statusFilter || shopFilter || matchedFilter || dateFrom || dateTo;
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -288,6 +358,11 @@ const AdCenter = () => {
           </h2>
           <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             Shopee 广告活动数据 · ROI 分析 · AI 决策支撑
+            {(dateFrom || dateTo) && (
+              <span style={{ color: '#FF6B35', marginLeft: '8px' }}>
+                📅 {dateFrom || '...'} ~ {dateTo || '...'}
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -317,9 +392,43 @@ const AdCenter = () => {
       {/* 店铺广告分布 */}
       {stats?.byShop && <ShopAdBar shops={stats.byShop} />}
 
-      {/* 筛选栏 */}
+      {/* 筛选栏：快捷按钮行 */}
       <div style={{
-        display: 'flex', gap: '10px', marginTop: '20px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center',
+        display: 'flex', gap: '10px', marginTop: '20px', marginBottom: '10px', flexWrap: 'wrap', alignItems: 'center',
+      }}>
+        <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a' }}>📋 广告列表</div>
+        <div style={{ flex: 1 }} />
+
+        {/* 快捷日期按钮 */}
+        {DATE_PRESETS.map((preset, idx) => (
+          <button
+            key={preset.label}
+            onClick={() => handlePreset(idx)}
+            style={presetBtnStyle(activePreset === idx)}
+          >
+            {preset.label}
+          </button>
+        ))}
+
+        {/* 重置按钮 */}
+        {hasFilters && (
+          <button
+            onClick={handleReset}
+            style={{
+              padding: '5px 12px', borderRadius: '6px',
+              border: '1px solid #EF4444', background: 'rgba(239,68,68,0.05)',
+              color: '#EF4444', fontSize: '11px', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ✕ 重置
+          </button>
+        )}
+      </div>
+
+      {/* 详细筛选行 */}
+      <div style={{
+        display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center',
       }}>
         <select
           value={statusFilter}
@@ -367,10 +476,11 @@ const AdCenter = () => {
         <input
           type="date"
           value={dateFrom}
-          onChange={e => { setDateFrom(e.target.value); setPage(1); }}
+          onChange={e => handleDateFromChange(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            background: dateFrom ? 'rgba(255,107,53,0.05)' : '#F5F5F7',
+            border: dateFrom ? '1px solid rgba(255,107,53,0.3)' : '1px solid #E0E0E5',
             color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
@@ -378,10 +488,11 @@ const AdCenter = () => {
         <input
           type="date"
           value={dateTo}
-          onChange={e => { setDateTo(e.target.value); setPage(1); }}
+          onChange={e => handleDateToChange(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            background: dateTo ? 'rgba(255,107,53,0.05)' : '#F5F5F7',
+            border: dateTo ? '1px solid rgba(255,107,53,0.3)' : '1px solid #E0E0E5',
             color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
