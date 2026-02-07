@@ -120,13 +120,13 @@ module.exports = function(pool) {
 
       // 广告数据
       const [adData] = await pool.query(`
-        SELECT platform_item_id, SUM(expense_cny) as total_ad_cny
+        SELECT platform_item_id, SUM(expense) as total_ad_idr, SUM(expense_cny) as total_ad_cny
         FROM eb_ad_daily
         WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad) || 0) * FIXED_RATE * 1.1; }); // IDR * 统一汇率 * 10%税
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_idr) || 0) * FIXED_RATE * 1.1; }); // IDR * 统一汇率 * 10%税
 
       // 聚合SKU利润
       const skuMap = {};
@@ -558,12 +558,12 @@ module.exports = function(pool) {
 
       // 广告
       const [adData] = await pool.query(`
-        SELECT platform_item_id, SUM(expense_cny) as total_ad_cny
+        SELECT platform_item_id, SUM(expense) as total_ad_idr, SUM(expense_cny) as total_ad_cny
         FROM eb_ad_daily WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; });
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_idr) || 0) * FIXED_RATE * 1.1; });
 
       // 统计每个item_id下各SKU的订单量
       const itemIdSkuOrders = {};
@@ -644,3 +644,4 @@ module.exports = function(pool) {
 
   return router;
 };
+
