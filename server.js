@@ -34,6 +34,10 @@ app.use('/api/products', productsRoutes);
 const profitRoutes = require('./routes/profit')(pool, tokens);
 app.use('/api/profit', profitRoutes);
 
+// 决策工作台路由（SKU决策/店铺决策 + 多模型AI）
+const decisionRoutes = require('./routes/decision')(pool);
+app.use('/api/decision', decisionRoutes);
+
 // 通用API路由
 const apiRoutes = require('./routes/api')(pool, tokens);
 app.use('/api', apiRoutes);
