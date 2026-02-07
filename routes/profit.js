@@ -347,8 +347,9 @@ module.exports = function(pool) {
         }
       }
 
-      // 按包裹聚合订单
+      // 按包裹聚合订单（打包费按订单编号全局去重）
       const orderMap = {};
+      const orderPackedSns = new Set();
       for (const r of rows) {
         const key = r.pkg_id;
         if (!orderMap[key]) {
@@ -363,7 +364,7 @@ module.exports = function(pool) {
           };
         }
         const ord = orderMap[key];
-        const xrate = 1 / FIXED_RATE; // 统一汇率
+        const xrate = parseFloat(r.exchange_rate) || 2450; // 自带汇率
         const escrow = parseFloat(r.escrow_amount) || 0;
         const myPrice = parseFloat(r.discounted_price) || 0;
         const pkgTotal = packageTotals[r.pkg_id] || myPrice || 1;
@@ -377,7 +378,7 @@ module.exports = function(pool) {
           unitCost = singleCostMap[r.sku_id];
         }
         const itemCost = unitCost * (r.quantity || 1);
-        const packCost = getPackingCost(r.warehouse_name, xrate);
+        const packCost = getPackingCost(r.warehouse_name);
         
         // 广告费(按SKU订单量占比分摊)
         let itemAd = 0;
@@ -398,7 +399,11 @@ module.exports = function(pool) {
 
         ord.revenue += revenueCNY;
         ord.cost += itemCost;
-        ord.packing += packCost;
+        // 打包费按订单编号去重
+        if (!orderPackedSns.has(r.order_sn)) {
+          ord.packing += packCost;
+          orderPackedSns.add(r.order_sn);
+        }
         ord.ad += itemAd;
         ord.qty += r.quantity || 1;
       }
