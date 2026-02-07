@@ -169,6 +169,8 @@ export function OrderTable({ data: parentData, shops: parentShops, loading: pare
             <tr>
               <th className="px-4 py-3 text-left font-medium text-gray-500">订单号</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">店铺</th>
+              <th className="px-4 py-3 text-center font-medium text-gray-500">仓库</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-500">汇率</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">日期</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">SKU</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">数量</th>
@@ -181,9 +183,9 @@ export function OrderTable({ data: parentData, shops: parentShops, loading: pare
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-400">加载中...</td></tr>
+              <tr><td colSpan="12" className="px-4 py-12 text-center text-gray-400">加载中...</td></tr>
             ) : pagedData.length === 0 ? (
-              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-500">暂无数据</td></tr>
+              <tr><td colSpan="12" className="px-4 py-12 text-center text-gray-500">暂无数据</td></tr>
             ) : pagedData.map((order) => {
               const profitRate = order.revenue > 0 ? (order.profit / order.revenue) * 100 : 0;
               const mainSku = order.items[0] || {};
@@ -198,6 +200,8 @@ export function OrderTable({ data: parentData, shops: parentShops, loading: pare
                       </div>
                     </td>
                     <td className="px-4 py-3"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{order.store}</span></td>
+                    <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">{order.warehouseName || '-'}</span></td>
+                    <td className="px-4 py-3 text-right"><span className="text-xs text-gray-500">{order.exchangeRate ? order.exchangeRate.toLocaleString() : '-'}</span></td>
                     <td className="px-4 py-3 text-gray-600 text-xs">{order.date}</td>
                     <td className="px-4 py-3">
                       <div className="max-w-[120px] truncate text-gray-700 text-xs" title={mainSku.name}>{mainSku.name || mainSku.sku}</div>
@@ -220,7 +224,7 @@ export function OrderTable({ data: parentData, shops: parentShops, loading: pare
                   </tr>
                   {expandedOrder === order.id && (
                     <tr>
-                      <td colSpan="10" className="bg-gray-50 p-4">
+                      <td colSpan="12" className="bg-gray-50 p-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">📦 订单明细</h4>
