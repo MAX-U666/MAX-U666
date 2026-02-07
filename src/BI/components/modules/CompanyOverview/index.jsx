@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCNY } from "../../../utils/format";
+import { authFetch } from '../../../utils/helpers';
 
 const COLORS = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4', '#F97316'];
 
@@ -25,7 +26,7 @@ export function CompanyOverviewModule() {
       } else {
         url = `/api/profit/sku-list?range=${dateRange}`;
       }
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (!json.success) return;
 
