@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { formatCNY } from "../../../utils/format";
 import { ShopDetail } from "./ShopDetail";
+import { authFetch } from '../../../utils/helpers';
 
 export function ShopProfitModule() {
   const [dateRange, setDateRange] = useState("today");
@@ -20,7 +21,7 @@ export function ShopProfitModule() {
       } else {
         url = `/api/profit/sku-list?range=${dateRange}`;
       }
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (!json.success) return;
 
