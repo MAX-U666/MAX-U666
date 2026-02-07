@@ -223,7 +223,6 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                     <td className="px-4 py-3"><div className="max-w-[180px] truncate text-gray-700 font-medium" title={sku.name}>{sku.name}</div></td>
                     <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{sku.store}</span></td>
                     <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">{sku.warehouseName || '-'}</span></td>
-                    <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">{sku.warehouseName || '-'}</span></td>
                     <td className="px-4 py-3 text-right text-gray-700 font-medium">{sku.orders}</td>
                     <td className="px-4 py-3 text-right text-purple-600 font-medium">{sku.qty || sku.orders}</td>
                     <td className="px-4 py-3 text-right font-medium">{formatCNY(sku.revenue)}</td>
