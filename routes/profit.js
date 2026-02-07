@@ -5,8 +5,59 @@
 
 const express = require('express');
 
-module.exports = function(pool) {
+module.exports = function(pool, tokens) {
   const router = express.Router();
+
+  // ==================== 权限中间件 ====================
+  // 从 token 获取用户信息，查 user_shops 获取授权店铺
+  router.use(async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // 无token时不过滤（兼容旧行为，后续可改为强制登录）
+      req.allowedShops = null;
+      return next();
+    }
+    const token = authHeader.split(' ')[1];
+    const user = tokens ? tokens.get(token) : null;
+    if (!user) {
+      req.allowedShops = null;
+      return next();
+    }
+    req.user = user;
+
+    // admin 看所有
+    if (user.role === 'admin') {
+      req.allowedShops = null; // null = 不过滤
+      return next();
+    }
+
+    // operator: 查 user_shops + eb_shops 获取授权的 shop_name 列表
+    try {
+      const [rows] = await pool.query(
+        `SELECT s.shop_name FROM user_shops us
+         JOIN eb_shops s ON us.shop_id = s.shop_id
+         WHERE us.user_id = ?`, [user.id]
+      );
+      req.allowedShops = rows.map(r => r.shop_name);
+      if (req.allowedShops.length === 0) {
+        req.allowedShops = ['__NO_ACCESS__']; // 无授权店铺，返回空数据
+      }
+    } catch (e) {
+      console.error('[权限] 查询授权店铺失败:', e.message);
+      req.allowedShops = ['__NO_ACCESS__'];
+    }
+    next();
+  });
+
+  // 辅助函数：给SQL加店铺过滤
+  function applyShopFilter(whereClause, params, req, shopColumn = 'o.shop_name') {
+    if (req.allowedShops && req.allowedShops.length > 0) {
+      const ph = req.allowedShops.map(() => '?').join(',');
+      whereClause += ` AND ${shopColumn} IN (${ph})`;
+      params.push(...req.allowedShops);
+    }
+    return { whereClause, params };
+  }
   const FIXED_RATE = 0.000434; // 统一汇率 1 IDR = ¥0.000434
 
   function getDateRange(range, startDate, endDate) {
@@ -73,6 +124,8 @@ module.exports = function(pool) {
         orderWhere += ` AND o.shop_name = ?`;
         orderParams.push(shop);
       }
+      // 权限过滤
+      ({ whereClause: orderWhere, params: orderParams } = applyShopFilter(orderWhere, orderParams, req));
 
       const [orderItems] = await pool.query(`
         SELECT 
@@ -287,6 +340,8 @@ module.exports = function(pool) {
       let orderParams = [start, end];
       // 不过滤状态，展示所有订单
       if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+      // 权限过滤
+      ({ whereClause: orderWhere, params: orderParams } = applyShopFilter(orderWhere, orderParams, req));
 
       // 获取订单+明细
       const [rows] = await pool.query(`
@@ -569,6 +624,8 @@ module.exports = function(pool) {
       let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
       let orderParams = [start, end];
       if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+      // 权限过滤
+      ({ whereClause: orderWhere, params: orderParams } = applyShopFilter(orderWhere, orderParams, req));
 
       const [rows] = await pool.query(`
         SELECT 
@@ -716,6 +773,8 @@ module.exports = function(pool) {
       let orderParams = [start, end];
       orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'returned', 'unpaid', 'refunding')`;
       if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+      // 权限过滤
+      ({ whereClause: orderWhere, params: orderParams } = applyShopFilter(orderWhere, orderParams, req));
 
       const [orderItems] = await pool.query(`
         SELECT 
