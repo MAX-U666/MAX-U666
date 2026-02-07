@@ -143,7 +143,8 @@ module.exports = function(pool) {
           skuMap[mapKey] = {
             sku: skuId, name: item.sku_name || '', store: item.shop_name || '',
             orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
-            profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), orderSns: new Set()
+            profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), orderSns: new Set(),
+            warehouseName: '', exchangeRate: 0
           };
 
         }
@@ -160,6 +161,8 @@ module.exports = function(pool) {
         const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
         const myEscrowCNY = escrow * ratio / xrate;
         s.revenue += myEscrowCNY;
+        if (!s.warehouseName && item.warehouse_name) s.warehouseName = item.warehouse_name;
+        if (!s.exchangeRate) s.exchangeRate = xrate;
 
         // 商品成本
         let unitCost = 0;
@@ -418,6 +421,7 @@ module.exports = function(pool) {
             id: r.order_sn, store: r.shop_name,
             date: r.order_time ? new Date(r.order_time).toISOString().split('T')[0] : '',
             status: r.status, statusRaw: r.status_raw, buyer: r.buyer_username,
+            warehouseName: r.warehouse_name || '', exchangeRate: parseFloat(r.exchange_rate) || 0,
             items: [], revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
           };
         }
