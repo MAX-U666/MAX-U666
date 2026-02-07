@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import { formatCNY } from '../../../utils/format';
+import { authFetch } from '../../../utils/helpers';
 
 const PAGE_SIZE = 20;
 
@@ -35,7 +36,7 @@ export function LinkTable() {
         url = `/api/profit/link-list?range=${dateRange}`;
       }
       if (shop) url += `&shop=${encodeURIComponent(shop)}`;
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (json.success) {
         setData(json.data || []);
