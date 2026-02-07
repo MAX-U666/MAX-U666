@@ -460,16 +460,19 @@ module.exports = function(pool) {
         );
       }
 
-      // 概览(利润只统计已完成订单)
-      const finished = result.filter(o => o.statusRaw === 'finished');
+      // 概览(统计已完成+已发货+待发货，与SKU利润页一致)
+      const validStatuses = ['finished', 'wait_receiver_confirm', 'wait_seller_send'];
+      const validOrders = result.filter(o => validStatuses.includes(o.statusRaw));
       const overview = {
         totalOrders: result.length,
-        finishedOrders: finished.length,
-        profitOrders: finished.filter(o => o.profit > 0).length,
-        lossOrders: finished.filter(o => o.profit <= 0).length,
-        avgProfit: finished.length > 0 ? finished.reduce((s, o) => s + o.profit, 0) / finished.length : 0,
-        totalProfit: finished.reduce((s, o) => s + o.profit, 0),
-        totalRevenue: finished.reduce((s, o) => s + o.revenue, 0),
+        validOrders: validOrders.length,
+        finishedOrders: result.filter(o => o.statusRaw === 'finished').length,
+        shippedOrders: result.filter(o => o.statusRaw === 'wait_receiver_confirm').length,
+        profitOrders: validOrders.filter(o => o.profit > 0).length,
+        lossOrders: validOrders.filter(o => o.profit <= 0).length,
+        avgProfit: validOrders.length > 0 ? validOrders.reduce((s, o) => s + o.profit, 0) / validOrders.length : 0,
+        totalProfit: validOrders.reduce((s, o) => s + o.profit, 0),
+        totalRevenue: validOrders.reduce((s, o) => s + o.revenue, 0),
         statusCounts: {
           finished: result.filter(o => o.statusRaw === 'finished').length,
           wait_receiver_confirm: result.filter(o => o.statusRaw === 'wait_receiver_confirm').length,
