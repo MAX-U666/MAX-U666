@@ -706,6 +706,194 @@ module.exports = function(pool) {
       totalProfit: 0, totalRevenue: 0, totalCost: 0, totalAd: 0, totalPacking: 0 };
   }
 
+  // ==================== 链接利润 ====================
+  router.get('/link-list', async (req, res) => {
+    try {
+      const { range = 'today', shop, keyword, startDate, endDate } = req.query;
+      const { start, end } = getDateRange(range, startDate, endDate);
+
+      let orderWhere = `WHERE DATE(o.gmt_order_start) >= ? AND DATE(o.gmt_order_start) <= ?`;
+      let orderParams = [start, end];
+      orderWhere += ` AND o.app_package_status NOT IN ('cancelled', 'returned', 'unpaid', 'refunding')`;
+      if (shop) { orderWhere += ` AND o.shop_name = ?`; orderParams.push(shop); }
+
+      const [orderItems] = await pool.query(`
+        SELECT 
+          oi.goods_sku_outer_id as sku_id, oi.goods_name as sku_name, oi.goods_mode,
+          oi.warehouse_name, oi.platform_item_id, oi.quantity, oi.discounted_price,
+          oi.op_order_package_id, o.escrow_amount, o.exchange_rate,
+          o.shop_name, o.platform_order_sn
+        FROM eb_order_items oi
+        JOIN eb_orders o ON oi.op_order_package_id = o.op_order_package_id
+        ${orderWhere}
+      `, orderParams);
+
+      if (orderItems.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // 包裹售价总和（用于分摊回款）
+      const packageTotals = {};
+      for (const item of orderItems) {
+        const pkgId = item.op_order_package_id;
+        if (!packageTotals[pkgId]) packageTotals[pkgId] = 0;
+        packageTotals[pkgId] += parseFloat(item.discounted_price) || 0;
+      }
+
+      // SKU成本
+      const allSkus = [...new Set(orderItems.map(i => i.sku_id).filter(Boolean))];
+      if (allSkus.length === 0) return res.json({ success: true, data: [] });
+      const ph = allSkus.map(() => '?').join(',');
+
+      const [singleCosts] = await pool.query(
+        `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${ph})`, allSkus
+      );
+      const singleCostMap = {};
+      singleCosts.forEach(r => { singleCostMap[r.sku] = parseFloat(r.purchase_price) || 0; });
+
+      const [comboCosts] = await pool.query(
+        `SELECT c.combo_sku, c.item_sku, c.quantity, s.purchase_price
+         FROM eb_sku_combos c LEFT JOIN eb_sku_costs s ON c.item_sku = s.sku
+         WHERE c.combo_sku IN (${ph})`, allSkus
+      );
+      const comboCostMap = {};
+      comboCosts.forEach(r => {
+        if (!comboCostMap[r.combo_sku]) comboCostMap[r.combo_sku] = 0;
+        comboCostMap[r.combo_sku] += (parseFloat(r.purchase_price) || 0) * (r.quantity || 1);
+      });
+
+      // 广告数据（按链接直接查，100%归属）
+      const [adData] = await pool.query(`
+        SELECT platform_item_id, SUM(expense) as total_ad_idr
+        FROM eb_ad_daily
+        WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
+        GROUP BY platform_item_id
+      `, [start, end]);
+      const adMap = {};
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_idr) || 0) * FIXED_RATE * 1.1; });
+
+      // 按 platform_item_id + sku 双层聚合
+      const linkMap = {}; // { itemId: { info, skuMap: { sku: {...} } } }
+      const globalPackedSns = new Set();
+
+      for (const item of orderItems) {
+        const itemId = String(item.platform_item_id || 'unknown');
+        const skuId = item.sku_id || 'unknown';
+
+        if (!linkMap[itemId]) {
+          linkMap[itemId] = {
+            itemId, store: item.shop_name || '', warehouse: shortWarehouse(item.warehouse_name),
+            orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0,
+            orderSns: new Set(), skuMap: {}
+          };
+        }
+        const link = linkMap[itemId];
+
+        if (!link.skuMap[skuId]) {
+          link.skuMap[skuId] = {
+            sku: skuId, name: item.sku_name || '', orders: 0, qty: 0,
+            revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, orderSns: new Set()
+          };
+        }
+        const skuEntry = link.skuMap[skuId];
+
+        // 回款
+        const xrate = parseFloat(item.exchange_rate) || 2450;
+        const escrow = parseFloat(item.escrow_amount) || 0;
+        const myPrice = parseFloat(item.discounted_price) || 0;
+        const pkgTotal = packageTotals[item.op_order_package_id] || myPrice || 1;
+        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
+        const rev = escrow * ratio / xrate;
+
+        link.revenue += rev;
+        skuEntry.revenue += rev;
+
+        // 成本
+        let unitCost = 0;
+        if (item.goods_mode === 'bundle' && comboCostMap[skuId] !== undefined) {
+          unitCost = comboCostMap[skuId];
+        } else if (singleCostMap[skuId] !== undefined) {
+          unitCost = singleCostMap[skuId];
+        }
+        const costVal = unitCost * (item.quantity || 1);
+        link.cost += costVal;
+        skuEntry.cost += costVal;
+
+        // 件数
+        const qty = item.quantity || 1;
+        link.qty += qty;
+        skuEntry.qty += qty;
+
+        // 打包（全局按订单去重）
+        if (!globalPackedSns.has(item.platform_order_sn)) {
+          const packCost = getPackingCost(item.warehouse_name);
+          link.packing += packCost;
+          skuEntry.packing += packCost;
+          globalPackedSns.add(item.platform_order_sn);
+        }
+
+        // 订单去重
+        link.orderSns.add(item.platform_order_sn);
+        skuEntry.orderSns.add(item.platform_order_sn);
+      }
+
+      // 广告费分摊到链接内各SKU（按订单量占比）
+      const result = [];
+      for (const [itemId, link] of Object.entries(linkMap)) {
+        link.orders = link.orderSns.size;
+        delete link.orderSns;
+        link.ad = adMap[itemId] || 0;
+
+        // SKU列表
+        const skus = [];
+        let totalSkuOrders = 0;
+        for (const [skuId, s] of Object.entries(link.skuMap)) {
+          s.orders = s.orderSns.size;
+          delete s.orderSns;
+          totalSkuOrders += s.orders;
+          skus.push(s);
+        }
+
+        // 按订单量分摊广告费
+        for (const s of skus) {
+          const adRatio = totalSkuOrders > 0 ? s.orders / totalSkuOrders : 0;
+          s.ad = link.ad * adRatio;
+          s.profit = s.revenue - s.cost - s.packing - s.ad;
+        }
+        skus.sort((a, b) => b.orders - a.orders);
+
+        link.profit = link.revenue - link.cost - link.packing - link.ad;
+        link.roi = link.ad > 0 ? link.revenue / link.ad : (link.revenue > 0 ? 999 : 0);
+        link.rate = link.revenue > 0 ? (link.profit / link.revenue) * 100 : 0;
+        link.mainName = skus.length > 0 ? skus[0].name : '';
+        link.mainSku = skus.length > 0 ? skus[0].sku : '';
+        link.skuCount = skus.length;
+        link.skus = skus;
+        delete link.skuMap;
+        result.push(link);
+      }
+
+      // 按利润排序
+      result.sort((a, b) => b.profit - a.profit);
+
+      // 过滤
+      let filtered = result;
+      if (keyword) {
+        const kw = keyword.toLowerCase();
+        filtered = result.filter(l =>
+          l.itemId.includes(kw) || l.mainName.toLowerCase().includes(kw) ||
+          l.skus.some(s => s.sku.toLowerCase().includes(kw) || s.name.toLowerCase().includes(kw))
+        );
+      }
+
+      res.json({ success: true, data: filtered });
+    } catch (err) {
+      console.error('[链接利润] 查询失败:', err.message);
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+
   return router;
 };
 
