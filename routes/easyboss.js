@@ -243,12 +243,19 @@ module.exports = function(pool) {
         )
       `);
 
-      // 保存cookie
+      // 保存cookie到数据库
       await pool.query(
         `INSERT INTO eb_config (config_key, config_value) VALUES ('easyboss_cookie', ?)
          ON DUPLICATE KEY UPDATE config_value = VALUES(config_value)`,
         [cookie]
       );
+
+      // 同时写入Cookie文件（http-auth.js优先读文件）
+      const fs = require('fs');
+      const path = require('path');
+      const cookieFile = path.join(__dirname, '../services/easyboss/.easyboss_cookie');
+      fs.writeFileSync(cookieFile, cookie, 'utf-8');
+      console.log(`[set-cookie] Cookie已写入文件和数据库 (${cookie.length}字符)`);
 
       // 清除缓存，下次拉取时读取新cookie
       orderFetcher.clearCookies();
