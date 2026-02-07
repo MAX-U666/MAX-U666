@@ -44,20 +44,43 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     }
   };
 
+  // 马卡龙色系 - 与BI中心统一
   const getDecisionColor = (decision) => {
     const colors = { '加大投放': '#10B981', '维持观察': '#3B82F6', '收缩防守': '#F59E0B', '暂停止损': '#EF4444' };
     return colors[decision] || '#64748B';
+  };
+  const getDecisionMacaron = (decision) => {
+    const map = {
+      '加大投放': { bg: '#ECFDF5', border: '#A7F3D0', text: '#059669', iconBg: '#D1FAE5' },
+      '维持观察': { bg: '#EFF6FF', border: '#BFDBFE', text: '#2563EB', iconBg: '#DBEAFE' },
+      '收缩防守': { bg: '#FFFBEB', border: '#FDE68A', text: '#D97706', iconBg: '#FEF3C7' },
+      '暂停止损': { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', iconBg: '#FEE2E2' },
+    };
+    return map[decision] || { bg: '#F9FAFB', border: '#E5E7EB', text: '#374151', iconBg: '#F3F4F6' };
   };
 
   const getPhaseColor = (phase) => {
     const colors = { 'A': '#F59E0B', 'B': '#3B82F6', 'C': '#10B981' };
     return colors[phase] || '#64748B';
   };
+  const getPhaseMacaron = (phase) => {
+    const map = {
+      'A': { bg: '#FFFBEB', border: '#FDE68A', text: '#B45309', iconBg: '#FEF3C7' },
+      'B': { bg: '#EFF6FF', border: '#BFDBFE', text: '#1D4ED8', iconBg: '#DBEAFE' },
+      'C': { bg: '#ECFDF5', border: '#A7F3D0', text: '#047857', iconBg: '#D1FAE5' },
+    };
+    return map[phase] || { bg: '#F9FAFB', border: '#E5E7EB', text: '#374151', iconBg: '#F3F4F6' };
+  };
 
   const getSupplementColor = (strategy) => {
     if (strategy?.includes('注入')) return '#8B5CF6';
     if (strategy?.includes('停止') || strategy?.includes('暂缓')) return '#EF4444';
     return '#64748B';
+  };
+  const getSupplementMacaron = (strategy) => {
+    if (strategy?.includes('注入')) return { bg: '#F5F3FF', border: '#DDD6FE', text: '#6D28D9', iconBg: '#EDE9FE' };
+    if (strategy?.includes('停止') || strategy?.includes('暂缓')) return { bg: '#FEF2F2', border: '#FECACA', text: '#DC2626', iconBg: '#FEE2E2' };
+    return { bg: '#F0FDFA', border: '#CCFBF1', text: '#0F766E', iconBg: '#CCFBF1' };
   };
 
   // 获取分析数据
@@ -289,22 +312,34 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     return result;
   };
 
-  // Tab 按钮
-  const TabButton = ({ id, icon, label, color }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      style={{
-        flex: 1, padding: '10px 8px', borderRadius: '8px',
-        border: activeTab === id ? `1px solid ${color}` : '1px solid #D1D5DB',
-        background: activeTab === id ? `${color}10` : '#F3F4F6',
-        color: activeTab === id ? color : '#6B7280',
-        fontSize: '12px', fontWeight: '600', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-      }}
-    >
-      {icon} {label}
-    </button>
-  );
+  // Tab 按钮 - 马卡龙色系
+  const tabMacaron = {
+    judgment: { bg: '#EFF6FF', border: '#BFDBFE', activeBg: '#DBEAFE', text: '#1D4ED8' },
+    strategy: { bg: '#ECFDF5', border: '#A7F3D0', activeBg: '#D1FAE5', text: '#059669' },
+    risk: { bg: '#FEF2F2', border: '#FECACA', activeBg: '#FEE2E2', text: '#DC2626' },
+    time: { bg: '#FFFBEB', border: '#FDE68A', activeBg: '#FEF3C7', text: '#B45309' },
+    idn: { bg: '#FFF1F2', border: '#FECDD3', activeBg: '#FFE4E6', text: '#BE123C' },
+  };
+  const TabButton = ({ id, icon, label }) => {
+    const m = tabMacaron[id] || tabMacaron.judgment;
+    const isActive = activeTab === id;
+    return (
+      <button
+        onClick={() => setActiveTab(id)}
+        style={{
+          flex: 1, padding: '10px 8px', borderRadius: '10px',
+          border: `1px solid ${isActive ? m.border : '#E5E7EB'}`,
+          background: isActive ? m.activeBg : '#F9FAFB',
+          color: isActive ? m.text : '#6B7280',
+          fontSize: '12px', fontWeight: '600', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+          transition: 'all 0.15s'
+        }}
+      >
+        {icon} {label}
+      </button>
+    );
+  };
 
   // 从 full_report 中提取盯盘时间
   const extractObservationTimes = (report) => {
@@ -463,8 +498,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
     switch (activeTab) {
       case 'judgment':
         return (
-          <div style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '12px', padding: '16px' }}>
-            <h5 style={{ margin: '0 0 12px 0', color: '#6B7280', fontSize: '12px' }}>🔍 核心卡点</h5>
+          <div style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 12px 0', color: '#1D4ED8', fontSize: '13px', fontWeight: '600' }}>🔍 核心卡点</h5>
             {keyBottlenecks.length > 0 ? keyBottlenecks.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#4B5563', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span style={{ color: '#F59E0B' }}>•</span> {item}
@@ -474,8 +509,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         );
       case 'strategy':
         return (
-          <div style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '16px' }}>
-            <h5 style={{ margin: '0 0 12px 0', color: '#6B7280', fontSize: '12px' }}>✅ 今日必做</h5>
+          <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '12px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 12px 0', color: '#059669', fontSize: '13px', fontWeight: '600' }}>✅ 今日必做</h5>
             {executionChecklist.length > 0 ? executionChecklist.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#10B981', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span>✓</span> {item}
@@ -485,8 +520,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         );
       case 'risk':
         return (
-          <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px' }}>
-            <h5 style={{ margin: '0 0 12px 0', color: '#6B7280', fontSize: '12px' }}>❌ 禁止操作</h5>
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 12px 0', color: '#DC2626', fontSize: '13px', fontWeight: '600' }}>❌ 禁止操作</h5>
             {notToDo.length > 0 ? notToDo.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#F87171', marginBottom: '8px', display: 'flex', gap: '8px' }}>
                 <span>❌</span> {item}
@@ -496,8 +531,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         );
       case 'time':
         return (
-          <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '12px', padding: '16px' }}>
-            <h5 style={{ margin: '0 0 12px 0', color: '#6B7280', fontSize: '12px' }}>⏰ 盯盘时间</h5>
+          <div style={{ background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px', padding: '16px' }}>
+            <h5 style={{ margin: '0 0 12px 0', color: '#B45309', fontSize: '13px', fontWeight: '600' }}>⏰ 盯盘时间</h5>
             {observationTimes.length > 0 ? observationTimes.map((item, i) => (
               <div key={i} style={{ fontSize: '12px', color: '#FBBF24', marginBottom: '10px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                 <span>⏰</span> <span style={{ color: '#1F2937' }}>{item.replace(/^⏰\s*/, '')}</span>
@@ -507,7 +542,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         );
       case 'idn':
         return (
-          <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '12px', padding: '16px' }}>
+          <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: '12px', padding: '16px' }}>
             {analysis.idn_enhancement ? (
               <>
                 <div style={{ marginBottom: '12px' }}>
@@ -535,11 +570,11 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
   if (!currentDayData || currentDayData.status === '未提交') {
     return (
       <div style={styles.card}>
-        <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(247,147,30,0.1) 100%)', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #E5E7EB' }}>
-          <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <MiniLogo size={20} color="#FF6B35" />
+        <div style={{ background: '#FFF7ED', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #FED7AA' }}>
+          <div style={{ width: '36px', height: '36px', background: '#FFEDD5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <MiniLogo size={20} color="#EA580C" />
           </div>
-          <span style={{ fontSize: '14px', fontWeight: '700', color: '#1F2937' }}>Day {currentDay} AI决策</span>
+          <span style={{ fontSize: '14px', fontWeight: '700', color: '#9A3412' }}>Day {currentDay} AI决策</span>
         </div>
         <div style={{ padding: '60px 20px', textAlign: 'center', color: '#9CA3AF' }}>
           <div style={{ fontSize: '48px', marginBottom: '16px' }}>📊</div>
@@ -561,20 +596,20 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           <div 
             onClick={() => setReportExpanded(!reportExpanded)}
             style={{ 
-              background: '#FFFFFF', 
+              background: '#F0F9FF', 
               padding: '16px 20px', 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
-              borderBottom: reportExpanded ? '1px solid #E5E7EB' : 'none',
+              borderBottom: reportExpanded ? '1px solid #BAE6FD' : 'none',
               cursor: 'pointer'
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '36px', height: '36px', background: 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '36px', height: '36px', background: '#DBEAFE', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '18px' }}>📄</span>
               </div>
-              <span style={{ fontSize: '14px', fontWeight: '700', color: '#111827' }}>AI 完整分析报告</span>
+              <span style={{ fontSize: '14px', fontWeight: '700', color: '#1E40AF' }}>AI 完整分析报告</span>
               {analysisSource && (
                 <span style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(139,92,246,0.2)', color: '#A78BFA' }}>
                   {analysisSource === 'qwen-turbo' ? '🤖 千问AI' : '📋 规则引擎'}
@@ -600,16 +635,16 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
 
       {/* AI决策执行面板 - 放在后面 */}
       <div style={styles.card}>
-        <div style={{ background: 'linear-gradient(135deg, rgba(255,107,53,0.15) 0%, rgba(247,147,30,0.1) 100%)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E5E7EB' }}>
+        <div style={{ background: '#FFF7ED', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #FED7AA' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ 
               width: '36px', height: '36px', 
-              background: isExecuted ? 'linear-gradient(135deg, #10B981 0%, #059669 100%)' : 'linear-gradient(135deg, #FF6B35 0%, #F7931E 100%)', 
+              background: isExecuted ? '#D1FAE5' : '#FFEDD5', 
               borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' 
             }}>
-              {isExecuted ? <span style={{ color: '#fff', fontSize: '18px' }}>✓</span> : <MiniLogo size={20} color="#fff" />}
+              {isExecuted ? <span style={{ color: '#059669', fontSize: '18px' }}>✓</span> : <MiniLogo size={20} color="#EA580C" />}
             </div>
-            <span style={{ fontSize: '14px', fontWeight: '700', color: '#1F2937' }}>
+            <span style={{ fontSize: '14px', fontWeight: '700', color: '#9A3412' }}>
               Day {currentDay} AI决策 {isExecuted ? '- 已执行' : ''}
             </span>
           </div>
@@ -649,41 +684,47 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           {showAnalysis && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: isExecuted ? 'repeat(4, 1fr)' : '1fr 1fr 1fr auto', gap: '12px', marginBottom: '16px' }}>
-                <div style={{ background: `${getPhaseColor(analysis?.phase)}15`, border: `1px solid ${getPhaseColor(analysis?.phase)}40`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>阶段</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: getPhaseColor(analysis?.phase) }}>阶段 {analysis?.phase || 'A'}</div>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF' }}>{analysis?.phase_name}</div>
+                {(() => { const m = getPhaseMacaron(analysis?.phase); return (
+                <div style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', fontWeight: '500' }}>阶段</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: m.text }}>阶段 {analysis?.phase || 'A'}</div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>{analysis?.phase_name}</div>
                 </div>
-                <div style={{ background: `${getDecisionColor(analysis?.today_decision || currentDayData.ai_action)}15`, border: `1px solid ${getDecisionColor(analysis?.today_decision || currentDayData.ai_action)}40`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>{isExecuted ? '执行决策' : '今日判断'}</div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: getDecisionColor(analysis?.today_decision || currentDayData.ai_action) }}>{analysis?.today_decision || currentDayData.ai_action}</div>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF' }}>置信度 {analysis?.confidence || currentDayData.ai_confidence}%</div>
+                ); })()}
+                {(() => { const m = getDecisionMacaron(analysis?.today_decision || currentDayData.ai_action); return (
+                <div style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', fontWeight: '500' }}>{isExecuted ? '执行决策' : '今日判断'}</div>
+                  <div style={{ fontSize: '20px', fontWeight: '700', color: m.text }}>{analysis?.today_decision || currentDayData.ai_action}</div>
+                  <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '4px' }}>置信度 {analysis?.confidence || currentDayData.ai_confidence}%</div>
                 </div>
-                <div style={{ background: `${getSupplementColor(analysis?.supplement_strategy)}15`, border: `1px solid ${getSupplementColor(analysis?.supplement_strategy)}40`, borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>补单策略</div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: getSupplementColor(analysis?.supplement_strategy) }}>{analysis?.supplement_strategy || '-'}</div>
+                ); })()}
+                {(() => { const m = getSupplementMacaron(analysis?.supplement_strategy); return (
+                <div style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', fontWeight: '500' }}>补单策略</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: m.text }}>{analysis?.supplement_strategy || '-'}</div>
                 </div>
+                ); })()}
                 {!isExecuted && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <button onClick={handleConfirmExecute} style={{ flex: 1, padding: '12px 16px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>✓ 确认执行</button>
-                    <button onClick={onAbnormal} style={{ flex: 1, padding: '12px 16px', background: 'transparent', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '10px', color: '#EF4444', fontSize: '13px', cursor: 'pointer' }}>上报异常</button>
+                    <button onClick={handleConfirmExecute} style={{ flex: 1, padding: '12px 16px', background: '#10B981', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>✓ 确认执行</button>
+                    <button onClick={onAbnormal} style={{ flex: 1, padding: '12px 16px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', color: '#DC2626', fontSize: '13px', fontWeight: '500', cursor: 'pointer' }}>上报异常</button>
                   </div>
                 )}
                 {isExecuted && (
-                  <div style={{ background: 'rgba(100,116,139,0.1)', border: '1px solid rgba(100,116,139,0.3)', borderRadius: '12px', padding: '12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '4px' }}>ROI</div>
-                    <div style={{ fontSize: '18px', fontWeight: '700', color: (currentDayData.roi || 0) >= 3 ? '#10B981' : '#F59E0B' }}>{currentDayData.roi || '-'}</div>
+                  <div style={{ background: '#F0F9FF', border: '1px solid #BAE6FD', borderRadius: '12px', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '6px', fontWeight: '500' }}>ROI</div>
+                    <div style={{ fontSize: '20px', fontWeight: '700', color: (currentDayData.roi || 0) >= 3 ? '#059669' : '#D97706' }}>{currentDayData.roi || '-'}</div>
                   </div>
                 )}
               </div>
 
               {/* Tab 切换 */}
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                <TabButton id="judgment" icon="📋" label="核心卡点" color="#3B82F6" />
-                <TabButton id="strategy" icon="🎯" label="今日必做" color="#10B981" />
-                <TabButton id="risk" icon="⚠️" label="风险提示" color="#EF4444" />
-                <TabButton id="time" icon="⏰" label="盯盘时间" color="#FBBF24" />
-                <TabButton id="idn" icon="🇮🇩" label="印尼专项" color="#EF4444" />
+                <TabButton id="judgment" icon="📋" label="核心卡点" />
+                <TabButton id="strategy" icon="🎯" label="今日必做" />
+                <TabButton id="risk" icon="⚠️" label="风险提示" />
+                <TabButton id="time" icon="⏰" label="盯盘时间" />
+                <TabButton id="idn" icon="🇮🇩" label="印尼专项" />
               </div>
 
               {renderTabContent()}
