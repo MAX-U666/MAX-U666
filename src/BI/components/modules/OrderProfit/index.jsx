@@ -7,6 +7,7 @@ import { OrderByShop } from './OrderByShop';
 import { OrderTrend } from './OrderTrend';
 import { LossOrders } from './LossOrders';
 import { OrderTable } from './OrderTable';
+import { authFetch } from '../../../utils/helpers';
 
 export function OrderProfitModule() {
   const [dateRange, setDateRange] = useState('today');
@@ -33,7 +34,7 @@ export function OrderProfitModule() {
       } else {
         url = `/api/profit/order-list?range=${dateRange}`;
       }
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (json.success) {
         setData(json);
@@ -62,7 +63,7 @@ export function OrderProfitModule() {
       } else {
         url = `/api/profit/order-download?range=${dateRange}`;
       }
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const blob = await res.blob();
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
