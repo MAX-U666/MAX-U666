@@ -388,7 +388,7 @@ module.exports = function(pool) {
           const totalOrders = Object.values(skuOrders).reduce((a, b) => a + b, 0);
           const myOrders = skuOrders[r.sku_id] || 0;
           const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
-          itemAd = adMap[itemId] * ratio;
+          itemAd = myOrders > 0 ? (adMap[itemId] * ratio) / myOrders : 0;
         }
 
         ord.items.push({
@@ -588,7 +588,7 @@ module.exports = function(pool) {
       ];
 
       for (const r of rows) {
-        const xrate = 1 / FIXED_RATE; // 统一汇率
+        const xrate = parseFloat(r.exchange_rate) || 2450; // 自带汇率
         const escrow = parseFloat(r.escrow_amount) || 0;
         const myPrice = parseFloat(r.discounted_price) || 0;
         const pkgTotal = packageTotals[r.pkg_id] || myPrice || 1;
@@ -611,7 +611,8 @@ module.exports = function(pool) {
           const totalOrders = Object.values(skuOrders).reduce((a, b) => a + b, 0);
           const myOrders = skuOrders[r.sku_id] || 0;
           const adRatio = totalOrders > 0 ? myOrders / totalOrders : 0;
-          itemAd = adMap[itemId] * adRatio;
+          const myAdOrders = skuOrders[r.sku_id] || 1;
+          itemAd = myAdOrders > 0 ? (adMap[itemId] * adRatio) / myAdOrders : 0;
         }
 
         const profit = revenueCNY - itemCost - packCost - itemAd;
