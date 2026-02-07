@@ -1,19 +1,55 @@
 /**
- * 链接利润表格组件
- * 第一层：按 platform_item_id 聚合
- * 第二层：展开显示链接内各SKU明细
+ * 链接利润组件（独立模块）
+ * 自带日期筛选、店铺过滤、概览统计
  */
-import React, { useState, Fragment } from 'react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import { formatCNY } from '../../../utils/format';
 
 const PAGE_SIZE = 20;
 
-export function LinkTable({ data = [], loading = false }) {
-  const [expandedLink, setExpandedLink] = useState(null);
+export function LinkTable() {
+  const [dateRange, setDateRange] = useState('today');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [shop, setShop] = useState('');
+  const [shops, setShops] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState('');
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [expandedLink, setExpandedLink] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  // 过滤
+  useEffect(() => {
+    const now = new Date(Date.now() + 7 * 3600000);
+    setCustomStart(now.toISOString().split('T')[0]);
+    setCustomEnd(now.toISOString().split('T')[0]);
+  }, []);
+
+  const fetchData = useCallback(async (useCustom = false) => {
+    setLoading(true);
+    try {
+      let url;
+      if (useCustom && customStart && customEnd) {
+        url = `/api/profit/link-list?startDate=${customStart}&endDate=${customEnd}`;
+      } else {
+        url = `/api/profit/link-list?range=${dateRange}`;
+      }
+      if (shop) url += `&shop=${encodeURIComponent(shop)}`;
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.success) {
+        setData(json.data || []);
+        const allShops = [...new Set((json.data || []).map(l => l.store).filter(Boolean))];
+        setShops(allShops);
+      }
+    } catch (e) {
+      console.error('链接利润加载失败:', e);
+    }
+    setLoading(false);
+  }, [dateRange, customStart, customEnd, shop]);
+
+  useEffect(() => { fetchData(); }, [dateRange, shop]);
+
   const filtered = searchKeyword
     ? data.filter(l => {
         const kw = searchKeyword.toLowerCase();
@@ -25,28 +61,72 @@ export function LinkTable({ data = [], loading = false }) {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // 汇总
-  const totals = filtered.reduce((t, l) => ({
-    orders: t.orders + l.orders, revenue: t.revenue + l.revenue,
-    cost: t.cost + l.cost, packing: t.packing + l.packing,
-    ad: t.ad + l.ad, profit: t.profit + l.profit
-  }), { orders: 0, revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0 });
+  const overview = filtered.reduce((t, l) => ({
+    links: t.links + 1, orders: t.orders + l.orders, revenue: t.revenue + l.revenue,
+    cost: t.cost + l.cost, packing: t.packing + l.packing, ad: t.ad + l.ad, profit: t.profit + l.profit,
+  }), { links: 0, orders: 0, revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0 });
+
+  const hasAd = filtered.filter(l => l.ad > 0).length;
+  const noAd = filtered.length - hasAd;
 
   return (
     <div>
-      {/* 标题 + 搜索 */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-gray-800">🔗 链接利润分析</h3>
-          <span className="text-xs text-gray-400">{filtered.length}个链接</span>
-        </div>
-        <input
-          type="text" placeholder="搜索链接ID或商品名称..."
-          value={searchKeyword} onChange={e => { setSearchKeyword(e.target.value); setCurrentPage(1); }}
-          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm w-64"
-        />
+      <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <span>🔗</span> 链接利润分析
+      </h3>
+
+      {/* 日期筛选 */}
+      <div className="flex items-center gap-2 text-sm mb-4 flex-wrap">
+        {[
+          { key: 'today', label: '今日' }, { key: 'yesterday', label: '昨日' },
+          { key: '7d', label: '近7天' }, { key: '30d', label: '近30天' }
+        ].map(item => (
+          <button key={item.key} onClick={() => { setDateRange(item.key); setCurrentPage(1); }}
+            className={`px-4 py-2 rounded-lg font-medium transition ${
+              dateRange === item.key ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+            }`}>{item.label}</button>
+        ))}
+        <span className="text-gray-300 mx-1">|</span>
+        <span className="text-gray-400">📅</span>
+        <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+        <span className="text-gray-400">至</span>
+        <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm" />
+        <button onClick={() => { setDateRange('custom'); fetchData(true); setCurrentPage(1); }}
+          className="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700">查询</button>
       </div>
 
+      {/* 店铺 + 搜索 + 概览 */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">店铺:</span>
+          <select value={shop} onChange={e => { setShop(e.target.value); setCurrentPage(1); }}
+            className="border border-gray-200 rounded-lg px-3 py-2 text-sm">
+            <option value="">全部</option>
+            {shops.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <input type="text" placeholder="搜索链接ID或商品名称..."
+          value={searchKeyword} onChange={e => { setSearchKeyword(e.target.value); setCurrentPage(1); }}
+          className="px-3 py-2 border border-gray-200 rounded-lg text-sm w-64" />
+        <div className="flex items-center gap-3 ml-auto text-xs flex-wrap">
+          <span className="text-gray-500">{overview.links}个链接</span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">有广告<span className="font-bold text-orange-600 ml-1">{hasAd}</span></span>
+          <span className="text-gray-500">无广告<span className="font-bold text-gray-600 ml-1">{noAd}</span></span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">订单<span className="font-bold text-gray-800 ml-1">{overview.orders.toLocaleString()}</span></span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">回款<span className="font-bold text-blue-600 ml-1">{formatCNY(overview.revenue)}</span></span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">广告<span className="font-bold text-orange-600 ml-1">{formatCNY(overview.ad)}</span></span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-500">利润<span className={`font-bold ml-1 ${overview.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCNY(overview.profit)}</span></span>
+        </div>
+      </div>
+
+      {/* 表格 */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-200">
@@ -85,6 +165,7 @@ export function LinkTable({ data = [], loading = false }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="max-w-[180px] truncate text-gray-700 font-medium" title={link.mainName}>{link.mainName}</div>
+                        {link.skuCount > 1 && <div className="text-xs text-gray-400">+{link.skuCount - 1}个规格</div>}
                       </td>
                       <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{link.store}</span></td>
                       <td className="px-4 py-3 text-center"><span className="text-xs text-gray-500">{link.warehouse}</span></td>
@@ -110,8 +191,6 @@ export function LinkTable({ data = [], loading = false }) {
                         </span>
                       </td>
                     </tr>
-
-                    {/* 展开：链接内SKU明细 */}
                     {expandedLink === link.itemId && (
                       <tr>
                         <td colSpan="13" className="bg-gray-50 p-4">
@@ -159,23 +238,21 @@ export function LinkTable({ data = [], loading = false }) {
                     )}
                   </Fragment>
                 ))}
-
-                {/* 合计行 */}
                 <tr className="border-t-2 border-gray-300 bg-gray-50 font-bold text-sm">
                   <td className="px-4 py-3" colSpan="5">合计 ({filtered.length}个链接)</td>
-                  <td className="text-right px-4 py-3">{totals.orders.toLocaleString()}</td>
-                  <td className="text-right px-4 py-3">{formatCNY(totals.revenue)}</td>
-                  <td className="text-right px-4 py-3 text-blue-600">{formatCNY(totals.cost)}</td>
-                  <td className="text-right px-4 py-3 text-pink-600">{formatCNY(totals.packing)}</td>
-                  <td className="text-right px-4 py-3 text-orange-600">{formatCNY(totals.ad)}</td>
-                  <td className={`text-right px-4 py-3 ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {totals.profit >= 0 ? '+' : ''}{formatCNY(totals.profit)}
+                  <td className="text-right px-4 py-3">{overview.orders.toLocaleString()}</td>
+                  <td className="text-right px-4 py-3">{formatCNY(overview.revenue)}</td>
+                  <td className="text-right px-4 py-3 text-blue-600">{formatCNY(overview.cost)}</td>
+                  <td className="text-right px-4 py-3 text-pink-600">{formatCNY(overview.packing)}</td>
+                  <td className="text-right px-4 py-3 text-orange-600">{formatCNY(overview.ad)}</td>
+                  <td className={`text-right px-4 py-3 ${overview.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {overview.profit >= 0 ? '+' : ''}{formatCNY(overview.profit)}
                   </td>
                   <td className="text-center px-4 py-3 text-purple-600">
-                    {totals.ad > 0 ? (totals.revenue / totals.ad).toFixed(1) : '∞'}
+                    {overview.ad > 0 ? (overview.revenue / overview.ad).toFixed(1) : '∞'}
                   </td>
                   <td className="text-right px-4 py-3">
-                    {totals.revenue > 0 ? (totals.profit / totals.revenue * 100).toFixed(1) : 0}%
+                    {overview.revenue > 0 ? (overview.profit / overview.revenue * 100).toFixed(1) : 0}%
                   </td>
                 </tr>
               </>
@@ -184,7 +261,6 @@ export function LinkTable({ data = [], loading = false }) {
         </table>
       </div>
 
-      {/* 分页 */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-4">
           <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
