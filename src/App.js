@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header, DayTable, NewProductModal, UploadModal, AbnormalModal } from './components';
 import AIDecisionPanel from './components/AIDecisionPanel';
+import { SkuDecision, ShopDecision } from './components/DecisionModules';
 import LoginPage from './components/LoginPage';
 import UserManagement from './components/UserManagement';
 import ExecuteCenter from './pages/ExecuteCenter';
@@ -13,6 +14,20 @@ import BICenter from './BI';  // 新增：BI中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
 import { createProduct, uploadFile, updateShopData, updateAdData, executeDecision, reportAbnormal } from './utils/api';
+
+// SKU决策独立页面
+const SkuDecisionPage = () => (
+  <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <SkuDecision />
+  </div>
+);
+
+// 店铺决策独立页面
+const ShopDecisionPage = () => (
+  <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
+    <ShopDecision />
+  </div>
+);
 
 const App = () => {
   // 登录状态
@@ -317,6 +332,8 @@ const App = () => {
       label: '🧠 决策中枢', 
       children: [
         { key: 'decision', label: '决策工作台', icon: '📊' },
+        { key: 'sku-decision', label: 'SKU决策', icon: '🔗' },
+        { key: 'shop-decision', label: '店铺决策', icon: '🏬' },
       ]
     },
     { 
@@ -512,15 +529,10 @@ const App = () => {
         {/* 根据模块切换显示不同内容 */}
         {currentModule === 'bi-sku' || currentModule === 'bi-shop' || currentModule === 'bi-order' || currentModule === 'bi-overview' || currentModule === 'bi-products' ? (
           <BICenter defaultTab={currentModule} />
-        ) : currentModule === 'decision' ? (
-          <AIDecisionPanel 
-            selectedProduct={selectedProduct}
-            currentDayData={currentDayData}
-            currentDay={selectedDay}
-            onExecute={handleExecute}
-            onAbnormal={() => setShowAbnormalModal(true)}
-            currentUser={currentUser}
-          />
+        ) : currentModule === 'sku-decision' ? (
+          <SkuDecisionPage />
+        ) : currentModule === 'shop-decision' ? (
+          <ShopDecisionPage />
         ) : currentModule === 'execute' ? (
           <ExecuteCenter />
         ) : currentModule === 'orders' ? (
