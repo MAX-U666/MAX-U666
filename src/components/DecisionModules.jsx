@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { authFetch } from '../BI/utils/helpers';
 
 // ==================== SKU决策模块 ====================
 const SkuDecision = () => {
@@ -9,7 +10,7 @@ const SkuDecision = () => {
   const [selectedSku, setSelectedSku] = useState(null);
   const [skuData, setSkuData] = useState(null);
   const [loadingData, setLoadingData] = useState(false);
-  
+
   // AI 分析
   const [selectedModel, setSelectedModel] = useState('qwen');
   const [availableModels, setAvailableModels] = useState([]);
@@ -17,13 +18,13 @@ const SkuDecision = () => {
   const [report, setReport] = useState(null);
   const [reportMeta, setReportMeta] = useState(null);
   const [reportExpanded, setReportExpanded] = useState(true);
-  
+
   const searchRef = useRef(null);
   const debounceRef = useRef(null);
 
   // 加载可用模型
   useEffect(() => {
-    fetch('/api/decision/models')
+    authFetch('/api/decision/models')
       .then(r => r.json())
       .then(d => { if (d.success) setAvailableModels(d.models); })
       .catch(() => {});
@@ -33,48 +34,38 @@ const SkuDecision = () => {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (searchQuery.length < 2) { setSearchResults([]); setShowDropdown(false); return; }
-    
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const r = await fetch(`/api/decision/sku/search?q=${encodeURIComponent(searchQuery)}`);
+        const r = await authFetch(`/api/decision/sku/search?q=${encodeURIComponent(searchQuery)}`);
         const d = await r.json();
-        if (d.success) {
-          setSearchResults(d.data);
-          setShowDropdown(d.data.length > 0);
-        }
+        if (d.success) { setSearchResults(d.data); setShowDropdown(d.data.length > 0); }
       } catch (e) { console.error(e); }
       setSearching(false);
     }, 300);
   }, [searchQuery]);
 
-  // 点击外部关闭下拉
+  // 点击外部关闭
   useEffect(() => {
-    const handler = (e) => {
-      if (searchRef.current && !searchRef.current.contains(e.target)) setShowDropdown(false);
-    };
+    const handler = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowDropdown(false); };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // 选中SKU后加载数据
   const handleSelectSku = async (item) => {
     setSelectedSku(item);
     setSearchQuery(item.item_id);
     setShowDropdown(false);
     setReport(null);
     setLoadingData(true);
-    
     try {
-      const r = await fetch(`/api/decision/sku/${item.item_id}/data?days=7`);
+      const r = await authFetch(`/api/decision/sku/${item.item_id}/data?days=7`);
       const d = await r.json();
       if (d.success) setSkuData(d);
-      else alert('加载失败: ' + d.error);
-    } catch (e) { alert('加载失败: ' + e.message); }
+    } catch (e) { console.error(e); }
     setLoadingData(false);
   };
 
-  // 也支持直接输入item_id回车
   const handleSearchSubmit = async (e) => {
     if (e.key !== 'Enter' || !searchQuery.trim()) return;
     setShowDropdown(false);
@@ -82,7 +73,7 @@ const SkuDecision = () => {
     setSelectedSku({ item_id: searchQuery.trim(), name: '' });
     setLoadingData(true);
     try {
-      const r = await fetch(`/api/decision/sku/${searchQuery.trim()}/data?days=7`);
+      const r = await authFetch(`/api/decision/sku/${searchQuery.trim()}/data?days=7`);
       const d = await r.json();
       if (d.success) {
         setSkuData(d);
@@ -92,13 +83,12 @@ const SkuDecision = () => {
     setLoadingData(false);
   };
 
-  // AI分析
   const handleAnalyze = async () => {
     if (!selectedSku?.item_id) return;
     setAnalyzing(true);
     setReport(null);
     try {
-      const r = await fetch(`/api/decision/sku/${selectedSku.item_id}/analyze`, {
+      const r = await authFetch(`/api/decision/sku/${selectedSku.item_id}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: selectedModel })
@@ -107,72 +97,47 @@ const SkuDecision = () => {
       if (d.success) {
         setReport(d.report);
         setReportMeta({ model: d.model_name, elapsed: d.elapsed_ms, context: d.data_context });
-      } else {
-        alert('分析失败: ' + d.error);
-      }
+      } else { alert('分析失败: ' + d.error); }
     } catch (e) { alert('分析失败: ' + e.message); }
     setAnalyzing(false);
   };
 
-  // ==================== 渲染 ====================
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      
+    <div className="space-y-4">
       {/* 搜索栏 */}
-      <div ref={searchRef} style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <div style={{ flex: 1, position: 'relative' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={handleSearchSubmit}
-              onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
-              placeholder="输入链接ID / SKU / 商品名搜索..."
-              style={{
-                width: '100%', padding: '10px 14px', borderRadius: '10px',
-                border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none',
-                background: '#F8FAFC', boxSizing: 'border-box',
-                transition: 'border-color 0.2s',
-              }}
-              onFocusCapture={e => e.target.style.borderColor = '#FF6B35'}
-              onBlurCapture={e => e.target.style.borderColor = '#E2E8F0'}
-            />
-            {searching && (
-              <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8' }}>
-                搜索中...
-              </div>
-            )}
-          </div>
+      <div ref={searchRef} className="relative">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            onKeyDown={handleSearchSubmit}
+            onFocus={() => searchResults.length > 0 && setShowDropdown(true)}
+            placeholder="🔍 输入链接ID / SKU编码 / 商品名搜索..."
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-100 transition-all"
+          />
+          {searching && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">搜索中...</span>
+          )}
         </div>
 
         {/* 搜索下拉 */}
         {showDropdown && (
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-            background: '#FFF', border: '1px solid #E2E8F0', borderRadius: '10px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)', marginTop: '4px',
-            maxHeight: '300px', overflowY: 'auto'
-          }}>
+          <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-72 overflow-y-auto">
             {searchResults.map((item, idx) => (
               <div
                 key={idx}
                 onClick={() => handleSelectSku(item)}
-                style={{
-                  padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid #F1F5F9',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#FFF7ED'}
-                onMouseLeave={e => e.currentTarget.style.background = '#FFF'}
+                className="px-4 py-3 cursor-pointer hover:bg-orange-50 border-b border-gray-50 last:border-b-0 transition-colors"
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="flex justify-between items-center">
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: '600', color: '#1E293B' }}>{item.item_id}</div>
-                    <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>{item.name}</div>
+                    <div className="text-sm font-semibold text-gray-800">{item.item_id}</div>
+                    <div className="text-xs text-gray-500 mt-0.5 truncate max-w-xs">{item.name}</div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '11px', color: '#FF6B35', fontWeight: '600' }}>{item.recent_orders}单/30天</div>
-                    <div style={{ fontSize: '10px', color: '#94A3B8' }}>{item.shop_name}</div>
+                  <div className="text-right">
+                    <div className="text-xs font-semibold text-orange-500">{item.recent_orders}单/30天</div>
+                    <div className="text-xs text-gray-400">{item.shop_name}</div>
                   </div>
                 </div>
               </div>
@@ -181,31 +146,25 @@ const SkuDecision = () => {
         )}
       </div>
 
-      {/* 选中的SKU信息 + 模型选择 + 分析按钮 */}
+      {/* 选中SKU信息 + 模型选择 */}
       {selectedSku && (
-        <div style={{
-          background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%)',
-          borderRadius: '12px', padding: '14px', border: '1px solid #FED7AA'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex justify-between items-center flex-wrap gap-3">
             <div>
-              <div style={{ fontSize: '13px', fontWeight: '700', color: '#92400E' }}>
-                🔗 {selectedSku.item_id}
+              <div className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+                <span className="text-orange-500">🔗</span> {selectedSku.item_id}
               </div>
               {(selectedSku.name || skuData?.product?.name) && (
-                <div style={{ fontSize: '11px', color: '#B45309', marginTop: '2px' }}>
+                <div className="text-xs text-gray-500 mt-1 max-w-md truncate">
                   {selectedSku.name || skuData?.product?.name}
                 </div>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="flex gap-2 items-center">
               <select
                 value={selectedModel}
                 onChange={e => setSelectedModel(e.target.value)}
-                style={{
-                  padding: '6px 10px', borderRadius: '8px', border: '1px solid #E2E8F0',
-                  fontSize: '12px', background: '#FFF', cursor: 'pointer', outline: 'none'
-                }}
+                className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs bg-white cursor-pointer outline-none focus:border-orange-400"
               >
                 {availableModels.map(m => (
                   <option key={m.key} value={m.key} disabled={!m.available}>
@@ -217,12 +176,9 @@ const SkuDecision = () => {
               <button
                 onClick={handleAnalyze}
                 disabled={analyzing || loadingData}
-                style={{
-                  padding: '6px 16px', borderRadius: '8px', border: 'none',
-                  background: analyzing ? '#94A3B8' : '#FF6B35', color: '#FFF',
-                  fontSize: '12px', fontWeight: '600', cursor: analyzing ? 'not-allowed' : 'pointer',
-                  transition: 'background 0.2s',
-                }}
+                className={`px-5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all ${
+                  analyzing ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-500 hover:bg-orange-600 shadow-sm'
+                }`}
               >
                 {analyzing ? '⏳ 分析中...' : '🧠 开始分析'}
               </button>
@@ -233,64 +189,49 @@ const SkuDecision = () => {
 
       {/* 数据加载中 */}
       {loadingData && (
-        <div style={{ textAlign: 'center', padding: '30px', color: '#94A3B8', fontSize: '13px' }}>
-          ⏳ 正在加载SKU数据...
-        </div>
+        <div className="text-center py-10 text-gray-400 text-sm">⏳ 正在加载SKU数据...</div>
       )}
 
       {/* 7日数据概览 */}
       {skuData && !loadingData && (
-        <div style={{ background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden' }}>
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {/* 汇总卡片 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0', borderBottom: '1px solid #E2E8F0' }}>
-            {[
-              { label: '7日订单', value: skuData.summary.total_orders, suffix: '单', color: '#FF6B35' },
-              { label: '7日营收', value: `¥${skuData.summary.total_revenue_cny}`, color: '#10B981' },
-              { label: '7日利润', value: `¥${skuData.summary.total_profit_cny}`, color: skuData.summary.total_profit_cny >= 0 ? '#10B981' : '#EF4444' },
-              { label: '平均ROI', value: skuData.summary.avg_roi, color: skuData.summary.avg_roi >= 3 ? '#10B981' : '#F59E0B' },
-            ].map((card, i) => (
-              <div key={i} style={{
-                padding: '14px', textAlign: 'center',
-                borderRight: i < 3 ? '1px solid #E2E8F0' : 'none',
-              }}>
-                <div style={{ fontSize: '11px', color: '#94A3B8', marginBottom: '4px' }}>{card.label}</div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: card.color }}>
-                  {card.value}{card.suffix || ''}
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-4 divide-x divide-gray-100 border-b border-gray-100">
+            <SummaryCard label="7日订单" value={skuData.summary.total_orders} suffix="单" color="text-orange-500" />
+            <SummaryCard label="7日营收" value={`¥${skuData.summary.total_revenue_cny}`} color="text-emerald-500" />
+            <SummaryCard label="7日利润" value={`¥${skuData.summary.total_profit_cny}`}
+              color={skuData.summary.total_profit_cny >= 0 ? 'text-emerald-500' : 'text-red-500'} />
+            <SummaryCard label="平均ROI" value={skuData.summary.avg_roi}
+              color={skuData.summary.avg_roi >= 3 ? 'text-emerald-500' : 'text-amber-500'} />
           </div>
 
           {/* 每日明细表 */}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
               <thead>
-                <tr style={{ background: '#F8FAFC' }}>
-                  {['日期', '订单', '营收¥', '广告¥', '利润¥', '利润率', '曝光', '点击', 'CTR', 'CVR', 'ROI', '自然单占比'].map(h => (
-                    <th key={h} style={{ padding: '8px 6px', textAlign: 'center', color: '#64748B', fontWeight: '600', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>{h}</th>
+                <tr className="bg-gray-50 text-gray-500">
+                  {['日期', '订单', '营收¥', '广告¥', '利润¥', '利润率', '曝光', '点击', 'CTR', 'CVR', 'ROI', '自然单%'].map(h => (
+                    <th key={h} className="px-2.5 py-2.5 text-center font-semibold whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {skuData.daily.map((d, i) => {
-                  const naturalRate = d.orders > 0 ? Math.round(d.natural_orders / d.orders * 100) : 0;
+                  const nr = d.orders > 0 ? Math.round(d.natural_orders / d.orders * 100) : 0;
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}
-                      onMouseEnter={e => e.currentTarget.style.background = '#FFFBEB'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#475569', fontWeight: '500' }}>{d.date}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', fontWeight: '600', color: '#1E293B' }}>{d.orders}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#10B981' }}>{d.revenue_cny}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#F59E0B' }}>{d.ad_spend_cny}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', fontWeight: '600', color: d.profit_cny >= 0 ? '#10B981' : '#EF4444' }}>{d.profit_cny}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: d.profit_rate >= 0 ? '#10B981' : '#EF4444' }}>{d.profit_rate}%</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#64748B' }}>{d.impressions.toLocaleString()}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#64748B' }}>{d.clicks}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: '#64748B' }}>{d.ctr}%</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: d.cvr >= 2 ? '#10B981' : '#F59E0B' }}>{d.cvr}%</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', fontWeight: '600', color: d.roi >= 3 ? '#10B981' : d.roi >= 2 ? '#F59E0B' : '#EF4444' }}>{d.roi}</td>
-                      <td style={{ padding: '7px 6px', textAlign: 'center', color: naturalRate >= 40 ? '#10B981' : '#64748B' }}>{naturalRate}%</td>
+                    <tr key={i} className="border-b border-gray-50 hover:bg-orange-50/30 transition-colors">
+                      <td className="px-2.5 py-2 text-center text-gray-600 font-medium">{d.date}</td>
+                      <td className="px-2.5 py-2 text-center font-semibold text-gray-800">{d.orders}</td>
+                      <td className="px-2.5 py-2 text-center text-emerald-600">{d.revenue_cny}</td>
+                      <td className="px-2.5 py-2 text-center text-amber-600">{d.ad_spend_cny}</td>
+                      <td className={`px-2.5 py-2 text-center font-semibold ${d.profit_cny >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{d.profit_cny}</td>
+                      <td className={`px-2.5 py-2 text-center ${d.profit_rate >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>{d.profit_rate}%</td>
+                      <td className="px-2.5 py-2 text-center text-gray-500">{d.impressions.toLocaleString()}</td>
+                      <td className="px-2.5 py-2 text-center text-gray-500">{d.clicks}</td>
+                      <td className="px-2.5 py-2 text-center text-gray-500">{d.ctr}%</td>
+                      <td className={`px-2.5 py-2 text-center ${d.cvr >= 2 ? 'text-emerald-600' : 'text-amber-500'}`}>{d.cvr}%</td>
+                      <td className={`px-2.5 py-2 text-center font-semibold ${d.roi >= 3 ? 'text-emerald-600' : d.roi >= 2 ? 'text-amber-500' : 'text-red-500'}`}>{d.roi}</td>
+                      <td className={`px-2.5 py-2 text-center ${nr >= 40 ? 'text-emerald-600' : 'text-gray-500'}`}>{nr}%</td>
                     </tr>
                   );
                 })}
@@ -300,51 +241,39 @@ const SkuDecision = () => {
         </div>
       )}
 
-      {/* AI分析报告 */}
+      {/* AI分析中 */}
       {analyzing && (
-        <div style={{
-          background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0',
-          padding: '40px', textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '24px', marginBottom: '12px' }}>🧠</div>
-          <div style={{ color: '#64748B', fontSize: '13px' }}>AI 正在分析中，请稍候...</div>
-          <div style={{ color: '#94A3B8', fontSize: '11px', marginTop: '4px' }}>
+        <div className="bg-white rounded-xl border border-gray-200 py-12 text-center">
+          <div className="text-3xl mb-3">🧠</div>
+          <div className="text-sm text-gray-500">AI 正在分析中，请稍候...</div>
+          <div className="text-xs text-gray-400 mt-1">
             使用模型: {availableModels.find(m => m.key === selectedModel)?.name || selectedModel}
           </div>
         </div>
       )}
 
+      {/* AI分析报告 */}
       {report && !analyzing && (
-        <div style={{
-          background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0', overflow: 'hidden'
-        }}>
-          {/* 报告头部 */}
-          <div 
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div
             onClick={() => setReportExpanded(!reportExpanded)}
-            style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '14px 16px', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #1E293B 0%, #334155 100%)',
-              color: '#FFF',
-            }}
+            className="flex justify-between items-center px-5 py-3.5 cursor-pointer bg-gray-800 text-white"
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '16px' }}>📊</span>
-              <span style={{ fontWeight: '700', fontSize: '14px' }}>AI 决策分析报告</span>
+            <div className="flex items-center gap-2">
+              <span className="text-base">📊</span>
+              <span className="font-bold text-sm">AI 决策分析报告</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="flex items-center gap-3">
               {reportMeta && (
-                <span style={{ fontSize: '10px', color: '#94A3B8' }}>
+                <span className="text-xs text-gray-400">
                   {reportMeta.model} · {(reportMeta.elapsed / 1000).toFixed(1)}s
                 </span>
               )}
-              <span style={{ fontSize: '12px' }}>{reportExpanded ? '▼' : '▶'}</span>
+              <span className={`text-xs transition-transform ${reportExpanded ? 'rotate-180' : ''}`}>▼</span>
             </div>
           </div>
-
-          {/* 报告内容 - Markdown渲染 */}
           {reportExpanded && (
-            <div style={{ padding: '20px', fontSize: '13px', lineHeight: '1.8', color: '#334155' }}>
+            <div className="p-5 text-sm leading-relaxed text-gray-700 max-h-[600px] overflow-y-auto">
               <MarkdownRenderer content={report} />
             </div>
           )}
@@ -354,157 +283,130 @@ const SkuDecision = () => {
   );
 };
 
-// ==================== Markdown 简易渲染器 ====================
+// ==================== 汇总卡片 ====================
+const SummaryCard = ({ label, value, suffix, color }) => (
+  <div className="py-4 px-3 text-center">
+    <div className="text-xs text-gray-400 mb-1">{label}</div>
+    <div className={`text-xl font-bold ${color}`}>{value}{suffix || ''}</div>
+  </div>
+);
+
+// ==================== Markdown渲染器 ====================
 const MarkdownRenderer = ({ content }) => {
   if (!content) return null;
-  
   const lines = content.split('\n');
   const result = [];
-  let inCode = false;
-  let codeLines = [];
-  let key = 0;
+  let inCode = false, codeLines = [], k = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    const trimmed = line.trim();
+    const t = line.trim();
 
-    if (trimmed.startsWith('```')) {
+    if (t.startsWith('```')) {
       if (inCode) {
         result.push(
-          <pre key={key++} style={{
-            background: '#1E293B', color: '#E2E8F0', borderRadius: '8px',
-            padding: '14px', margin: '12px 0', fontSize: '12px', lineHeight: '1.7',
-            whiteSpace: 'pre-wrap', overflow: 'auto'
-          }}>
-            {codeLines.map((cl, j) => (
-              <div key={j} style={{
-                color: cl.trim().startsWith('✅') ? '#4ADE80' :
-                       cl.trim().startsWith('❌') ? '#F87171' :
-                       cl.trim().startsWith('⏰') ? '#FBBF24' :
-                       cl.trim().startsWith('【') ? '#FB923C' : '#E2E8F0'
-              }}>{cl}</div>
-            ))}
+          <pre key={k++} className="bg-gray-800 text-gray-200 rounded-lg p-4 my-3 text-xs leading-relaxed whitespace-pre-wrap overflow-auto">
+            {codeLines.map((cl, j) => {
+              const ct = cl.trim();
+              let cls = 'text-gray-200';
+              if (ct.startsWith('✅')) cls = 'text-green-400';
+              else if (ct.startsWith('❌')) cls = 'text-red-400';
+              else if (ct.startsWith('⏰')) cls = 'text-yellow-400';
+              else if (ct.startsWith('【')) cls = 'text-orange-400';
+              return <div key={j} className={cls}>{cl}</div>;
+            })}
           </pre>
         );
         codeLines = [];
-        inCode = false;
-      } else {
-        inCode = true;
       }
+      inCode = !inCode;
       continue;
     }
-
     if (inCode) { codeLines.push(line); continue; }
 
     // Headers
-    if (trimmed.startsWith('### ')) {
-      result.push(<h4 key={key++} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '20px 0 8px', borderLeft: '3px solid #F59E0B', paddingLeft: '10px' }}>{trimmed.slice(4)}</h4>);
+    if (t.startsWith('### ')) {
+      result.push(<h4 key={k++} className="text-amber-500 text-sm font-semibold mt-5 mb-2 pl-3 border-l-3 border-amber-400">{t.slice(4)}</h4>);
       continue;
     }
-    if (trimmed.startsWith('## ')) {
-      result.push(<h3 key={key++} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 10px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,107,53,0.3)' }}>{trimmed.slice(3)}</h3>);
+    if (t.startsWith('## ')) {
+      result.push(<h3 key={k++} className="text-orange-500 text-base font-bold mt-6 mb-2 pb-2 border-b border-orange-200">{t.slice(3)}</h3>);
       continue;
     }
-    if (trimmed.startsWith('# ')) {
-      result.push(<h2 key={key++} style={{ color: '#1E293B', fontSize: '18px', fontWeight: '700', margin: '20px 0 12px' }}>{trimmed.slice(2)}</h2>);
-      continue;
-    }
-
-    // Horizontal rule
-    if (trimmed === '---' || trimmed === '***') {
-      result.push(<hr key={key++} style={{ border: 'none', borderTop: '1px solid #E2E8F0', margin: '16px 0' }} />);
+    if (t.startsWith('# ')) {
+      result.push(<h2 key={k++} className="text-gray-800 text-lg font-bold mt-5 mb-3">{t.slice(2)}</h2>);
       continue;
     }
 
-    // Bold inline
-    let processed = trimmed;
-    // Table rows
-    if (processed.startsWith('|') && processed.endsWith('|')) {
-      // Simple table rendering
-      const cells = processed.split('|').filter(c => c.trim());
-      if (cells.every(c => /^[-:]+$/.test(c.trim()))) continue; // separator row
-      const isHeader = i > 0 && lines[i+1]?.trim().startsWith('|') && lines[i+1]?.includes('---');
+    if (t === '---' || t === '***') {
+      result.push(<hr key={k++} className="border-gray-200 my-4" />);
+      continue;
+    }
+
+    // Table
+    if (t.startsWith('|') && t.endsWith('|')) {
+      const cells = t.split('|').filter(c => c.trim());
+      if (cells.every(c => /^[-:]+$/.test(c.trim()))) continue;
       result.push(
-        <div key={key++} style={{
-          display: 'grid', gridTemplateColumns: `repeat(${cells.length}, 1fr)`,
-          gap: '0', fontSize: '11px', borderBottom: '1px solid #F1F5F9',
-          background: isHeader ? '#F8FAFC' : 'transparent'
-        }}>
+        <div key={k++} className="flex text-xs border-b border-gray-100">
           {cells.map((cell, j) => (
-            <div key={j} style={{
-              padding: '6px 8px', textAlign: 'center',
-              fontWeight: isHeader ? '600' : '400',
-              color: isHeader ? '#64748B' : '#334155',
-              borderRight: j < cells.length - 1 ? '1px solid #F1F5F9' : 'none'
-            }}>{cell.trim()}</div>
+            <div key={j} className="flex-1 px-2 py-1.5 text-center text-gray-600">{cell.trim()}</div>
           ))}
         </div>
       );
       continue;
     }
 
-    // List items
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      const text = trimmed.slice(2);
+    // Lists
+    if (t.startsWith('- ') || t.startsWith('* ')) {
       result.push(
-        <div key={key++} style={{ display: 'flex', gap: '8px', margin: '4px 0', paddingLeft: '8px' }}>
-          <span style={{ color: '#FF6B35', fontWeight: '700' }}>•</span>
-          <span dangerouslySetInnerHTML={{ __html: boldInline(text) }} />
+        <div key={k++} className="flex gap-2 my-1 pl-2">
+          <span className="text-orange-500 font-bold">•</span>
+          <span dangerouslySetInnerHTML={{ __html: inlineFmt(t.slice(2)) }} />
+        </div>
+      );
+      continue;
+    }
+    if (/^\d+\.\s/.test(t)) {
+      const num = t.match(/^(\d+)\./)[1];
+      result.push(
+        <div key={k++} className="flex gap-2 my-1 pl-2">
+          <span className="text-orange-500 font-bold min-w-[18px]">{num}.</span>
+          <span dangerouslySetInnerHTML={{ __html: inlineFmt(t.replace(/^\d+\.\s/, '')) }} />
         </div>
       );
       continue;
     }
 
-    // Numbered list
-    if (/^\d+\.\s/.test(trimmed)) {
-      const num = trimmed.match(/^(\d+)\./)[1];
-      const text = trimmed.replace(/^\d+\.\s/, '');
-      result.push(
-        <div key={key++} style={{ display: 'flex', gap: '8px', margin: '4px 0', paddingLeft: '8px' }}>
-          <span style={{ color: '#FF6B35', fontWeight: '700', minWidth: '18px' }}>{num}.</span>
-          <span dangerouslySetInnerHTML={{ __html: boldInline(text) }} />
-        </div>
-      );
+    // Special emoji lines
+    if (t.startsWith('✅')) { result.push(<div key={k++} className="text-emerald-600 font-medium my-1 pl-2">{t}</div>); continue; }
+    if (t.startsWith('❌')) { result.push(<div key={k++} className="text-red-500 font-medium my-1 pl-2">{t}</div>); continue; }
+    if (t.startsWith('⏰')) { result.push(<div key={k++} className="text-amber-500 font-medium my-1 pl-2">{t}</div>); continue; }
+    if (t.startsWith('⚠️')) { result.push(<div key={k++} className="text-amber-600 font-medium my-1 pl-2">{t}</div>); continue; }
+    if (t.startsWith('【') && t.endsWith('】')) {
+      result.push(<div key={k++} className="text-orange-500 font-bold text-sm mt-3 mb-1">{t}</div>);
       continue;
     }
 
-    // Special lines
-    if (trimmed.startsWith('✅') || trimmed.startsWith('❌') || trimmed.startsWith('⏰') || trimmed.startsWith('📌') || trimmed.startsWith('⚠️')) {
-      const color = trimmed.startsWith('✅') ? '#10B981' : trimmed.startsWith('❌') ? '#EF4444' : trimmed.startsWith('⏰') ? '#F59E0B' : '#FF6B35';
-      result.push(<div key={key++} style={{ color, fontWeight: '500', margin: '4px 0', paddingLeft: '8px' }}>{trimmed}</div>);
-      continue;
-    }
+    if (!t) { result.push(<div key={k++} className="h-2" />); continue; }
 
-    if (trimmed.startsWith('【') && trimmed.endsWith('】')) {
-      result.push(<div key={key++} style={{ color: '#FF6B35', fontWeight: '700', fontSize: '13px', margin: '12px 0 6px' }}>{trimmed}</div>);
-      continue;
-    }
-
-    // Empty line
-    if (!trimmed) { result.push(<div key={key++} style={{ height: '8px' }} />); continue; }
-
-    // Normal paragraph
-    result.push(<p key={key++} style={{ margin: '4px 0' }} dangerouslySetInnerHTML={{ __html: boldInline(trimmed) }} />);
+    result.push(<p key={k++} className="my-1" dangerouslySetInnerHTML={{ __html: inlineFmt(t) }} />);
   }
-
   return <>{result}</>;
 };
 
-function boldInline(text) {
+function inlineFmt(text) {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#1E293B;font-weight:600">$1</strong>')
-    .replace(/`(.+?)`/g, '<code style="background:#F1F5F9;padding:1px 5px;border-radius:4px;font-size:12px;color:#FF6B35">$1</code>');
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-gray-800 font-semibold">$1</strong>')
+    .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs text-orange-600">$1</code>');
 }
 
 // ==================== 店铺决策占位 ====================
 const ShopDecision = () => (
-  <div style={{
-    background: '#FFF', borderRadius: '12px', border: '1px solid #E2E8F0',
-    padding: '40px', textAlign: 'center'
-  }}>
-    <div style={{ fontSize: '40px', marginBottom: '12px' }}>🏪</div>
-    <div style={{ color: '#64748B', fontSize: '14px', fontWeight: '600' }}>店铺决策模块</div>
-    <div style={{ color: '#94A3B8', fontSize: '12px', marginTop: '4px' }}>即将开放，敬请期待</div>
+  <div className="bg-white rounded-xl border border-gray-200 py-16 text-center">
+    <div className="text-5xl mb-3">🏪</div>
+    <div className="text-gray-600 text-sm font-semibold">店铺决策模块</div>
+    <div className="text-gray-400 text-xs mt-1">即将开放，敬请期待</div>
   </div>
 );
 
