@@ -52,7 +52,6 @@ const DataCollection = () => {
   const [orderDateTo, setOrderDateTo] = useState(getToday());
   const [adDailyDays, setAdDailyDays] = useState(5);
   const [dailyFetching, setDailyFetching] = useState(false);
-  const [dailyResult, setDailyResult] = useState(null);
 
   // 商品采集
   const [productFetching, setProductFetching] = useState(false);
@@ -113,39 +112,80 @@ const DataCollection = () => {
     }
   };
 
-  // 每日采集状态
-  const [dailyStep, setDailyStep] = useState(null); // null | 'order' | 'ad' | 'done'
+  // 采集状态 - 独立
+  const [orderFetching, setOrderFetching] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
+  const [adFetching, setAdFetching] = useState(false);
   const [adResult, setAdResult] = useState(null);
 
-  // ========== 每日采集 ==========
+  // ========== 订单采集 ==========
+  const handleOrderFetch = async () => {
+    setOrderFetching(true);
+    setOrderResult(null);
+    try {
+      const res = await apiPost('/api/easyboss/orders/fetch', {
+        dateFrom: orderDateFrom + ' 00:00:00',
+        dateTo: orderDateTo + ' 23:59:59',
+      });
+      setOrderResult(res);
+      if (res.error && (res.error.includes('50001') || res.error.includes('登录'))) {
+        setCookieStatus(prev => ({ ...prev, expired: true }));
+      }
+      loadLogs();
+    } catch (e) {
+      setOrderResult({ error: e.message });
+    } finally {
+      setOrderFetching(false);
+    }
+  };
+
+  // ========== 广告采集 ==========
+  const handleAdFetch = async () => {
+    setAdFetching(true);
+    setAdResult(null);
+    try {
+      const res = await apiPost('/api/easyboss/ads/fetch', {
+        status: 'ongoing',
+        fetchDaily: true,
+        dailyDays: adDailyDays,
+      });
+      setAdResult(res);
+      if (res.error && (res.error.includes('50001') || res.error.includes('登录'))) {
+        setCookieStatus(prev => ({ ...prev, expired: true }));
+      }
+      loadLogs();
+    } catch (e) {
+      setAdResult({ error: e.message });
+    } finally {
+      setAdFetching(false);
+    }
+  };
+
+  // ========== 全部采集（订单+广告）==========
   const handleDailyFetch = async () => {
     setDailyFetching(true);
-    setDailyResult(null);
     setOrderResult(null);
     setAdResult(null);
-
     try {
-      // 第1步：采集订单
-      setDailyStep('order');
+      // 订单
+      setOrderFetching(true);
       const orderRes = await apiPost('/api/easyboss/orders/fetch', {
         dateFrom: orderDateFrom + ' 00:00:00',
         dateTo: orderDateTo + ' 23:59:59',
       });
       setOrderResult(orderRes);
+      setOrderFetching(false);
 
-      // 第2步：采集广告
-      setDailyStep('ad');
+      // 广告
+      setAdFetching(true);
       const adRes = await apiPost('/api/easyboss/ads/fetch', {
         status: 'ongoing',
         fetchDaily: true,
         dailyDays: adDailyDays,
       });
       setAdResult(adRes);
+      setAdFetching(false);
 
-      setDailyStep('done');
-      setDailyResult({ order: orderRes, ad: adRes, time: new Date().toISOString() });
-      // 根据采集结果判断Cookie有效性
       const orderFailed = orderRes.error && (orderRes.error.includes('50001') || orderRes.error.includes('登录'));
       const adFailed = adRes.error && (adRes.error.includes('50001') || adRes.error.includes('登录'));
       if (orderFailed || adFailed) {
@@ -153,8 +193,8 @@ const DataCollection = () => {
       }
       loadLogs();
     } catch (e) {
-      setDailyStep('done');
-      setDailyResult({ error: e.message, time: new Date().toISOString() });
+      setOrderFetching(false);
+      setAdFetching(false);
     } finally {
       setDailyFetching(false);
     }
@@ -314,115 +354,94 @@ curl -X POST localhost:3001/api/easyboss/ads/fetch \\
         )}
       </div>
 
-      {/* ===== 每日采集 ===== */}
+      {/* ===== 订单采集 ===== */}
       <div style={card}>
-        <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>📊 每日采集（订单 + 广告）</div>
+        <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>📋 订单采集</div>
 
-        {logs.length > 0 && (
-          <div style={{ padding: '12px 16px', background: '#F8FAFC', borderRadius: '10px', marginBottom: '16px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ color: '#999' }}>上次:</span>
-              <span style={{ fontWeight: '600' }}>{formatTime(logs[0]?.created_at)}</span>
-              {logs[0]?.success !== undefined && (
-                logs[0].success
-                  ? <span style={tagStyle('#059669', '#ECFDF5')}>✅ 成功</span>
-                  : <span style={tagStyle('#EF4444', '#FEF2F2')}>❌ 失败</span>
-              )}
-            </div>
-            {logs[0]?.date_from && (
-              <div style={{ color: '#666' }}>
-                📋 订单 {formatDate(logs[0].date_from)}~{formatDate(logs[0].date_to)} · {logs[0].total_fetched || 0}条
-              </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <div style={labelSt}>起始日期</div>
+            <input type="date" value={orderDateFrom} onChange={(e) => setOrderDateFrom(e.target.value)} style={dateInput} />
+          </div>
+          <div>
+            <div style={labelSt}>截止日期</div>
+            <input type="date" value={orderDateTo} onChange={(e) => setOrderDateTo(e.target.value)} style={dateInput} />
+          </div>
+          <button onClick={handleOrderFetch} disabled={orderFetching} style={btnOrange(orderFetching)}>
+            {orderFetching ? '⏳ 采集中...' : '▶ 采集订单'}
+          </button>
+        </div>
+
+        {orderFetching && (
+          <div style={{ marginTop: '12px', padding: '12px 16px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA', fontSize: '13px', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            正在采集 {orderDateFrom} ~ {orderDateTo} 的订单...
+          </div>
+        )}
+
+        {orderResult && !orderFetching && (
+          <div style={{
+            marginTop: '12px', padding: '12px 16px', borderRadius: '10px', fontSize: '13px',
+            background: orderResult.error ? '#FEF2F2' : '#F0FDF4',
+            border: `1px solid ${orderResult.error ? '#FECACA' : '#BBF7D0'}`,
+          }}>
+            {orderResult.error ? (
+              <span style={{ color: '#DC2626' }}>❌ {orderResult.error}</span>
+            ) : (
+              <span style={{ color: '#059669' }}>
+                ✅ 订单完成: {orderDateFrom}~{orderDateTo} → {orderResult.totalFetched || orderResult.total || 0}条
+                {orderResult.inserted != null && ` (新增${orderResult.inserted})`}
+              </span>
             )}
           </div>
         )}
 
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+
+      {/* ===== 广告采集 ===== */}
+      <div style={card}>
+        <div style={{ fontSize: '15px', fontWeight: '600', marginBottom: '16px' }}>📺 广告采集</div>
+
         <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
-            <div style={labelSt}>订单起始</div>
-            <input type="date" value={orderDateFrom} onChange={(e) => setOrderDateFrom(e.target.value)} style={dateInput} />
-          </div>
-          <div>
-            <div style={labelSt}>订单截止</div>
-            <input type="date" value={orderDateTo} onChange={(e) => setOrderDateTo(e.target.value)} style={dateInput} />
-          </div>
-          <div>
-            <div style={labelSt}>广告明细天数</div>
+            <div style={labelSt}>每日明细天数</div>
             <select value={adDailyDays} onChange={(e) => setAdDailyDays(parseInt(e.target.value))} style={{ ...dateInput, minWidth: '80px' }}>
               {[3, 5, 7, 14, 30].map(d => <option key={d} value={d}>近{d}天</option>)}
             </select>
           </div>
-          <button onClick={handleDailyFetch} disabled={dailyFetching} style={btnOrange(dailyFetching)}>
-            {dailyFetching ? '⏳ 采集中...' : '▶ 立即采集'}
+          <button onClick={handleAdFetch} disabled={adFetching} style={btnOrange(adFetching)}>
+            {adFetching ? '⏳ 采集中...' : '▶ 采集广告'}
           </button>
         </div>
 
         <div style={{ fontSize: '12px', color: '#999', marginTop: '10px' }}>
-          💡 广告拉取状态为 ongoing（进行中）的广告 + 每日明细
+          💡 拉取状态为 ongoing（进行中）的广告 + 每日明细
         </div>
 
-        {/* 采集实时进度 */}
-        {dailyStep && (
-          <div style={{
-            marginTop: '12px', padding: '16px', borderRadius: '10px',
-            background: '#F8FAFC', border: '1px solid #E2E8F0',
-          }}>
-            <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#334155' }}>
-              📡 采集进度
-            </div>
-
-            {/* 订单状态 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '13px' }}>
-              {dailyStep === 'order' && !orderResult ? (
-                <>
-                  <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                  <span style={{ color: '#FF6B35', fontWeight: '500' }}>📋 订单采集中... ({orderDateFrom} ~ {orderDateTo})</span>
-                </>
-              ) : orderResult ? (
-                orderResult.error ? (
-                  <span style={{ color: '#DC2626' }}>❌ 订单失败: {orderResult.error}</span>
-                ) : (
-                  <span style={{ color: '#059669' }}>
-                    ✅ 订单完成: {orderDateFrom}~{orderDateTo} → {orderResult.totalFetched || orderResult.total || 0}条
-                    {orderResult.inserted != null && ` (新增${orderResult.inserted})`}
-                  </span>
-                )
-              ) : (
-                <span style={{ color: '#999' }}>⏸ 订单等待中</span>
-              )}
-            </div>
-
-            {/* 广告状态 */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-              {dailyStep === 'ad' && !adResult ? (
-                <>
-                  <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                  <span style={{ color: '#FF6B35', fontWeight: '500' }}>📺 广告采集中... (ongoing / 近{adDailyDays}天明细)</span>
-                </>
-              ) : adResult ? (
-                adResult.error ? (
-                  <span style={{ color: '#DC2626' }}>❌ 广告失败: {adResult.error}</span>
-                ) : (
-                  <span style={{ color: '#059669' }}>
-                    ✅ 广告完成: ongoing/近{adDailyDays}天 → {adResult.totalCampaigns || 0}条广告
-                    {adResult.totalDailyRecords != null && ` / ${adResult.totalDailyRecords}条明细`}
-                  </span>
-                )
-              ) : (
-                <span style={{ color: '#999' }}>⏸ 广告等待中</span>
-              )}
-            </div>
-
-            {dailyStep === 'done' && !dailyResult?.error && (
-              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E8F0', fontSize: '12px', color: '#059669', fontWeight: '600' }}>
-                🎉 全部采集完成
-              </div>
-            )}
+        {adFetching && (
+          <div style={{ marginTop: '12px', padding: '12px 16px', borderRadius: '10px', background: '#FFF7ED', border: '1px solid #FED7AA', fontSize: '13px', color: '#9A3412', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+            正在采集广告数据 (ongoing / 近{adDailyDays}天明细)...
           </div>
         )}
 
-        {/* CSS动画 */}
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        {adResult && !adFetching && (
+          <div style={{
+            marginTop: '12px', padding: '12px 16px', borderRadius: '10px', fontSize: '13px',
+            background: adResult.error ? '#FEF2F2' : '#F0FDF4',
+            border: `1px solid ${adResult.error ? '#FECACA' : '#BBF7D0'}`,
+          }}>
+            {adResult.error ? (
+              <span style={{ color: '#DC2626' }}>❌ {adResult.error}</span>
+            ) : (
+              <span style={{ color: '#059669' }}>
+                ✅ 广告完成: ongoing/近{adDailyDays}天 → {adResult.totalCampaigns || 0}条广告
+                {adResult.totalDailyRecords != null && ` / ${adResult.totalDailyRecords}条明细`}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ===== 商品采集 ===== */}
