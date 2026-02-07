@@ -84,6 +84,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
   const totals = useMemo(() => ({
     skus: filteredData.length,
     orders: filteredData.reduce((s, d) => s + d.orders, 0),
+    qty: filteredData.reduce((s, d) => s + (d.qty || 0), 0),
     revenue: filteredData.reduce((s, d) => s + d.revenue, 0),
     totalCost: filteredData.reduce((s, d) => s + d.cost + d.packing, 0),
     ad: filteredData.reduce((s, d) => s + d.ad, 0),
@@ -91,9 +92,9 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
   }), [filteredData]);
 
   const handleExport = () => {
-    const headers = ['SKU编码', '商品名称', '店铺', '订单数', '回款(CNY)', '商品成本', '包材费', '广告费', '净利润', 'ROI', '利润率'];
+    const headers = ['SKU编码', '商品名称', '店铺', '订单量', '售出件数', '回款(CNY)', '商品成本', '包材费', '广告费', '净利润', 'ROI', '利润率'];
     const rows = filteredData.map(sku => [
-      sku.sku, sku.name, sku.store, sku.orders,
+      sku.sku, sku.name, sku.store, sku.orders, sku.qty || sku.orders,
       sku.revenue.toFixed(2), sku.cost.toFixed(2), sku.packing.toFixed(2),
       sku.ad.toFixed(2), sku.profit.toFixed(2),
       sku.roi < 900 ? sku.roi.toFixed(2) : '∞', sku.rate.toFixed(1) + '%'
@@ -164,7 +165,9 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
           <div className="flex items-center gap-3 text-xs bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
             <span className="text-gray-500">{totals.skus}个SKU</span>
             <span className="text-gray-300">|</span>
-            <span className="text-gray-500">出单<span className="font-bold text-gray-700 ml-0.5">{totals.orders}</span></span>
+            <span className="text-gray-500">订单<span className="font-bold text-gray-700 ml-0.5">{totals.orders}</span></span>
+            <span className="text-gray-300">|</span>
+            <span className="text-gray-500">售出<span className="font-bold text-purple-600 ml-0.5">{totals.qty}件</span></span>
             <span className="text-gray-300">|</span>
             <span className="text-gray-500">回款<span className="font-bold text-blue-600 ml-0.5">{formatCNY(totals.revenue)}</span></span>
             <span className="text-gray-300">|</span>
@@ -187,7 +190,8 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
               <th className="px-4 py-3 text-left font-medium text-gray-500">SKU编码</th>
               <th className="px-4 py-3 text-left font-medium text-gray-500">商品名称</th>
               <th className="px-4 py-3 text-center font-medium text-gray-500">店铺</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-500">订单数</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-500">订单量</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-500">售出件数</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">回款(CNY)</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">总成本</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">广告费</th>
@@ -198,7 +202,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
           </thead>
           <tbody>
             {pagedData.length === 0 ? (
-              <tr><td colSpan="10" className="px-4 py-12 text-center text-gray-500">{isLoading ? '加载中...' : '暂无数据'}</td></tr>
+              <tr><td colSpan="11" className="px-4 py-12 text-center text-gray-500">{isLoading ? '加载中...' : '暂无数据'}</td></tr>
             ) : pagedData.map((sku) => {
               const quadrant = getSkuQuadrant(sku);
               return (
@@ -214,6 +218,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                     <td className="px-4 py-3"><div className="max-w-[180px] truncate text-gray-700 font-medium" title={sku.name}>{sku.name}</div></td>
                     <td className="px-4 py-3 text-center"><span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">{sku.store}</span></td>
                     <td className="px-4 py-3 text-right text-gray-700 font-medium">{sku.orders}</td>
+                    <td className="px-4 py-3 text-right text-purple-600 font-medium">{sku.qty || sku.orders}</td>
                     <td className="px-4 py-3 text-right font-medium">{formatCNY(sku.revenue)}</td>
                     <td className="px-4 py-3 text-right text-blue-600">{formatCNY(sku.cost + sku.packing)}</td>
                     <td className="px-4 py-3 text-right text-orange-600">{formatCNY(sku.ad)}</td>
@@ -233,7 +238,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                   </tr>
                   {expandedSku === sku.sku && (
                     <tr>
-                      <td colSpan="10" className="bg-gray-50 p-4">
+                      <td colSpan="11" className="bg-gray-50 p-4">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">💰 成本明细</h4>
