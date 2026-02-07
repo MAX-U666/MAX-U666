@@ -300,23 +300,22 @@ module.exports = function(pool) {
         return res.json({ success: true, data: [], overview: getEmptyOrderOverview(), shops: [] });
       }
 
-      // 包裹售价总和
+      // ===== 复用sku-list同样的逻辑计算SKU单均数据 =====
+      // 1. 包裹售价总和（用于回款分摊）
       const packageTotals = {};
       for (const r of rows) {
         if (!packageTotals[r.pkg_id]) packageTotals[r.pkg_id] = 0;
         packageTotals[r.pkg_id] += parseFloat(r.discounted_price) || 0;
       }
 
-      // SKU成本
+      // 2. SKU成本
       const allSkus = [...new Set(rows.map(r => r.sku_id).filter(Boolean))];
       const ph = allSkus.length > 0 ? allSkus.map(() => '?').join(',') : "''";
-      
       const [singleCosts] = allSkus.length > 0 ? await pool.query(
         `SELECT sku, purchase_price FROM eb_sku_costs WHERE sku IN (${ph})`, allSkus
       ) : [[]];
       const singleCostMap = {};
       singleCosts.forEach(r => { singleCostMap[r.sku] = parseFloat(r.purchase_price) || 0; });
-
       const [comboCosts] = allSkus.length > 0 ? await pool.query(
         `SELECT c.combo_sku, c.item_sku, c.quantity, s.purchase_price
          FROM eb_sku_combos c LEFT JOIN eb_sku_costs s ON c.item_sku = s.sku
@@ -328,84 +327,124 @@ module.exports = function(pool) {
         comboCostMap[r.combo_sku] += (parseFloat(r.purchase_price) || 0) * (r.quantity || 1);
       });
 
-      // 广告(按item_id, 统计SKU数用于均摊)
+      // 3. 广告费（与sku-list完全一致：IDR * 统一汇率 * 10%税）
       const [adData] = await pool.query(`
-        SELECT platform_item_id, SUM(expense) as total_ad_idr, SUM(expense_cny) as total_ad_cny
+        SELECT platform_item_id, SUM(expense) as total_ad_idr
         FROM eb_ad_daily WHERE date >= ? AND date <= ? AND platform_item_id IS NOT NULL
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_idr) || 0) * FIXED_RATE * 1.1; }); // IDR * 统一汇率 * 10%税
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_idr) || 0) * FIXED_RATE * 1.1; });
 
-      // 统计每个item_id下各SKU的订单量（用于按订单量占比分摊广告费）
-      const itemIdSkuOrders = {}; // { itemId: { skuId: totalQty } }
-      for (const r of rows) {
-        const itemId = String(r.platform_item_id);
-        if (r.platform_item_id) {
-          if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
-          itemIdSkuOrders[itemId][r.sku_id] = (itemIdSkuOrders[itemId][r.sku_id] || 0) + (r.quantity || 1);
+      // 4. 与sku-list一样：先按SKU+店铺聚合，算出每个SKU的总量
+      const skuAgg = {}; // { 'sku||store': { revenue, cost, packing, ad, orders, qty, itemIds } }
+      const globalPackedSns = new Set();
+      for (const item of rows) {
+        const skuId = item.sku_id;
+        if (!skuId) continue;
+        const mapKey = skuId + '||' + (item.shop_name || '');
+        if (!skuAgg[mapKey]) {
+          skuAgg[mapKey] = { revenue: 0, cost: 0, packing: 0, ad: 0, orders: 0, qty: 0, itemIds: new Set(), orderSns: new Set() };
         }
+        const s = skuAgg[mapKey];
+        s.qty += item.quantity || 1;
+        s.orderSns.add(item.platform_order_sn);
+
+        // 回款（自带汇率）
+        const xrate = parseFloat(item.exchange_rate) || 2450;
+        const escrow = parseFloat(item.escrow_amount) || 0;
+        const myPrice = parseFloat(item.discounted_price) || 0;
+        const pkgTotal = packageTotals[item.pkg_id] || myPrice || 1;
+        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
+        s.revenue += (escrow * ratio) / xrate;
+
+        // 成本
+        let unitCost = 0;
+        if (item.goods_mode === 'bundle' && comboCostMap[skuId] !== undefined) unitCost = comboCostMap[skuId];
+        else if (singleCostMap[skuId] !== undefined) unitCost = singleCostMap[skuId];
+        s.cost += unitCost * (item.quantity || 1);
+
+        // 打包费（全局订单编号去重）
+        if (!globalPackedSns.has(item.platform_order_sn)) {
+          s.packing += getPackingCost(item.warehouse_name);
+          globalPackedSns.add(item.platform_order_sn);
+        }
+
+        if (item.platform_item_id) s.itemIds.add(String(item.platform_item_id));
       }
 
-      // 按包裹聚合订单（打包费按订单编号全局去重）
+      // 订单数 = orderSn去重
+      for (const s of Object.values(skuAgg)) { s.orders = s.orderSns.size; delete s.orderSns; }
+
+      // 广告费分摊（与sku-list完全一致）
+      const itemIdSkuOrders = {};
+      for (const [mapKey, s] of Object.entries(skuAgg)) {
+        for (const itemId of s.itemIds) {
+          if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
+          itemIdSkuOrders[itemId][mapKey] = (itemIdSkuOrders[itemId][mapKey] || 0) + s.orders;
+        }
+      }
+      for (const [mapKey, s] of Object.entries(skuAgg)) {
+        for (const itemId of s.itemIds) {
+          if (adMap[itemId] && itemIdSkuOrders[itemId]) {
+            const totalOrders = Object.values(itemIdSkuOrders[itemId]).reduce((a, b) => a + b, 0);
+            const myOrders = itemIdSkuOrders[itemId][mapKey] || 0;
+            const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
+            s.ad += adMap[itemId] * ratio;
+          }
+        }
+        delete s.itemIds;
+      }
+
+      // 5. 算出每个SKU+店铺的单均值
+      const skuUnitMap = {}; // { 'sku||store': { unitRevenue, unitCost, unitPacking, unitAd } }
+      for (const [mapKey, s] of Object.entries(skuAgg)) {
+        const orders = s.orders || 1;
+        skuUnitMap[mapKey] = {
+          unitRevenue: s.revenue / s.qty,    // 每件回款
+          unitCost: s.cost / s.qty,          // 每件成本
+          unitPacking: s.packing / orders,   // 每单打包
+          unitAd: s.ad / orders,             // 每单广告
+        };
+      }
+
+      // 6. 按包裹聚合订单，用单均值填充
       const orderMap = {};
-      const orderPackedSns = new Set();
+      const orderPackedSns2 = new Set();
       for (const r of rows) {
         const key = r.pkg_id;
         if (!orderMap[key]) {
           orderMap[key] = {
-            id: r.order_sn,
-            store: r.shop_name,
+            id: r.order_sn, store: r.shop_name,
             date: r.order_time ? new Date(r.order_time).toISOString().split('T')[0] : '',
-            status: r.status, statusRaw: r.status_raw,
-            buyer: r.buyer_username,
-            items: [],
-            revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
+            status: r.status, statusRaw: r.status_raw, buyer: r.buyer_username,
+            items: [], revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
           };
         }
         const ord = orderMap[key];
-        const xrate = parseFloat(r.exchange_rate) || 2450; // 自带汇率
-        const escrow = parseFloat(r.escrow_amount) || 0;
-        const myPrice = parseFloat(r.discounted_price) || 0;
-        const pkgTotal = packageTotals[r.pkg_id] || myPrice || 1;
-        const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
-        const revenueCNY = (escrow * ratio) / xrate;
+        const mapKey = (r.sku_id || '') + '||' + (r.shop_name || '');
+        const unit = skuUnitMap[mapKey] || { unitRevenue: 0, unitCost: 0, unitPacking: 0, unitAd: 0 };
+        const qty = r.quantity || 1;
 
-        let unitCost = 0;
-        if (r.goods_mode === 'bundle' && comboCostMap[r.sku_id] !== undefined) {
-          unitCost = comboCostMap[r.sku_id];
-        } else if (singleCostMap[r.sku_id] !== undefined) {
-          unitCost = singleCostMap[r.sku_id];
-        }
-        const itemCost = unitCost * (r.quantity || 1);
-        const packCost = getPackingCost(r.warehouse_name);
-        
-        // 广告费(按SKU订单量占比分摊)
-        let itemAd = 0;
-        if (r.platform_item_id && adMap[String(r.platform_item_id)]) {
-          const itemId = String(r.platform_item_id);
-          const skuOrders = itemIdSkuOrders[itemId] || {};
-          const totalOrders = Object.values(skuOrders).reduce((a, b) => a + b, 0);
-          const myOrders = skuOrders[r.sku_id] || 0;
-          const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
-          itemAd = myOrders > 0 ? (adMap[itemId] * ratio) / myOrders : 0;
-        }
+        const itemRevenue = unit.unitRevenue * qty;
+        const itemCost = unit.unitCost * qty;
+        const itemAd = unit.unitAd; // 每单广告（不乘qty，因为是按单均摊的）
 
         ord.items.push({
-          sku: r.sku_id, name: r.sku_name || '', qty: r.quantity || 1,
-          revenue: revenueCNY, cost: itemCost, packing: packCost, ad: itemAd,
-          profit: revenueCNY - itemCost - packCost - itemAd
+          sku: r.sku_id, name: r.sku_name || '', qty,
+          revenue: itemRevenue, cost: itemCost, ad: itemAd,
+          profit: itemRevenue - itemCost - itemAd
         });
 
-        ord.revenue += revenueCNY;
+        ord.revenue += itemRevenue;
         ord.cost += itemCost;
         // 打包费按订单编号去重
-        if (!orderPackedSns.has(r.order_sn)) {
-          ord.packing += packCost;
-          orderPackedSns.add(r.order_sn);
+        if (!orderPackedSns2.has(r.order_sn)) {
+          ord.packing += unit.unitPacking;
+          orderPackedSns2.add(r.order_sn);
         }
         ord.ad += itemAd;
-        ord.qty += r.quantity || 1;
+        ord.qty += qty;
       }
 
       // 计算订单利润
