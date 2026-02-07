@@ -86,3 +86,16 @@ export const getWarningLevel = (data) => {
   if (roi < ROI_THRESHOLD.warning || profitRate < 10) return 'warning';
   return 'info';
 };
+
+
+/**
+ * 带权限的 fetch - 自动注入 Bearer token
+ * 用于 BI 模块所有 API 请求
+ */
+export async function authFetch(url, options = {}) {
+  const token = localStorage.getItem('token');
+  const headers = { ...(options.headers || {}) };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { ...options, headers });
+  return res;
+}
