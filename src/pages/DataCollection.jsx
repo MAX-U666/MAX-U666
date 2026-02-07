@@ -113,20 +113,37 @@ const DataCollection = () => {
     }
   };
 
+  // 每日采集状态
+  const [dailyStep, setDailyStep] = useState(null); // null | 'order' | 'ad' | 'done'
+  const [orderResult, setOrderResult] = useState(null);
+  const [adResult, setAdResult] = useState(null);
+
   // ========== 每日采集 ==========
   const handleDailyFetch = async () => {
     setDailyFetching(true);
     setDailyResult(null);
+    setOrderResult(null);
+    setAdResult(null);
+
     try {
+      // 第1步：采集订单
+      setDailyStep('order');
       const orderRes = await apiPost('/api/easyboss/orders/fetch', {
         dateFrom: orderDateFrom + ' 00:00:00',
         dateTo: orderDateTo + ' 23:59:59',
       });
+      setOrderResult(orderRes);
+
+      // 第2步：采集广告
+      setDailyStep('ad');
       const adRes = await apiPost('/api/easyboss/ads/fetch', {
         status: 'ongoing',
         fetchDaily: true,
         dailyDays: adDailyDays,
       });
+      setAdResult(adRes);
+
+      setDailyStep('done');
       setDailyResult({ order: orderRes, ad: adRes, time: new Date().toISOString() });
       // 根据采集结果判断Cookie有效性
       const orderFailed = orderRes.error && (orderRes.error.includes('50001') || orderRes.error.includes('登录'));
@@ -136,6 +153,7 @@ const DataCollection = () => {
       }
       loadLogs();
     } catch (e) {
+      setDailyStep('done');
       setDailyResult({ error: e.message, time: new Date().toISOString() });
     } finally {
       setDailyFetching(false);
@@ -343,34 +361,68 @@ curl -X POST localhost:3001/api/easyboss/ads/fetch \\
           💡 广告拉取状态为 ongoing（进行中）的广告 + 每日明细
         </div>
 
-        {dailyResult && (
+        {/* 采集实时进度 */}
+        {dailyStep && (
           <div style={{
-            padding: '14px 16px', borderRadius: '10px', marginTop: '12px',
-            background: dailyResult.error ? '#FEF2F2' : '#F0FDF4',
-            border: `1px solid ${dailyResult.error ? '#FECACA' : '#BBF7D0'}`,
-            fontSize: '13px',
+            marginTop: '12px', padding: '16px', borderRadius: '10px',
+            background: '#F8FAFC', border: '1px solid #E2E8F0',
           }}>
-            {dailyResult.error ? (
-              <div style={{ color: '#DC2626' }}>❌ 采集失败: {dailyResult.error}</div>
-            ) : (
-              <>
-                <div style={{ fontWeight: '600', color: '#166534', marginBottom: '4px' }}>✅ 采集完成</div>
-                {dailyResult.order && (
-                  <div style={{ color: '#15803D' }}>
-                    📋 订单 {orderDateFrom}~{orderDateTo} → {dailyResult.order.totalFetched || dailyResult.order.total || 0}条
-                    {dailyResult.order.inserted != null && ` (新增${dailyResult.order.inserted})`}
-                  </div>
-                )}
-                {dailyResult.ad && (
-                  <div style={{ color: '#15803D', marginTop: '2px' }}>
-                    📺 广告 ongoing/近{adDailyDays}天 → {dailyResult.ad.totalCampaigns || 0}条广告
-                    {dailyResult.ad.totalDailyRecords != null && ` / ${dailyResult.ad.totalDailyRecords}条明细`}
-                  </div>
-                )}
-              </>
+            <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '10px', color: '#334155' }}>
+              📡 采集进度
+            </div>
+
+            {/* 订单状态 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '13px' }}>
+              {dailyStep === 'order' && !orderResult ? (
+                <>
+                  <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <span style={{ color: '#FF6B35', fontWeight: '500' }}>📋 订单采集中... ({orderDateFrom} ~ {orderDateTo})</span>
+                </>
+              ) : orderResult ? (
+                orderResult.error ? (
+                  <span style={{ color: '#DC2626' }}>❌ 订单失败: {orderResult.error}</span>
+                ) : (
+                  <span style={{ color: '#059669' }}>
+                    ✅ 订单完成: {orderDateFrom}~{orderDateTo} → {orderResult.totalFetched || orderResult.total || 0}条
+                    {orderResult.inserted != null && ` (新增${orderResult.inserted})`}
+                  </span>
+                )
+              ) : (
+                <span style={{ color: '#999' }}>⏸ 订单等待中</span>
+              )}
+            </div>
+
+            {/* 广告状态 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+              {dailyStep === 'ad' && !adResult ? (
+                <>
+                  <span style={{ display: 'inline-block', width: '16px', height: '16px', border: '2px solid #FF6B35', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <span style={{ color: '#FF6B35', fontWeight: '500' }}>📺 广告采集中... (ongoing / 近{adDailyDays}天明细)</span>
+                </>
+              ) : adResult ? (
+                adResult.error ? (
+                  <span style={{ color: '#DC2626' }}>❌ 广告失败: {adResult.error}</span>
+                ) : (
+                  <span style={{ color: '#059669' }}>
+                    ✅ 广告完成: ongoing/近{adDailyDays}天 → {adResult.totalCampaigns || 0}条广告
+                    {adResult.totalDailyRecords != null && ` / ${adResult.totalDailyRecords}条明细`}
+                  </span>
+                )
+              ) : (
+                <span style={{ color: '#999' }}>⏸ 广告等待中</span>
+              )}
+            </div>
+
+            {dailyStep === 'done' && !dailyResult?.error && (
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #E2E8F0', fontSize: '12px', color: '#059669', fontWeight: '600' }}>
+                🎉 全部采集完成
+              </div>
             )}
           </div>
         )}
+
+        {/* CSS动画 */}
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
       {/* ===== 商品采集 ===== */}
