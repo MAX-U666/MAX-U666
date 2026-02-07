@@ -13,15 +13,12 @@ module.exports = function(pool, tokens) {
   router.use(async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // 无token时不过滤（兼容旧行为，后续可改为强制登录）
-      req.allowedShops = null;
-      return next();
+      return res.status(401).json({ success: false, error: '未登录' });
     }
     const token = authHeader.split(' ')[1];
     const user = tokens ? tokens.get(token) : null;
     if (!user) {
-      req.allowedShops = null;
-      return next();
+      return res.status(401).json({ success: false, error: 'Token无效' });
     }
     req.user = user;
 
