@@ -47,6 +47,19 @@ module.exports = function(pool) {
     return 3.2; // 统一仓储费
   }
 
+  function shortWarehouse(name) {
+    if (!name) return '-';
+    const n = name.toLowerCase();
+    if (n.includes('momo')) return 'MOMO仓库';
+    if (n.includes('bbt')) return 'BBT仓库';
+    if (n.includes('jnt') || n.includes('j&t')) return 'J&T仓库';
+    if (n.includes('flash')) return 'Flash仓库';
+    if (n.includes('ninja')) return 'Ninja仓库';
+    if (n.includes('sicepat')) return 'SiCepat仓库';
+    if (n.includes('anteraja')) return 'AnterAja仓库';
+    return name.length > 12 ? name.substring(0, 12) + '...' : name;
+  }
+
   router.get('/sku-list', async (req, res) => {
     try {
       const { range = 'today', shop, keyword, startDate, endDate } = req.query;
@@ -144,7 +157,7 @@ module.exports = function(pool) {
             sku: skuId, name: item.sku_name || '', store: item.shop_name || '',
             orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
             profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), orderSns: new Set(),
-            warehouseName: '', exchangeRate: 0
+            warehouseName: ''
           };
 
         }
@@ -161,8 +174,7 @@ module.exports = function(pool) {
         const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
         const myEscrowCNY = escrow * ratio / xrate;
         s.revenue += myEscrowCNY;
-        if (!s.warehouseName && item.warehouse_name) s.warehouseName = item.warehouse_name;
-        if (!s.exchangeRate) s.exchangeRate = xrate;
+        if (!s.warehouseName && item.warehouse_name) s.warehouseName = shortWarehouse(item.warehouse_name);
 
         // 商品成本
         let unitCost = 0;
@@ -421,7 +433,7 @@ module.exports = function(pool) {
             id: r.order_sn, store: r.shop_name,
             date: r.order_time ? new Date(r.order_time).toISOString().split('T')[0] : '',
             status: r.status, statusRaw: r.status_raw, buyer: r.buyer_username,
-            warehouseName: r.warehouse_name || '', exchangeRate: parseFloat(r.exchange_rate) || 0,
+            warehouseName: shortWarehouse(r.warehouse_name),
             items: [], revenue: 0, cost: 0, packing: 0, ad: 0, profit: 0, qty: 0
           };
         }
