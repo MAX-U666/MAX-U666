@@ -23,6 +23,20 @@ const formatDate = (dateStr) => {
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+// ========== 日期工具 ==========
+const getDateStr = (daysAgo = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().split('T')[0];
+};
+
+const DATE_PRESETS = [
+  { label: '今天', from: () => getDateStr(0), to: () => getDateStr(0) },
+  { label: '近3天', from: () => getDateStr(2), to: () => getDateStr(0) },
+  { label: '近7天', from: () => getDateStr(6), to: () => getDateStr(0) },
+  { label: '近30天', from: () => getDateStr(29), to: () => getDateStr(0) },
+];
+
 // ========== 状态配置 ==========
 const STATUS_MAP = {
   waitProcess: { label: '待处理', color: '#F59E0B', icon: '⏳' },
@@ -69,7 +83,7 @@ const StatCard = ({ icon, label, value, sub, color }) => (
 // ========== 店铺柱状图 ==========
 const ShopBar = ({ shops }) => {
   if (!shops || shops.length === 0) return null;
-  const maxCount = Math.max(...shops.map(s => s.count));
+  const maxCount = Math.max(...shops.map(s => s.count || s.orders || 0));
 
   return (
     <div style={{
@@ -82,36 +96,40 @@ const ShopBar = ({ shops }) => {
         📊 店铺订单分布
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {shops.slice(0, 10).map((shop) => (
-          <div key={shop.shop_name} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div style={{
-              width: '80px', fontSize: '11px', color: '#666',
-              textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap',
-              textAlign: 'right', flexShrink: 0,
-            }}>
-              {shop.shop_name}
-            </div>
-            <div style={{ flex: 1, height: '22px', background: '#FFFFFF', borderRadius: '4px', overflow: 'hidden' }}>
+        {shops.slice(0, 10).map((shop) => {
+          const count = shop.count || shop.orders || 0;
+          return (
+            <div key={shop.shop_name || shop.shop_id} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: `${(shop.count / maxCount) * 100}%`,
-                height: '100%',
-                background: 'linear-gradient(90deg, #FF6B35 0%, #F7931E 100%)',
-                borderRadius: '4px',
-                transition: 'width 0.6s ease',
-                display: 'flex',
-                alignItems: 'center',
-                paddingLeft: '8px',
+                width: '80px', fontSize: '11px', color: '#666',
+                textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap',
+                textAlign: 'right', flexShrink: 0,
               }}>
-                <span style={{ fontSize: '10px', color: '#fff', fontWeight: '600' }}>
-                  {shop.count}
-                </span>
+                {shop.shop_name || shop.platform_shop_name || shop.shop_id}
+              </div>
+              <div style={{ flex: 1, height: '22px', background: '#FFFFFF', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${maxCount > 0 ? (count / maxCount) * 100 : 0}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #FF6B35 0%, #F7931E 100%)',
+                  borderRadius: '4px',
+                  transition: 'width 0.6s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  paddingLeft: '8px',
+                  minWidth: count > 0 ? '30px' : '0',
+                }}>
+                  <span style={{ fontSize: '10px', color: '#fff', fontWeight: '600' }}>
+                    {count}
+                  </span>
+                </div>
+              </div>
+              <div style={{ width: '70px', fontSize: '10px', color: '#999', textAlign: 'right', flexShrink: 0 }}>
+                {formatIDR(shop.total_pay || shop.gmv)}
               </div>
             </div>
-            <div style={{ width: '70px', fontSize: '10px', color: '#999', textAlign: 'right', flexShrink: 0 }}>
-              {formatIDR(shop.total_pay)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -135,7 +153,7 @@ const StatusBreakdown = ({ statusData }) => {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
         {statusData.map((item) => {
           const info = getStatusInfo(item.status);
-          const pct = ((item.count / total) * 100).toFixed(0);
+          const pct = total > 0 ? ((item.count / total) * 100).toFixed(0) : 0;
           return (
             <div key={item.status} style={{
               background: `${info.color}12`,
@@ -272,7 +290,7 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
             style={{
               padding: '6px 14px', borderRadius: '6px', border: 'none',
               background: page <= 1 ? '#E8E8ED' : '#F5F5F7',
-              color: page <= 1 ? '#475569' : '#CBD5E1',
+              color: page <= 1 ? '#CBD5E1' : '#475569',
               fontSize: '12px', cursor: page <= 1 ? 'not-allowed' : 'pointer',
             }}
           >
@@ -287,7 +305,7 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
             style={{
               padding: '6px 14px', borderRadius: '6px', border: 'none',
               background: page >= totalPages ? '#E8E8ED' : '#F5F5F7',
-              color: page >= totalPages ? '#475569' : '#CBD5E1',
+              color: page >= totalPages ? '#CBD5E1' : '#475569',
               fontSize: '12px', cursor: page >= totalPages ? 'not-allowed' : 'pointer',
             }}
           >
@@ -298,6 +316,20 @@ const OrderTable = ({ orders, loading, page, totalPages, onPageChange }) => {
     </div>
   );
 };
+
+// ========== 快捷日期按钮样式 ==========
+const presetBtnStyle = (active) => ({
+  padding: '5px 12px',
+  borderRadius: '6px',
+  border: active ? '1px solid #FF6B35' : '1px solid #E0E0E5',
+  background: active ? 'rgba(255,107,53,0.1)' : '#FFFFFF',
+  color: active ? '#FF6B35' : '#666',
+  fontSize: '11px',
+  fontWeight: active ? '600' : '400',
+  cursor: 'pointer',
+  transition: 'all 0.15s',
+  whiteSpace: 'nowrap',
+});
 
 // ========== 主页面 ==========
 const OrderCenter = () => {
@@ -316,6 +348,7 @@ const OrderCenter = () => {
   const [fetching, setFetching] = useState(false);
   const [fetchResult, setFetchResult] = useState(null);
   const [fetchDays, setFetchDays] = useState(1);
+  const [activePreset, setActivePreset] = useState(-1);
   const pageSize = 50;
 
   // 加载统计（跟随筛选联动）
@@ -347,9 +380,10 @@ const OrderCenter = () => {
       if (keyword) params.keyword = keyword;
       const data = await fetchOrders(params);
       if (data.success) {
-        setOrders(data.orders || []);
-        setTotalOrders(data.total || 0);
-        setTotalPages(Math.ceil((data.total || 0) / pageSize));
+        setOrders(data.orders || data.data || []);
+        const total = data.total || data.pagination?.total || 0;
+        setTotalOrders(total);
+        setTotalPages(data.pagination?.totalPages || Math.ceil(total / pageSize));
         setPage(p);
       }
     } catch (e) {
@@ -361,6 +395,42 @@ const OrderCenter = () => {
 
   useEffect(() => { loadStats(); }, [loadStats]);
   useEffect(() => { loadOrders(1); }, [loadOrders]);
+
+  // 快捷日期选择
+  const handlePreset = (idx) => {
+    if (activePreset === idx) {
+      // 取消选中
+      setActivePreset(-1);
+      setFilterDateFrom('');
+      setFilterDateTo('');
+    } else {
+      setActivePreset(idx);
+      setFilterDateFrom(DATE_PRESETS[idx].from());
+      setFilterDateTo(DATE_PRESETS[idx].to());
+    }
+  };
+
+  // 手动选日期时清除预设高亮
+  const handleDateFromChange = (val) => {
+    setFilterDateFrom(val);
+    setActivePreset(-1);
+  };
+  const handleDateToChange = (val) => {
+    setFilterDateTo(val);
+    setActivePreset(-1);
+  };
+
+  // 重置筛选
+  const handleReset = () => {
+    setFilterShop('');
+    setFilterStatus('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setKeyword('');
+    setActivePreset(-1);
+  };
+
+  const hasFilters = filterShop || filterStatus || filterDateFrom || filterDateTo || keyword;
 
   // 拉取数据
   const handleFetch = async () => {
@@ -380,7 +450,7 @@ const OrderCenter = () => {
     }
   };
 
-  const shopList = stats?.shops || [];
+  const shopList = stats?.shops || stats?.byShop || [];
   const statusList = stats?.statusBreakdown || [];
 
   return (
@@ -396,6 +466,11 @@ const OrderCenter = () => {
           </h2>
           <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
             共 {totalOrders.toLocaleString()} 条订单
+            {(filterDateFrom || filterDateTo) && (
+              <span style={{ color: '#FF6B35', marginLeft: '8px' }}>
+                📅 {filterDateFrom || '...'} ~ {filterDateTo || '...'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -471,10 +546,10 @@ const OrderCenter = () => {
           </div>
         ) : (
           <>
-            <StatCard icon="📦" label="总订单" value={stats?.totalOrders?.toLocaleString() || '0'} color="#3B82F6" />
-            <StatCard icon="💰" label="总GMV" value={`Rp ${formatIDR(stats?.totalGMV)}`} sub="付款总额" color="#F7931E" />
-            <StatCard icon="📈" label="总利润" value={`Rp ${formatIDR(stats?.totalProfit)}`} sub={stats?.avgProfitMargin ? `利润率 ${stats.avgProfitMargin}` : ''} color="#10B981" />
-            <StatCard icon="🏪" label="店铺数" value={shopList.length || '0'} color="#8B5CF6" />
+            <StatCard icon="📦" label="总订单" value={stats?.totalOrders?.toLocaleString() || stats?.summary?.total_orders?.toLocaleString() || '0'} color="#3B82F6" />
+            <StatCard icon="💰" label="总GMV" value={`Rp ${formatIDR(stats?.totalGMV || stats?.summary?.total_gmv)}`} sub="付款总额" color="#F7931E" />
+            <StatCard icon="📈" label="总利润" value={`Rp ${formatIDR(stats?.totalProfit || stats?.summary?.completed_gmv)}`} sub={stats?.avgProfitMargin ? `利润率 ${stats.avgProfitMargin}` : ''} color="#10B981" />
+            <StatCard icon="🏪" label="店铺数" value={shopList.length || stats?.summary?.shop_count || '0'} color="#8B5CF6" />
           </>
         )}
       </div>
@@ -487,11 +562,44 @@ const OrderCenter = () => {
 
       {/* 筛选栏 */}
       <div style={{
-        display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center',
+        display: 'flex', gap: '10px', marginBottom: '10px', alignItems: 'center',
         flexWrap: 'wrap',
       }}>
         <div style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a' }}>📋 订单列表</div>
         <div style={{ flex: 1 }} />
+
+        {/* 快捷日期按钮 */}
+        {DATE_PRESETS.map((preset, idx) => (
+          <button
+            key={preset.label}
+            onClick={() => handlePreset(idx)}
+            style={presetBtnStyle(activePreset === idx)}
+          >
+            {preset.label}
+          </button>
+        ))}
+
+        {/* 重置按钮 */}
+        {hasFilters && (
+          <button
+            onClick={handleReset}
+            style={{
+              padding: '5px 12px', borderRadius: '6px',
+              border: '1px solid #EF4444', background: 'rgba(239,68,68,0.05)',
+              color: '#EF4444', fontSize: '11px', cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ✕ 重置
+          </button>
+        )}
+      </div>
+
+      {/* 详细筛选行 */}
+      <div style={{
+        display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center',
+        flexWrap: 'wrap',
+      }}>
         <input
           type="text"
           placeholder="搜索订单号/买家..."
@@ -507,10 +615,11 @@ const OrderCenter = () => {
         <input
           type="date"
           value={filterDateFrom}
-          onChange={(e) => setFilterDateFrom(e.target.value)}
+          onChange={(e) => handleDateFromChange(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            background: filterDateFrom ? 'rgba(255,107,53,0.05)' : '#F5F5F7',
+            border: filterDateFrom ? '1px solid rgba(255,107,53,0.3)' : '1px solid #E0E0E5',
             color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
@@ -518,10 +627,11 @@ const OrderCenter = () => {
         <input
           type="date"
           value={filterDateTo}
-          onChange={(e) => setFilterDateTo(e.target.value)}
+          onChange={(e) => handleDateToChange(e.target.value)}
           style={{
             padding: '8px 14px', borderRadius: '8px', fontSize: '13px', minWidth: '140px',
-            background: '#F5F5F7', border: '1px solid #E0E0E5',
+            background: filterDateTo ? 'rgba(255,107,53,0.05)' : '#F5F5F7',
+            border: filterDateTo ? '1px solid rgba(255,107,53,0.3)' : '1px solid #E0E0E5',
             color: '#555', outline: 'none', cursor: 'pointer',
           }}
         />
@@ -536,7 +646,9 @@ const OrderCenter = () => {
         >
           <option value="">全部店铺</option>
           {shopList.map((s) => (
-            <option key={s.shop_id || s.shop_name} value={s.shop_id || s.shop_name}>{s.shop_name} ({s.count})</option>
+            <option key={s.shop_id || s.shop_name} value={s.shop_id || s.shop_name}>
+              {s.shop_name || s.platform_shop_name} ({s.count || s.orders})
+            </option>
           ))}
         </select>
         <select
