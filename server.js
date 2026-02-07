@@ -7,6 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
+// 共享 Token 管理（api.js 和 profit.js 共用）
+const tokens = new Map();
+
 // 数据库连接池
 const pool = mysql.createPool({
   host: 'localhost',
@@ -28,11 +31,11 @@ const productsRoutes = require('./routes/products')(pool);
 app.use('/api/products', productsRoutes);
 
 // SKU利润计算路由
-const profitRoutes = require('./routes/profit')(pool);
+const profitRoutes = require('./routes/profit')(pool, tokens);
 app.use('/api/profit', profitRoutes);
 
 // 通用API路由
-const apiRoutes = require('./routes/api')(pool);
+const apiRoutes = require('./routes/api')(pool, tokens);
 app.use('/api', apiRoutes);
 
 // 静态文件：前端 build
