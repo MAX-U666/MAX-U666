@@ -8,6 +8,7 @@ import OrderCenter from './pages/OrderCenter';
 import ProductCenter from './pages/ProductCenter';
 import AdCenter from './pages/AdCenter';
 import ShopAuth from './pages/ShopAuth';
+import DataCollection from './pages/DataCollection';
 import BICenter from './BI';  // 新增：BI中心
 import { styles, getStatusConfig, getDayStatus } from './styles/theme';
 import { useCountdown, useProducts, useProductDetail } from './hooks/useData';
@@ -341,6 +342,7 @@ const App = () => {
         { key: 'orders', label: '订单中心', icon: '📋' },
         { key: 'products', label: '商品中心', icon: '🏪' },
         { key: 'ads', label: '广告中心', icon: '📢' },
+        { key: 'dataCollection', label: '数据采集', icon: '🔧' },
       ]
     },
   ];
@@ -518,6 +520,8 @@ const App = () => {
           <ProductCenter />
         ) : currentModule === 'ads' ? (
           <AdCenter />
+        ) : currentModule === 'dataCollection' ? (
+          <DataCollection />
         ) : currentModule === 'shopAuth' ? (
           <ShopAuth />
         ) : currentView === 'dashboard' ? (
