@@ -101,6 +101,7 @@ const DataCollection = () => {
       if (res.success) {
         setCookieMsg({ type: 'success', text: `✅ Cookie已更新 (${res.length}字符)` });
         setNewCookie('');
+        setCookieStatus(prev => ({ ...prev, expired: false }));
         loadCookieStatus();
       } else {
         setCookieMsg({ type: 'error', text: `❌ ${res.error || '更新失败'}` });
@@ -118,8 +119,8 @@ const DataCollection = () => {
     setDailyResult(null);
     try {
       const orderRes = await apiPost('/api/easyboss/orders/fetch', {
-        dateFrom: orderDateFrom,
-        dateTo: orderDateTo,
+        dateFrom: orderDateFrom + ' 00:00:00',
+        dateTo: orderDateTo + ' 23:59:59',
       });
       const adRes = await apiPost('/api/easyboss/ads/fetch', {
         status: 'ongoing',
@@ -127,6 +128,12 @@ const DataCollection = () => {
         dailyDays: adDailyDays,
       });
       setDailyResult({ order: orderRes, ad: adRes, time: new Date().toISOString() });
+      // 根据采集结果判断Cookie有效性
+      const orderFailed = orderRes.error && (orderRes.error.includes('50001') || orderRes.error.includes('登录'));
+      const adFailed = adRes.error && (adRes.error.includes('50001') || adRes.error.includes('登录'));
+      if (orderFailed || adFailed) {
+        setCookieStatus(prev => ({ ...prev, expired: true }));
+      }
       loadLogs();
     } catch (e) {
       setDailyResult({ error: e.message, time: new Date().toISOString() });
@@ -199,7 +206,11 @@ const DataCollection = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ fontSize: '15px', fontWeight: '600' }}>🔑 Cookie</span>
             {cookieStatus.configured ? (
-              <span style={tagStyle('#059669', '#ECFDF5')}>🟢 有效</span>
+              cookieStatus.expired ? (
+                <span style={tagStyle('#EF4444', '#FEF2F2')}>🔴 已过期</span>
+              ) : (
+                <span style={tagStyle('#059669', '#ECFDF5')}>🟢 有效</span>
+              )
             ) : (
               <span style={tagStyle('#EF4444', '#FEF2F2')}>🔴 未配置</span>
             )}
