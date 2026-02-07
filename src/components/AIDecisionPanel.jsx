@@ -153,7 +153,7 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
           result.push(
             <div key={`code-${codeBlockKey++}`} style={{ 
               background: '#F9FAFB', 
-              border: '1px solid rgba(255,107,53,0.3)', 
+              border: '1px solid #E5E7EB', 
               borderRadius: '8px', 
               padding: '16px', 
               margin: '12px 0',
@@ -188,16 +188,16 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
       }
       
       // 标题 - 支持更多层级
-      if (line.startsWith('## ')) {
-        result.push(<h3 key={i} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 12px 0', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: '8px' }}>{line.replace('## ', '')}</h3>);
+      if (trimmedLine.startsWith('## ') && !trimmedLine.startsWith('### ')) {
+        result.push(<h3 key={i} style={{ color: '#FF6B35', fontSize: '16px', fontWeight: '700', margin: '24px 0 12px 0', borderBottom: '1px solid rgba(255,107,53,0.3)', paddingBottom: '8px' }}>{trimmedLine.replace('## ', '')}</h3>);
         continue;
       }
-      if (line.startsWith('### ')) {
-        result.push(<h4 key={i} style={{ color: '#F59E0B', fontSize: '14px', fontWeight: '600', margin: '16px 0 8px 0' }}>{line.replace('### ', '')}</h4>);
+      if (trimmedLine.startsWith('### ')) {
+        result.push(<h4 key={i} style={{ color: '#EA580C', fontSize: '14px', fontWeight: '700', margin: '20px 0 8px 0', paddingLeft: '10px', borderLeft: '3px solid #EA580C' }}>{trimmedLine.replace('### ', '')}</h4>);
         continue;
       }
-      if (line.startsWith('#### ') || line.startsWith('##### ') || line.startsWith('###### ')) {
-        const text = line.replace(/^#+\s/, '');
+      if (trimmedLine.startsWith('#### ') || trimmedLine.startsWith('##### ') || trimmedLine.startsWith('###### ')) {
+        const text = trimmedLine.replace(/^#+\s/, '');
         result.push(<h5 key={i} style={{ color: '#3B82F6', fontSize: '13px', fontWeight: '600', margin: '12px 0 6px 0' }}>{text}</h5>);
         continue;
       }
@@ -207,8 +207,8 @@ const AIDecisionPanel = ({ selectedProduct, currentDayData, currentDay, onExecut
         continue;
       }
       // 引用块
-      if (line.startsWith('> ')) {
-        result.push(<div key={i} style={{ borderLeft: '3px solid #3B82F6', paddingLeft: '12px', margin: '8px 0', color: '#6B7280', fontStyle: 'italic' }}>{line.replace('> ', '')}</div>);
+      if (trimmedLine.startsWith('> ')) {
+        result.push(<div key={i} style={{ borderLeft: '3px solid #3B82F6', paddingLeft: '12px', margin: '8px 0', color: '#6B7280', fontStyle: 'italic' }}>{trimmedLine.replace('> ', '')}</div>);
         continue;
       }
       // 列表项
