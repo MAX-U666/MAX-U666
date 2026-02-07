@@ -86,7 +86,8 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
     orders: filteredData.reduce((s, d) => s + d.orders, 0),
     qty: filteredData.reduce((s, d) => s + (d.qty || 0), 0),
     revenue: filteredData.reduce((s, d) => s + d.revenue, 0),
-    totalCost: filteredData.reduce((s, d) => s + d.cost + d.packing, 0),
+    totalCost: filteredData.reduce((s, d) => s + d.cost, 0),
+    totalPacking: filteredData.reduce((s, d) => s + d.packing, 0),
     ad: filteredData.reduce((s, d) => s + d.ad, 0),
     profit: filteredData.reduce((s, d) => s + d.profit, 0),
   }), [filteredData]);
@@ -173,6 +174,8 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
             <span className="text-gray-300">|</span>
             <span className="text-gray-500">成本<span className="font-bold text-orange-600 ml-0.5">{formatCNY(totals.totalCost)}</span></span>
             <span className="text-gray-300">|</span>
+            <span className="text-gray-500">打包<span className="font-bold text-pink-600 ml-0.5">{formatCNY(totals.totalPacking)}</span></span>
+            <span className="text-gray-300">|</span>
             <span className="text-gray-500">广告<span className="font-bold text-pink-600 ml-0.5">{formatCNY(totals.ad)}</span></span>
             <span className="text-gray-300">|</span>
             <span className="text-gray-500">利润<span className={`font-bold ml-0.5 ${totals.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCNY(totals.profit)}</span></span>
@@ -193,7 +196,8 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
               <th className="px-4 py-3 text-right font-medium text-gray-500">订单量</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">售出件数</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">回款(CNY)</th>
-              <th className="px-4 py-3 text-right font-medium text-gray-500">总成本</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-500">商品成本</th>
+              <th className="px-4 py-3 text-right font-medium text-gray-500">打包费</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">广告费</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">净利润</th>
               <th className="px-4 py-3 text-center font-medium text-gray-500">ROI</th>
@@ -202,7 +206,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
           </thead>
           <tbody>
             {pagedData.length === 0 ? (
-              <tr><td colSpan="11" className="px-4 py-12 text-center text-gray-500">{isLoading ? '加载中...' : '暂无数据'}</td></tr>
+              <tr><td colSpan="12" className="px-4 py-12 text-center text-gray-500">{isLoading ? '加载中...' : '暂无数据'}</td></tr>
             ) : pagedData.map((sku) => {
               const quadrant = getSkuQuadrant(sku);
               return (
@@ -220,7 +224,8 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                     <td className="px-4 py-3 text-right text-gray-700 font-medium">{sku.orders}</td>
                     <td className="px-4 py-3 text-right text-purple-600 font-medium">{sku.qty || sku.orders}</td>
                     <td className="px-4 py-3 text-right font-medium">{formatCNY(sku.revenue)}</td>
-                    <td className="px-4 py-3 text-right text-blue-600">{formatCNY(sku.cost + sku.packing)}</td>
+                    <td className="px-4 py-3 text-right text-blue-600">{formatCNY(sku.cost)}</td>
+                    <td className="px-4 py-3 text-right text-pink-600">{formatCNY(sku.packing)}</td>
                     <td className="px-4 py-3 text-right text-orange-600">{formatCNY(sku.ad)}</td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-bold ${sku.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -238,7 +243,7 @@ export function SkuTable({ data: parentData, shops: parentShops, loading: parent
                   </tr>
                   {expandedSku === sku.sku && (
                     <tr>
-                      <td colSpan="11" className="bg-gray-50 p-4">
+                      <td colSpan="12" className="bg-gray-50 p-4">
                         <div className="grid grid-cols-3 gap-4">
                           <div className="bg-white rounded-lg p-4 border border-gray-200">
                             <h4 className="text-sm font-semibold text-gray-700 mb-3">💰 成本明细</h4>
