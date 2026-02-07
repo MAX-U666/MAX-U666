@@ -166,7 +166,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
     switch (key) {
       case 'visitors':
       case 'clicks':
-        return '#4B5563';
+        return '#374151';
       case 'natural_visitors':
       case 'natural_clicks':
       case 'natural_orders':
@@ -193,7 +193,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
       case 'manual_orders':
         return '#8B5CF6';
       default:
-        return '#4B5563';
+        return '#374151';
     }
   };
 
@@ -278,7 +278,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                     padding: '14px 8px', 
                     textAlign: 'center', 
                     fontWeight: '600', 
-                    color: '#6B7280', 
+                    color: '#374151', 
                     fontSize: '10px', 
                     textTransform: 'uppercase', 
                     letterSpacing: '0.5px', 
@@ -319,7 +319,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
                         textAlign: 'center', 
                         borderBottom: '1px solid #F3F4F6',
                         color: h.key === 'day' 
-                          ? (isSelected ? '#FF6B35' : '#1F2937')
+                          ? (isSelected ? '#FF6B35' : '#111827')
                           : getCellColor(h.key, row),
                         fontWeight: ['day', 'orders_created', 'natural_orders', 'natural_visitors', 'natural_clicks', 'roi', 'ad_spend', 'ad_revenue', 'revenue_created'].includes(h.key) ? '600' : '400'
                       }}
@@ -343,7 +343,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
           display: 'flex',
           gap: '24px',
           fontSize: '10px',
-          color: '#6B7280'
+          color: '#374151'
         }}>
           <span>📊 <strong>流量</strong>: 总访客/自然访客/浏览/总点击/自然点击/收藏</span>
           <span>🛒 <strong>加购</strong>: 加购人/加购数/加购率</span>
@@ -354,7 +354,7 @@ const DayTable = ({ selectedProduct, selectedDay, onDaySelect }) => {
       )}
       
       {/* 提示 */}
-      <div style={{ padding: '8px 20px', borderTop: '1px solid #E5E7EB', fontSize: '10px', color: '#6B7280', textAlign: 'center' }}>
+      <div style={{ padding: '8px 20px', borderTop: '1px solid #E5E7EB', fontSize: '10px', color: '#374151', textAlign: 'center' }}>
         💡 点击任意行查看该天的 AI 决策分析
       </div>
     </div>
