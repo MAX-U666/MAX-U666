@@ -5,6 +5,7 @@ import { SkuRanking } from "./SkuRanking";
 import { SkuCharts } from "./SkuCharts";
 import { SkuTable } from "./SkuTable";
 import { LinkTable } from "./LinkTable";
+import { authFetch } from '../../../utils/helpers';
 
 export function SkuProfitModule() {
   const [dateRange, setDateRange] = useState("today");
@@ -32,7 +33,7 @@ export function SkuProfitModule() {
       } else {
         url = `/api/profit/sku-list?range=${dateRange}`;
       }
-      const res = await fetch(url);
+      const res = await authFetch(url);
       const json = await res.json();
       if (json.success) {
         setSkuData(json.data || []);
