@@ -148,11 +148,10 @@ const SYSTEM_PROMPT = `# 🧠 Shopee GMV MAX · 电商运营专家 Prompt（完�
 
 在输出的最后，加上一段鼓励性结语，体现专业与信心。`;
 
-module.exports = function(pool) {
+module.exports = function(pool, tokens) {
   const router = express.Router();
   
-  // Token 管理
-  const tokens = new Map();
+  // Token 管理（使用 server.js 传入的共享 tokens Map）
   
   function generateToken() {
     return crypto.randomBytes(32).toString('hex');
