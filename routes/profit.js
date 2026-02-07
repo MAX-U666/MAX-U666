@@ -131,8 +131,8 @@ module.exports = function(pool) {
       // 聚合SKU利润
       const skuMap = {};
       
-      // 按订单编号去重（一个order_sn只算一次打包费）
-      const processedOrderSns = {}; // { mapKey: Set(order_sn) }
+      // 全局按订单编号去重（一个订单只算一次打包费，不管几个SKU）
+      const globalPackedOrderSns = new Set();
 
       for (const item of orderItems) {
         const skuId = item.sku_id;
@@ -145,19 +145,20 @@ module.exports = function(pool) {
             orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
             profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), orderSns: new Set()
           };
-          processedOrderSns[mapKey] = new Set();
+
         }
 
         const s = skuMap[mapKey];
         s.qty += item.quantity || 1;
         s.orderSns.add(item.platform_order_sn);
         
-        // 回款按售价比例分摊（统一汇率）
+        // 回款按售价比例分摊（自带汇率）
+        const xrate = parseFloat(item.exchange_rate) || 2450;
         const escrow = parseFloat(item.escrow_amount) || 0;
         const myPrice = parseFloat(item.discounted_price) || 0;
         const pkgTotal = packageTotals[item.op_order_package_id] || myPrice || 1;
         const ratio = pkgTotal > 0 ? myPrice / pkgTotal : 1;
-        const myEscrowCNY = escrow * ratio * FIXED_RATE;
+        const myEscrowCNY = escrow * ratio / xrate;
         s.revenue += myEscrowCNY;
 
         // 商品成本
@@ -169,10 +170,10 @@ module.exports = function(pool) {
         }
         s.cost += unitCost * (item.quantity || 1);
 
-        // 打包费（按订单编号去重，一个订单只算一次）
-        if (!processedOrderSns[mapKey].has(item.platform_order_sn)) {
+        // 打包费（全局按订单编号去重，一个订单只算一次，分摊给第一个遇到的SKU）
+        if (!globalPackedOrderSns.has(item.platform_order_sn)) {
           s.packing += getPackingCost(item.warehouse_name);
-          processedOrderSns[mapKey].add(item.platform_order_sn);
+          globalPackedOrderSns.add(item.platform_order_sn);
         }
 
         if (item.platform_item_id) {
