@@ -512,6 +512,15 @@ const App = () => {
         {/* 根据模块切换显示不同内容 */}
         {currentModule === 'bi-sku' || currentModule === 'bi-shop' || currentModule === 'bi-order' || currentModule === 'bi-overview' || currentModule === 'bi-products' ? (
           <BICenter defaultTab={currentModule} />
+        ) : currentModule === 'decision' ? (
+          <AIDecisionPanel 
+            selectedProduct={selectedProduct}
+            currentDayData={currentDayData}
+            currentDay={selectedDay}
+            onExecute={onExecute}
+            onAbnormal={onAbnormal}
+            currentUser={currentUser}
+          />
         ) : currentModule === 'execute' ? (
           <ExecuteCenter />
         ) : currentModule === 'orders' ? (
