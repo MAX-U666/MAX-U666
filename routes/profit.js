@@ -132,16 +132,17 @@ module.exports = function(pool) {
       for (const item of orderItems) {
         const skuId = item.sku_id;
         if (!skuId) continue;
+        const mapKey = skuId + '||' + (item.shop_name || '');
         
-        if (!skuMap[skuId]) {
-          skuMap[skuId] = {
+        if (!skuMap[mapKey]) {
+          skuMap[mapKey] = {
             sku: skuId, name: item.sku_name || '', store: item.shop_name || '',
             orders: 0, qty: 0, revenue: 0, cost: 0, packing: 0, ad: 0,
             profit: 0, roi: 0, rate: 0, warehouse: 0, itemIds: new Set(), pkgIds: new Set()
           };
         }
 
-        const s = skuMap[skuId];
+        const s = skuMap[mapKey];
         s.qty += item.quantity || 1;
         s.pkgIds.add(item.op_order_package_id);
         
@@ -177,21 +178,21 @@ module.exports = function(pool) {
         delete sku.pkgIds;
       }
 
-      // 统计每个platform_item_id下各SKU的订单量（用于按订单量占比分摊广告费）
-      const itemIdSkuOrders = {}; // { itemId: { skuId: orders, ... } }
-      for (const sku of Object.values(skuMap)) {
+      // 统计每个platform_item_id下各SKU+店铺的订单量（用于按订单量占比分摊广告费）
+      const itemIdSkuOrders = {}; // { itemId: { mapKey: orders, ... } }
+      for (const [mapKey, sku] of Object.entries(skuMap)) {
         for (const itemId of sku.itemIds) {
           if (!itemIdSkuOrders[itemId]) itemIdSkuOrders[itemId] = {};
-          itemIdSkuOrders[itemId][sku.sku] = (itemIdSkuOrders[itemId][sku.sku] || 0) + sku.orders;
+          itemIdSkuOrders[itemId][mapKey] = (itemIdSkuOrders[itemId][mapKey] || 0) + sku.orders;
         }
       }
 
       // 广告费按订单量占比分摊 + 利润
-      for (const sku of Object.values(skuMap)) {
+      for (const [mapKey, sku] of Object.entries(skuMap)) {
         for (const itemId of sku.itemIds) {
           if (adMap[itemId] && itemIdSkuOrders[itemId]) {
             const totalOrders = Object.values(itemIdSkuOrders[itemId]).reduce((a, b) => a + b, 0);
-            const myOrders = itemIdSkuOrders[itemId][sku.sku] || 0;
+            const myOrders = itemIdSkuOrders[itemId][mapKey] || 0;
             const ratio = totalOrders > 0 ? myOrders / totalOrders : 0;
             sku.ad += adMap[itemId] * ratio;
           }
