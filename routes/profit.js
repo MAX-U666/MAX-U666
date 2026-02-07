@@ -43,7 +43,7 @@ module.exports = function(pool) {
   }
 
   function getPackingCost(warehouseName, exchangeRate) {
-    return 2.8; // 统一仓储费
+    return 3.2; // 统一仓储费
   }
 
   router.get('/sku-list', async (req, res) => {
@@ -124,7 +124,7 @@ module.exports = function(pool) {
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; }); // 含11%增值税
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.1; }); // 含10%增值税
 
       // 聚合SKU利润
       const skuMap = {};
@@ -325,7 +325,7 @@ module.exports = function(pool) {
         GROUP BY platform_item_id
       `, [start, end]);
       const adMap = {};
-      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.11; }); // 含11%增值税
+      adData.forEach(r => { adMap[r.platform_item_id] = (parseFloat(r.total_ad_cny) || 0) * 1.1; }); // 含10%增值税
 
       // 统计每个item_id下各SKU的订单量（用于按订单量占比分摊广告费）
       const itemIdSkuOrders = {}; // { itemId: { skuId: totalQty } }
@@ -587,7 +587,7 @@ module.exports = function(pool) {
           unitCost = singleCostMap[r.sku_id];
         }
         const itemCost = unitCost * (r.quantity || 1);
-        const packCost = 2.8;
+        const packCost = 3.2;
 
         let itemAd = 0;
         if (r.platform_item_id && adMap[String(r.platform_item_id)]) {
