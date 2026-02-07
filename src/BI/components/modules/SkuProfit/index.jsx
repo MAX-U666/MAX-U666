@@ -4,6 +4,7 @@ import { SkuQuadrant } from "./SkuQuadrant";
 import { SkuRanking } from "./SkuRanking";
 import { SkuCharts } from "./SkuCharts";
 import { SkuTable } from "./SkuTable";
+import { LinkTable } from "./LinkTable";
 
 export function SkuProfitModule() {
   const [dateRange, setDateRange] = useState("today");
@@ -13,6 +14,8 @@ export function SkuProfitModule() {
   const [overview, setOverview] = useState(null);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [linkData, setLinkData] = useState([]);
+  const [linkLoading, setLinkLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -40,6 +43,15 @@ export function SkuProfitModule() {
       } else {
         setError(json.error);
       }
+      // 同时拉取链接利润
+      setLinkLoading(true);
+      try {
+        const linkUrl = url.replace('sku-list', 'link-list');
+        const linkRes = await fetch(linkUrl);
+        const linkJson = await linkRes.json();
+        if (linkJson.success) setLinkData(linkJson.data || []);
+      } catch (e) { console.error('链接利润加载失败:', e); }
+      setLinkLoading(false);
     } catch (err) {
       setError(err.message);
     }
@@ -107,6 +119,10 @@ export function SkuProfitModule() {
 
       <div className="bg-white rounded-xl p-5 border border-gray-200">
         <SkuTable data={skuData} shops={shops} loading={loading} />
+      </div>
+
+      <div className="bg-white rounded-xl p-5 border border-gray-200">
+        <LinkTable data={linkData} loading={linkLoading} />
       </div>
     </div>
   );
