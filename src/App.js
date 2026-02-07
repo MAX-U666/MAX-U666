@@ -517,8 +517,8 @@ const App = () => {
             selectedProduct={selectedProduct}
             currentDayData={currentDayData}
             currentDay={selectedDay}
-            onExecute={onExecute}
-            onAbnormal={onAbnormal}
+            onExecute={handleExecute}
+            onAbnormal={() => setShowAbnormalModal(true)}
             currentUser={currentUser}
           />
         ) : currentModule === 'execute' ? (
